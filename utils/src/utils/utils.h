@@ -17,14 +17,12 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-/* Orden de conexiones:
-Server -> Cliente:
-* Kernel -> CPU
-* Kernel -> Memoria
-* CPU -> Memoria
-* I/O -> Kernel
-* I/O -> Memoria
-*/
+//Conexiones
+//Cliente -> Server
+//Kernel -> CPU
+//Kernel -> Memoria
+//CPU -> Memoria
+//Memoria -> Filesystem
 
 
 //colas planificador
@@ -66,7 +64,6 @@ typedef struct
 } t_paquete;
 
 extern t_log* logger;
-extern t_config* config_global;
 
 //socket
     void* recibir_buffer(int*, int);

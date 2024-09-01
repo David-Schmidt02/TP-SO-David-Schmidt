@@ -1,19 +1,5 @@
 #include <utils/utils.h>
 
-t_log* logger;
-t_config* config_global;
-
-//colas planificador
-t_list *sch_cola_ready,*sch_cola_new,*sch_cola_new_plus,*sch_cola_block,*sch_cola_exec;
-
-//semaforos
-sem_t sem_p_ready;
-pthread_mutex_t m_cola_new, m_cola_ready, m_cola_new_plus,m_cola_exec;
-
-
-void decir_hola(char* quien) {
-    printf("Hola desde %s!!\n", quien);
-}
 
 //socket
     int iniciar_servidor(char *puerto)
@@ -150,7 +136,7 @@ void decir_hola(char* quien) {
     {
         t_paquete* paquete = malloc(sizeof(t_paquete));
 
-        paquete->codigo_operacion = MENSAJE;config_get_string_value(config_global, "IP_CPU");
+        paquete->codigo_operacion = MENSAJE;
         paquete->buffer = malloc(sizeof(t_buffer));
         paquete->buffer->size = strlen(mensaje) + 1;
         paquete->buffer->stream = malloc(paquete->buffer->size);
