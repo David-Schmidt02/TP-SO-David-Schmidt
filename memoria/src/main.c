@@ -141,10 +141,7 @@ void *cliente_conexion_filesystem(void * arg_fs){
 		switch (op)
 		{
 		case HANDSHAKE:
-			log_info(logger, "recibi handshake de memoria");
-			break;
-		case INSTRUCCIONES:
-			log_info(logger, "Recibi el archivo de instruccciones de memoria");
+			log_info(logger, "recibi handshake de fs");
 			break;
 		case TERMINATE:
 			flag = 0;
