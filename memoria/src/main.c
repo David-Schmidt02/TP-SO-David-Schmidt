@@ -18,8 +18,8 @@ int main(int argc, char* argv[]) {
     void *ret_value;
 
     //conexiones
-	arg_cpu.puerto = config_get_string_value(config, "PUERTO_ESCUCHA");
-    arg_kernel.puerto = config_get_string_value(config, "PUERTO_ESCUCHA");
+	arg_cpu.puerto = config_get_string_value(config, "PUERTO_CPU");
+    arg_kernel.puerto = config_get_string_value(config, "PUERTO_KERNEL");
     arg_fs.puerto = config_get_string_value(config, "PUERTO_FILESYSTEM");
     arg_fs.ip = config_get_string_value(config, "IP_FILESYSTEM");
 
@@ -38,15 +38,15 @@ int main(int argc, char* argv[]) {
 }
 void *conexion_cpu(void* arg_cpu)
 {
-	argumentos_thread * args = arg_cpu; 
+	argumentos_thread *args = arg_cpu; 
 	t_paquete *handshake_send;
-	t_list *handshake_recv;
-	char * handshake_texto = "handshake";
+	t_paquete *handshake_recv;
+	char * handshake_texto = "conexion con memoria";
 	
 	int server = iniciar_servidor(args->puerto);
 	log_info(logger, "Servidor listo para recibir al cliente CPU");
-	
 	int socket_cliente_cpu = esperar_cliente(server);
+
 	//HANDSHAKE
 	handshake_send = crear_paquete(HANDSHAKE);
 	agregar_a_paquete (handshake_send, handshake_texto , strlen(handshake_texto)+1);
@@ -59,7 +59,7 @@ void *conexion_cpu(void* arg_cpu)
 		{
 			case HANDSHAKE:
 				handshake_recv = recibir_paquete(socket_cliente_cpu);
-				log_info(logger, "me llego:\n");
+				log_info(logger, "me llego:cpu");
 				list_iterate(handshake_recv, (void*) iterator);
 				enviar_paquete(handshake_send, socket_cliente_cpu);
 				break;
@@ -81,8 +81,8 @@ void *conexion_kernel(void* arg_kernel)
 {
 	argumentos_thread * args = arg_kernel; 
 	t_paquete *handshake_send;
-	t_list *handshake_recv;
-	char * handshake_texto = "handshake";
+	t_paquete *handshake_recv;
+	char * handshake_texto = "conexion con memoria";
 	
 	int server = iniciar_servidor(args->puerto);
 	log_info(logger, "Servidor listo para recibir al cliente Kernel");
@@ -100,7 +100,7 @@ void *conexion_kernel(void* arg_kernel)
 			{
 				case HANDSHAKE:
 					handshake_recv = recibir_paquete(socket_cliente_kernel);
-					log_info(logger, "me llego:\n");
+					log_info(logger, "me llego: kernel");
 					list_iterate(handshake_recv, (void*) iterator);
 					enviar_paquete(handshake_send, socket_cliente_kernel);
 					break;
@@ -124,6 +124,7 @@ void *cliente_conexion_filesystem(void * arg_fs){
 	t_paquete* send_handshake;
 	int conexion_memoria_fs;
 	protocolo_socket op;
+	char* valor = "conexion memoria";
 	int flag=1;
 	do
 	{
@@ -133,6 +134,7 @@ void *cliente_conexion_filesystem(void * arg_fs){
 	}while(conexion_memoria_fs == -1);
 	
 	send_handshake = crear_paquete(HANDSHAKE);
+	agregar_a_paquete (send_handshake, valor , strlen(valor)+1);
 	
 	while(flag){
 		enviar_paquete(send_handshake, conexion_memoria_fs);
@@ -141,7 +143,7 @@ void *cliente_conexion_filesystem(void * arg_fs){
 		switch (op)
 		{
 		case HANDSHAKE:
-			log_info(logger, "recibi handshake de fs");
+			log_info(logger, "recibi handshake de filesystem");
 			break;
 		case TERMINATE:
 			flag = 0;

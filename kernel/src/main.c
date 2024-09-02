@@ -30,9 +30,9 @@ int main(int argc, char* argv[]) {
     arg_cpu_interrupt.ip = config_get_string_value(config, "IP_CPU");
 
     //conexiones
-	pthread_create(&tid_memoria, NULL, conexion_memoria, (void *)&arg_memoria);
-    pthread_create(&tid_cpu_dispatch, NULL, conexion_cpu_dispatch, (void *)&arg_cpu_dispatch);
-    pthread_create(&tid_cpu_interrupt, NULL, conexion_cpu_interrupt, (void *)&arg_cpu_interrupt);
+	pthread_create(&tid_memoria, NULL, conexion_memoria, (void *)&arg_memoria.puerto);
+    pthread_create(&tid_cpu_dispatch, NULL, conexion_cpu_dispatch, (void *)&arg_cpu_dispatch.puerto);
+    pthread_create(&tid_cpu_interrupt, NULL, conexion_cpu_interrupt, (void *)&arg_cpu_interrupt.puerto);
 
     //espero fin conexiones
 	pthread_join(tid_memoria, ret_value);
@@ -42,10 +42,11 @@ int main(int argc, char* argv[]) {
 }
 void *conexion_memoria(void * arg_memoria){
 
-	argumentos_thread * args = arg_memoria;
-	t_paquete* send_handshake;
+	argumentos_thread *args = arg_memoria;
+	t_paquete *send_handshake;
 	int conexion_kernel_memoria;
 	protocolo_socket op;
+	char* valor = "conexion kernel";
 	int flag=1;
 	do
 	{
@@ -53,9 +54,9 @@ void *conexion_memoria(void * arg_memoria){
 		sleep(1);
 
 	}while(conexion_kernel_memoria == -1);
-	
-	
+
 	send_handshake = crear_paquete(HANDSHAKE);
+	agregar_a_paquete (send_handshake, valor , strlen(valor)+1); 
 	
 	while(flag){
 		enviar_paquete(send_handshake, conexion_kernel_memoria);
@@ -86,6 +87,7 @@ void *conexion_cpu_dispatch(void * arg_cpu){
 	int conexion_kernel_cpu;
 	protocolo_socket op;
 	int flag=1;
+	char* valor = "conexion kernel->cpu dispatch";
 	do
 	{
 		conexion_kernel_cpu = crear_conexion(args->ip, args->puerto);
@@ -95,7 +97,8 @@ void *conexion_cpu_dispatch(void * arg_cpu){
 	
 	
 	send_handshake = crear_paquete(HANDSHAKE);
-	
+	agregar_a_paquete (send_handshake, valor , strlen(valor)+1); 
+
 	while(flag){
 		enviar_paquete(send_handshake, conexion_kernel_cpu);
 		sleep(1);
@@ -103,7 +106,7 @@ void *conexion_cpu_dispatch(void * arg_cpu){
 		switch (op)
 		{
 		case HANDSHAKE:
-			log_info(logger, "recibi handshake de memoria");
+			log_info(logger, "recibi handshake de cpu_dispatch");
 			break;
 		case INSTRUCCIONES:
 			log_info(logger, "Recibi el archivo de instruccciones de memoria");
@@ -127,6 +130,7 @@ void *conexion_cpu_interrupt(void * arg_cpu){
 	t_paquete* send_handshake;
 	int conexion_kernel_cpu;
 	protocolo_socket op;
+	char* valor = "conexion kernel->cpu interrupt";
 	int flag=1;
 	do
 	{
@@ -137,6 +141,7 @@ void *conexion_cpu_interrupt(void * arg_cpu){
 	
 	
 	send_handshake = crear_paquete(HANDSHAKE);
+	agregar_a_paquete (send_handshake, valor , strlen(valor)+1); 
 	
 	while(flag){
 		enviar_paquete(send_handshake, conexion_kernel_cpu);
@@ -145,7 +150,7 @@ void *conexion_cpu_interrupt(void * arg_cpu){
 		switch (op)
 		{
 		case HANDSHAKE:
-			log_info(logger, "recibi handshake de memoria");
+			log_info(logger, "recibi handshake de cpu_interrupt");
 			break;
 		case INSTRUCCIONES:
 			log_info(logger, "Recibi el archivo de instruccciones de memoria");

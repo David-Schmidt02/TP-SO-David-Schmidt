@@ -34,13 +34,13 @@ void *conexion_memoria(void* arg_memoria)
 {
 	argumentos_thread * args = arg_memoria; 
 	t_paquete *handshake_send;
-	t_list *handshake_recv;
-	char * handshake_texto = "handshake";
+	t_paquete *handshake_recv;
+	char * handshake_texto = "conexion filesystem";
 	
 	int server = iniciar_servidor(args->puerto);
 	log_info(logger, "Servidor listo para recibir al cliente memoria");
-	
 	int socket_cliente_memoria = esperar_cliente(server);
+
 	//HANDSHAKE
 	handshake_send = crear_paquete(HANDSHAKE);
 	agregar_a_paquete (handshake_send, handshake_texto , strlen(handshake_texto)+1);
@@ -53,7 +53,7 @@ void *conexion_memoria(void* arg_memoria)
 			{
 				case HANDSHAKE:
 					handshake_recv = recibir_paquete(socket_cliente_memoria);
-					log_info(logger, "me llego:\n");
+					log_info(logger, "me llego:memoria");
 					list_iterate(handshake_recv, (void*) iterator);
 					enviar_paquete(handshake_send, socket_cliente_memoria);
 					break;

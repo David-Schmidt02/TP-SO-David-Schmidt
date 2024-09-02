@@ -44,7 +44,7 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 {
 	argumentos_thread * args = arg_kernelD; 
 	t_paquete *handshake_send;
-	t_list *handshake_recv;
+	t_paquete *handshake_recv;
 	char * handshake_texto = "handshake";
 	
 	int server = iniciar_servidor(args->puerto);
@@ -63,7 +63,7 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 			{
 				case HANDSHAKE:
 					handshake_recv = recibir_paquete(socket_cliente_kernel);
-					log_info(logger, "me llego:\n");
+					log_info(logger, "me llego: kernel dispatch\n");
 					list_iterate(handshake_recv, (void*) iterator);
 					enviar_paquete(handshake_send, socket_cliente_kernel);
 					break;
@@ -86,7 +86,7 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 {
 	argumentos_thread * args = arg_kernelI; 
 	t_paquete *handshake_send;
-	t_list *handshake_recv;
+	t_paquete *handshake_recv;
 	char * handshake_texto = "handshake";
 	
 	int server = iniciar_servidor(args->puerto);
@@ -105,7 +105,7 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 			{
 				case HANDSHAKE:
 					handshake_recv = recibir_paquete(socket_cliente_kernel);
-					log_info(logger, "me llego:\n");
+					log_info(logger, "me llego: kernel interrupt\n");
 					list_iterate(handshake_recv, (void*) iterator);
 					enviar_paquete(handshake_send, socket_cliente_kernel);
 					break;
@@ -129,6 +129,7 @@ void *cliente_conexion_memoria(void * arg_memoria){
 	argumentos_thread * args = arg_memoria;
 	t_paquete* send_handshake;
 	int conexion_cpu_memoria;
+	char *valor = "conexion cpu";
 	protocolo_socket op;
 	int flag=1;
 	do
@@ -139,6 +140,7 @@ void *cliente_conexion_memoria(void * arg_memoria){
 	}while(conexion_cpu_memoria == -1);
 	
 	send_handshake = crear_paquete(HANDSHAKE);
+	agregar_a_paquete (send_handshake, valor , strlen(valor)+1); 
 	
 	while(flag){
 		enviar_paquete(send_handshake, conexion_cpu_memoria);
