@@ -4,6 +4,7 @@
 #include <stdint.h> 
 #include <utils/utils.h>
 
+
 typedef enum  
 {
     NEW,
@@ -30,14 +31,26 @@ typedef struct{
 }RegistroCPU;
 
 typedef struct {
+    uint32_t parametros[2];
+    char* ID_instruccion;
+    int parametros_validos;
+} t_instruccion;
+
+typedef struct {
     int pid;
     int pc;
     t_list *listaTCB;
+    t_list *listaMUTEX;
 } pcb;
 
 typedef struct {
     int tid;
     int prioridad;
+    t_estado estado;
 } tcb;
+
+pcb* crear_pcb();
+tcb* crear_tcb(int tid, int prioridad);
+void cambiar_estado(tcb* tcb_p, t_estado estado);
 
 #endif
