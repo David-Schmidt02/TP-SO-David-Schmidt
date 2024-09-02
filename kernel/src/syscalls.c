@@ -11,7 +11,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso,int prioridadTI
     int pid=0; 
     int pc=0;
     crear_pcb(pid,pc);
-    THREAD_CREATE(archivo_instrucciones);//hilo a crear me falta pasar
+    THREAD_CREATE(archivo_instrucciones,pid);//hilo a crear me falta pasar
     //asociarTCB(PCB,prioridad,TID=0,t_estado -> new);
 }
 
@@ -24,13 +24,14 @@ void PROCESS_EXIT(tcb* tcb)
 
 //HILOS
 
-void THREAD_CREATE(FILE* archivo_instrucciones)
+void THREAD_CREATE(FILE* archivo_instrucciones,int pid)
 {
     int tid=0;
     int prioridad=0;
     interpretarArchivo(archivo_instrucciones);
     tcb* tcb_p = crear_tcb(tid, prioridad);
     cambiar_estado(tcb_p,READY);
+    log_info(logger, "Creación de Hilo: ## (<%s>:<%d>) Se crea el Hilo - Estado: %d", pid, tid, tcb_p->estado);
 }
 
 void THREAD_JOIN()
@@ -44,6 +45,26 @@ void THREAD_CANCEL()
 }
 
 void THREAD_EXIT()
+{
+
+}
+
+void MUTEX_CREATE()
+{
+
+}
+
+void MUTEX_LOCK()
+{
+
+}
+
+void MUTEX_UNLOCK()
+{
+
+}
+
+void DUMP_MEMORY()
 {
 
 }
