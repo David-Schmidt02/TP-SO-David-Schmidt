@@ -67,6 +67,8 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 					list_iterate(handshake_recv, (void*) iterator);
 					enviar_paquete(handshake_send, socket_cliente_kernel);
 					break;
+				case IO:	
+				
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
 					return (void *)EXIT_FAILURE;
