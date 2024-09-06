@@ -41,16 +41,17 @@ typedef struct {
     int pc;
     t_list *listaTCB;
     t_list *listaMUTEX;
-} pcb;
+} t_pcb;
 
 typedef struct {
     int tid;
     int prioridad;
     t_estado estado;
-} tcb;
+    t_list* lista_espera; // Lista de hilos que están esperando a que el hilo corriendo termine
+} t_tcb;
 
-pcb* crear_pcb();
-tcb* crear_tcb(int tid, int prioridad);
-void cambiar_estado(tcb* tcb_p, t_estado estado);
+t_pcb* crear_pcb();
+t_tcb* crear_tcb(int tid, int prioridad);
+void cambiar_estado(t_tcb* tcb, t_estado estado);
 
 #endif

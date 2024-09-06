@@ -5,30 +5,32 @@
 
 int pid=0;
 int pc=0;
-pcb* crear_pcb()
+
+t_pcb* crear_pcb()
 {
-    pcb* pcb_p = (pcb*)(malloc(sizeof(pcb)));
-    pcb_p->pid = pid;
-    pcb_p->pc = pc;
+    t_pcb* pcb = (t_pcb*)(malloc(sizeof(t_pcb)));
+    pcb->pid = pid;
+    pcb->pc = pc;
     t_list *listaTCB;
     t_list *listaMUTEX;
     pid++;
     pc++;
-    return pcb_p;
+    return pcb;
 }
 
-tcb* crear_tcb(int tid, int prioridad)
+t_tcb* crear_tcb(int tid, int prioridad)
 {
     //falta agregar a la listaTCB
-    tcb* tcb_p = (tcb*)(malloc(sizeof(tcb)));
-    tcb_p->tid = tid;
-    tcb_p->prioridad = prioridad;
-    cambiar_estado(tcb_p,NEW);
+    t_tcb* tcb = (t_tcb*)(malloc(sizeof(t_tcb)));
+    tcb->tid = tid;
+    tcb->prioridad = prioridad;
+    cambiar_estado(tcb,NEW);
+    tcb->lista_espera = list_create();  // Inicializa la lista de hilos en espera
     pc++;
-    return tcb_p;
+    return tcb;
 }
 
-void cambiar_estado(tcb* tcb_p, t_estado estado)
+void cambiar_estado(t_tcb* tcb, t_estado estado)
 {
-    tcb_p->estado = estado;
+    tcb->estado = estado;
 }

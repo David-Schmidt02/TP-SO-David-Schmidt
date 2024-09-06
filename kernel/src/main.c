@@ -1,9 +1,16 @@
 #include <main.h>
+#include <pcb.h>
 
 t_log *logger;
+t_list* lista_global_tcb;
+t_tcb* hilo_actual;
 
 int main(int argc, char* argv[]) {
     
+	// Inicializo las variables globales
+	lista_global_tcb = list_create();
+    hilo_actual = NULL;
+
     pthread_t tid_memoria;
     pthread_t tid_cpu_dispatch;
     pthread_t tid_cpu_interrupt;
