@@ -22,11 +22,13 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso,int prioridadTI
 
 void PROCESS_EXIT(t_tcb* tcb)
 {
+    
     //matar PCB correspondiente al tcb
     //todos los TCB a t_estado a EXIT
     //cambiar_estado(tcb, EXIT);
     //SOLO SI EL TCB ESTA EN 0
 }
+
 
 //HILOS
 
@@ -76,6 +78,11 @@ void THREAD_CANCEL(int tid) {
 void THREAD_EXIT()
 {
 
+}
+
+void IO(float milisec, int tcb_id)
+{
+    
 }
 
 void MUTEX_CREATE()

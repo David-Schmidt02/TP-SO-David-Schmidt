@@ -43,6 +43,7 @@ typedef enum
     HANDSHAKE,
     MENSAJE,
     PAQUETE,
+    ,
     INSTRUCCIONES,
     TERMINATE,
     INTERRUPCION,
