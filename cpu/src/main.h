@@ -3,6 +3,16 @@
 #include <string.h>
 #include <commons/log.h>
 #include <utils/utils.h>
+typedef enum  
+{
+    SET,
+    SUB,
+    SUM,
+    JNZ,
+    READ_MEM,
+    WRITE_MEM,
+    LOG
+}t_operaciones; // 
 
 void *conexion_kernel_dispatch(void * arg_kernelD);
 void *conexion_kernel_interrupt(void* arg_kernelI);
