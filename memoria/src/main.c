@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
 
     //conexiones
 	pthread_create(&tid_cpu, NULL, conexion_cpu, (void *)&arg_cpu);
-	pthread_create(&tid_kernel, NULL, conexion_kernel, (void *)&arg_kernel);
+	pthread_create(&tid_kernel, NULL, server_multihilo_kernel, (void *)&arg_kernel);
 	pthread_create(&tid_fs, NULL, cliente_conexion_filesystem, (void *)&arg_fs);
 	//conexiones
 
@@ -35,6 +35,39 @@ int main(int argc, char* argv[]) {
 	pthread_join(tid_fs, ret_value);
 	//espero fin conexiones
 
+}
+void *server_multihilo_kernel(void* arg_server){
+
+	argumentos_thread * args = arg_server;
+	pthread_t aux_thread;
+	t_list lista_t_peticiones;
+	void* ret_value;
+
+	int server = iniciar_servidor(args->puerto);
+	log_info(logger, "Servidor listo para recibir al cliente Kernel");
+	
+	while (true)
+	{
+		int socket_cliente_kernel = esperar_cliente(server);
+	
+		pthread_create(&aux_thread, NULL, peticion_kernel, (void *)&socket_cliente_kernel;
+		list_add(lista_t_peticiones, aux_thread);
+	}
+	
+	for(int i=0;i<list_size(lista_t_peticiones);i++){
+		pthread_join(list_remove(), ret_value);
+		log_info(logger, "peticion de kernel terminada en: %s", ret_value);
+	}
+
+	close(server);
+    return (void *)EXIT_SUCCESS;
+}
+void *peticion_kernel(void* arg_peticion){
+	int socket = arg_peticion;
+	//atender peticion
+	//notificar resultado a kernel
+	close(socket); //cerrar socket
+	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
 void *conexion_cpu(void* arg_cpu)
 {
@@ -77,7 +110,7 @@ void *conexion_cpu(void* arg_cpu)
 	close(socket_cliente_cpu);
     return (void *)EXIT_SUCCESS;
 }
-void *conexion_kernel(void* arg_kernel)
+void *conexion_kernel(void* arg_kernel) //deprecada?
 {
 	argumentos_thread * args = arg_kernel; 
 	t_paquete *handshake_send;
