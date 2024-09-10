@@ -47,7 +47,8 @@ typedef enum
     TERMINATE,
     INTERRUPCION,
     PCB_CPU,
-    FIN_PRO
+    FIN_PRO,
+    PETICION_KERNEL
 
 }protocolo_socket;
 

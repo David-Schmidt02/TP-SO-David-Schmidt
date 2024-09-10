@@ -42,19 +42,36 @@ void *server_multihilo_kernel(void* arg_server){
 	pthread_t aux_thread;
 	t_list lista_t_peticiones;
 	void* ret_value;
+	int cod_op;
+	int flag = 1; //1: operar, 2: TERMINATE
 
-	int server = iniciar_servidor(args->puerto);
+	int server = iniciar_servidor(args->puerto); //abro server
 	log_info(logger, "Servidor listo para recibir al cliente Kernel");
 	
-	while (true)
+	while (flag)
 	{
-		int socket_cliente_kernel = esperar_cliente(server);
+		int socket_cliente_kernel = esperar_cliente(server); //pausado hasta que llegue una peticion nueva (nuevo cliente)
 	
-		pthread_create(&aux_thread, NULL, peticion_kernel, (void *)&socket_cliente_kernel;
-		list_add(lista_t_peticiones, aux_thread);
+		cod_op = recibir_operacion(socket_cliente_kernel);
+		switch (cod_op)
+		{
+			case PETICION_KERNEL:
+				pthread_create(&aux_thread, NULL, peticion_kernel, (void *)&socket_cliente_kernel);
+				list_add(lista_t_peticiones, aux_thread);
+				log_info(logger, "nueva peticion id %s", aux_thread);
+				break;
+			case TERMINATE:
+				log_error(logger, "TERMINATE recibido de KERNEL");
+				flag=0;
+				break;
+			default:
+				log_warning(logger,"Peticion invalida %s", cod_op);
+				break;
+		}
+		
 	}
 	
-	for(int i=0;i<list_size(lista_t_peticiones);i++){
+	for(int i=0;i<list_size(lista_t_peticiones);i++){ //en caso de que el while de arriba termine, espera a todas las peticiones antes de finalizar el server
 		pthread_join(list_remove(), ret_value);
 		log_info(logger, "peticion de kernel terminada en: %s", ret_value);
 	}
@@ -110,7 +127,7 @@ void *conexion_cpu(void* arg_cpu)
 	close(socket_cliente_cpu);
     return (void *)EXIT_SUCCESS;
 }
-void *conexion_kernel(void* arg_kernel) //deprecada?
+void *conexion_kernel(void* arg_kernel) //reemplazado por server_multihilo_kernel
 {
 	argumentos_thread * args = arg_kernel; 
 	t_paquete *handshake_send;
