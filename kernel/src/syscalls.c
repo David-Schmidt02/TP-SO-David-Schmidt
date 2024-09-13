@@ -7,17 +7,16 @@ extern t_tcb* hilo_actual;          // Variable global que guarda el hilo actual
 
 //PROCESOS
 
-void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso,int prioridadTID)
+void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadTID)
 {
     //separar el archivo de instrucciones;
     int pid=0; 
     int pc=0;
     crear_pcb(pid,pc);
-    THREAD_CREATE(archivo_instrucciones,pid);//hilo a crear me falta pasar
+    log_info(logger, "Creación de Proceso: ## (<pid>:<%d>) Se crea el Proceso - Estado: NEW", pid);
+    THREAD_CREATE(archivo_instrucciones, pid);//hilo a crear me falta pasar
     //asociarTCB(PCB,prioridad,TID=0,t_estado -> new);
 
-    log_info(logger, "Creación de Proceso: ## (<pid>:<%d>) Se crea el Proceso - Estado: NEW", pid);
-    
 }
 
 void PROCESS_EXIT(t_tcb* tcb)
@@ -32,7 +31,7 @@ void PROCESS_EXIT(t_tcb* tcb)
 
 //HILOS
 
-void THREAD_CREATE(FILE* archivo_instrucciones,int pid)
+void THREAD_CREATE(FILE* archivo_instrucciones, int pid)
 {
     int tid=0;
     int prioridad=0;

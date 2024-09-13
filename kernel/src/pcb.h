@@ -39,8 +39,10 @@ typedef struct {
 typedef struct {
     int pid;
     int pc;
+    int quantum;
     t_list *listaTCB;
     t_list *listaMUTEX;
+    RegistroCPU *registro;
 } t_pcb;
 
 typedef struct {
