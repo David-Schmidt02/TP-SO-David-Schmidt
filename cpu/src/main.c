@@ -170,3 +170,4 @@ void *cliente_conexion_memoria(void * arg_memoria){
 	liberar_conexion(conexion_cpu_memoria);
     return (void *)EXIT_SUCCESS;
 }
+

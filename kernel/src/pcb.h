@@ -15,19 +15,18 @@ typedef enum
 }t_estado;
 
 typedef struct{
-    uint32_t PC;
-    uint8_t AX;
-    uint8_t BX;
-    uint8_t CX;
-    uint8_t DX;
-    uint32_t eax;
-    uint32_t ebx;
-    uint32_t ecx;
-    uint32_t edx;
-    uint32_t esi;
-    uint32_t edi;
-    uint32_t ebp;
-    uint32_t esp;
+    uint32_t PC; // Program Counter, indica la próxima instrucción a ejecutar
+    uint32_t AX; // Registro Numérico de propósito general
+    uint32_t BX; // Registro Numérico de propósito general
+    uint32_t CX; // Registro Numérico de propósito general
+    uint32_t DX; // Registro Numérico de propósito general
+    uint32_t EX; // Registro Numérico de propósito general
+    uint32_t FX; // Registro Numérico de propósito general
+    uint32_t GX; // Registro Numérico de propósito general
+    uint32_t HX; // Registro Numérico de propósito general
+    uint32_t base; // Indica la dirección base de la partición del proceso
+    uint32_t limite; // Indica el tamaño de la partición del proceso
+
 }RegistroCPU;
 
 typedef struct {
@@ -57,3 +56,4 @@ t_tcb* crear_tcb(int tid, int prioridad);
 void cambiar_estado(t_tcb* tcb, t_estado estado);
 
 #endif
+
