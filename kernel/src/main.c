@@ -5,6 +5,14 @@ t_log *logger;
 t_list* lista_global_tcb;
 t_tcb* hilo_actual;
 
+/*
+Anotaciones de lo que entiendo que falta hacer en Kernel
+main.c
+    -> Crear dos sockets para mantener una conexión constante con CPU
+    -> Crear una funcion que a partir de cada petición necesaria a memoria se cree una conexión efímera
+    -> Un proceso inicial al inicializar el módulo kernel
+*/
+
 int main(int argc, char* argv[]) {
     
 	// Inicializo las variables globales
@@ -37,6 +45,10 @@ int main(int argc, char* argv[]) {
     arg_cpu_interrupt.ip = config_get_string_value(config, "IP_CPU");
 
     //conexiones
+
+	/*Es correcto inicializar la conexion a memoria de esta forma si se debe realizar para cada peticion
+	una conexion efímera?*/
+	
 	pthread_create(&tid_memoria, NULL, conexion_memoria, (void *)&arg_memoria.puerto);
     pthread_create(&tid_cpu_dispatch, NULL, conexion_cpu_dispatch, (void *)&arg_cpu_dispatch.puerto);
     pthread_create(&tid_cpu_interrupt, NULL, conexion_cpu_interrupt, (void *)&arg_cpu_interrupt.puerto);

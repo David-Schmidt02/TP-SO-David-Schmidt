@@ -13,7 +13,12 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     int pid=0; 
     int pc=0;
     crear_pcb(pid,pc);
+    
+    // D- No debería interpretarse el archivo en cada process create y dentro de este mismo (y por cada instruccion) crear los hilos?
+    // los hilos no se almacenan en el proceso sino en la lista global, pero se crean a medida que se leen las intrucciones del archivo dado (?)
+
     log_info(logger, "Creación de Proceso: ## (<pid>:<%d>) Se crea el Proceso - Estado: NEW", pid);
+
     THREAD_CREATE(archivo_instrucciones, pid);//hilo a crear me falta pasar
     //asociarTCB(PCB,prioridad,TID=0,t_estado -> new);
 
@@ -35,6 +40,9 @@ void THREAD_CREATE(FILE* archivo_instrucciones, int pid)
 {
     int tid=0;
     int prioridad=0;
+
+    //por lo que entendí estas creando un hilo para tratar TODAS las instrucciones de un archivo
+
     interpretarArchivo(archivo_instrucciones);
     t_tcb* tcb = crear_tcb(tid, prioridad);
     cambiar_estado(tcb,READY);
