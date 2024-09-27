@@ -66,52 +66,109 @@ void traducir_direccion(RegistroCPU *cpu, uint32_t dir_logica, uint32_t *dir_fis
     }
 }
 
-// Función para decodificar una instrucción
-void decode(RegistroCPU *cpu, t_instrucciones *inst) 
-{
-    if (strcmp(inst->instruction, "SET") == 0) 
+// Función para decodificar una instrucción y ejecutarla en los registros de la CPU
+void decode(RegistroCPU *cpu, t_instruccion *inst) {
+
+    // Compara el ID de la instrucción y ejecuta la operación correspondiente
+    if (strcmp(inst->ID_instruccion, "SET") == 0) 
     {
-        cpu->registers[inst->params[0]] = inst->params[1]; // Asignar valor al registro
-        log_info(logger, "## TID: %d - Ejecutando: SET - Reg: %d, Valor: %d", 0, inst->params[0], inst->params[1]);
-        
-    } 
-    else if (strcmp(inst->instruction, "SUM") == 0) 
-    {
-        cpu->registers[inst->params[0]] += cpu->registers[inst->params[1]]; // Suma registros
-        log_info(logger, "## TID: %d - Ejecutando: SUM - Reg: %d, Nueva Valor: %d", 0, inst->params[0], cpu->registers[inst->params[0]]);
-        
-        
-    } 
-    else if (strcmp(inst->instruction, "SUB") == 0) 
-    {
-        cpu->registers[inst->params[0]] -= cpu->registers[inst->params[1]]; // Resta registros
-        log_info(logger, "## TID: %d - Ejecutando: SUB - Reg: %d, Nueva Valor: %d", 0, inst->params[0], cpu->registers[inst->params[0]]);
-    } 
-    else if (strcmp(inst->instruction, "READ_MEM") == 0) 
-    {
-        uint32_t dir_logica = cpu->registers[inst->params[1]]; // Dirección lógica
-        uint32_t dir_fisica; // Dirección física a llenar
-        memoryTranslation(cpu, dir_logica, &dir_fisica); // Traducción
-        cpu->registers[inst->params[0]] = 0; // Simulando la lectura, asignar un valor
-        log_info(logger, "## TID: %d - Acción: LEER - Dirección Física: %d", 0, dir_fisica); // Log de acción
-    } 
-    else if (strcmp(inst->instruction, "WRITE_MEM") == 0) 
-    {
-        uint32_t dir_logica = cpu->registers[inst->params[0]]; // Dirección lógica
-        uint32_t dir_fisica; 
-        memoryTranslation(cpu, dir_logica, &dir_fisica); 
-        log_info(logger, "## TID: %d - Acción: ESCRIBIR - Dirección Física: %d, Valor: %d", 0, physicalAddress, cpu->registers[inst->params[1]]);
-    } 
-    else if (strcmp(inst->instruction, "JNZ") == 0) 
-    {
-        if (cpu->registers[inst->params[0]] != 0) // Verifica si el registro no es cero
+        // Instrucción SET: Asigna un valor a un registro
+        if (inst->parametros_validos == 2) // Se necesitan 2 parámetros
         { 
-            cpu->PC = inst->params[1]; // Cambiar el PC
-            log_info(logger, "## TID: %d - JNZ - Nuevo PC: %d", 0, cpu->PC); 
+            uint32_t *reg_destino = registro_aux(cpu, inst->parametros[0]);
+            if (reg_destino != NULL) 
+            {
+                *reg_destino = inst->parametros[1]; // Asigna el valor al registro
+                log_info(logger, "## Ejecutando: SET - Reg: %d, Valor: %d", inst->parametros[0], inst->parametros[1]);
+            } else 
+                log_info(logger, "Error: Registro no válido: %d", inst->parametros[0]);
         }
     } 
+    else if (strcmp(inst->ID_instruccion, "SUM") == 0) 
+    {
+        // Instrucción SUM: Suma el valor de un registro a otro
+        if (inst->parametros_validos == 2) // Se necesitan 2 parámetros
+        { 
+            uint32_t *reg_destino = registro_aux(cpu, inst->parametros[0]);
+            uint32_t *reg_origen = registro_aux(cpu, inst->parametros[1]);
+            if (reg_destino != NULL && reg_origen != NULL) 
+            {
+                *reg_destino += *reg_origen; // Suma el valor del registro origen al destino
+                log_info(logger, "## Ejecutando: SUM - Reg: %d, Nuevo Valor: %d", inst->parametros[0], *reg_destino);
+            } else 
+                log_info(logger, "Error: Registro no válido en SUM");
+        }
+    }
+    else if (strcmp(inst->ID_instruccion, "SUB") == 0) 
+    {
+        // Instrucción SUB: Resta el valor de un registro a otro
+        if (inst->parametros_validos == 2) 
+        {
+            uint32_t *reg_destino = registro_aux(cpu, inst->parametros[0]);
+            uint32_t *reg_origen = registro_aux(cpu, inst->parametros[1]);
+            if (reg_destino != NULL && reg_origen != NULL) 
+            {
+                *reg_destino -= *reg_origen; // Resta el valor del registro origen al destino
+                log_info(logger, "## Ejecutando: SUB - Reg: %d, Nuevo Valor: %d", inst->parametros[0], *reg_destino);
+            } else 
+                log_info(logger, "Error: Registro no válido en SUB");
+        }
+    } 
+    else if (strcmp(inst->ID_instruccion, "READ_MEM") == 0) 
+    {
+        // Instrucción READ_MEM: Lee de memoria a un registro
+        if (inst->parametros_validos == 2) 
+        {
+            uint32_t *reg_destino = registro_aux(cpu, inst->parametros[0]); // Registro donde se guardará el valor leído
+            uint32_t *reg_direccion = registro_aux(cpu, inst->parametros[1]); // Registro que contiene la dirección lógica
+            if (reg_destino != NULL && reg_direccion != NULL) 
+            {
+                uint32_t direccion_fisica = 0;
+                traducir_direccion(cpu, *reg_direccion, &direccion_fisica); // Traduce la dirección lógica a física
+                log_info(logger, "## LEER MEMORIA - Dirección Física: %u", direccion_fisica);
+
+                // iría la lógica de leer de la memoria real y asignar al registro destino
+                *reg_destino = 1234; // Simulación de lectura de memoria, asignamos un valor ficticio
+            } else 
+                log_info(logger, "Error: Registro no válido en READ_MEM");
+        }
+    }
+    else if (strcmp(inst->ID_instruccion, "WRITE_MEM") == 0) 
+    {
+        // Instrucción WRITE_MEM: Escribe en memoria desde un registro
+        if (inst->parametros_validos == 2) 
+        {
+            uint32_t *reg_direccion = registro_aux(cpu, inst->parametros[0]); // Dirección lógica
+            uint32_t *reg_valor = registro_aux(cpu, inst->parametros[1]); // Registro con el valor a escribir
+            if (reg_direccion != NULL && reg_valor != NULL) {
+                uint32_t direccion_fisica = 0;
+                traducir_direccion(cpu, *reg_direccion, &direccion_fisica); // Traduce la dirección lógica a física
+                log_info(logger, "## ESCRIBIR MEMORIA - Dirección Física: %u, Valor: %u", direccion_fisica, *reg_valor);
+
+                // iría la lógica de escribir en la memoria real
+            } else 
+                log_info(logger,"Error: Registro no válido en WRITE_MEM");
+        }
+    }
+    else if (strcmp(inst->ID_instruccion, "JNZ") == 0) 
+    {
+        // Instrucción JNZ: Salta si el valor de un registro no es cero
+        if (inst->parametros_validos == 2) 
+        {
+            uint32_t *reg_comparacion = registro_aux(cpu, inst->parametros[0]); // Registro a comparar con 0
+            if (reg_comparacion != NULL && *reg_comparacion != 0) 
+            {
+                cpu->PC = inst->parametros[1]; // Actualiza el PC 
+                log_info(logger, "## JNZ - Salto a la Instrucción: %u", cpu->PC);
+            } else if (reg_comparacion == NULL) 
+                log_info(logger, "Error: Registro no válido en JNZ");
+        }
+    } else
+        log_info(logger, "Instrucción no reconocida: %s", inst->ID_instruccion);
 
 }
+
+
 
 // Función que ejecuta una instrucción
 void execute(RegistroCPU *cpu) {
