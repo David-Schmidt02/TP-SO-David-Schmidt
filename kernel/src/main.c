@@ -2,15 +2,6 @@
 
 t_log *logger;
 
-t_list* lista_global_tcb;
-t_list* lista_procesos_a_crear_new;
-
-/*
-    -> Crear dos sockets para mantener una conexión constante con CPU
-    -> Crear una funcion que a partir de cada petición necesaria a memoria se cree una conexión efímera
-    -> Un proceso inicial al inicializar el módulo kernel
-*/
-
 int main(int argc, char* argv[]) {
     
     pthread_t tid_memoria;
@@ -25,12 +16,8 @@ int main(int argc, char* argv[]) {
     logger = log_create("kernel.log", "Kernel", 1, LOG_LEVEL_DEBUG);
     t_config *config = config_create("config/kernel.config");
 
-
-    //inicializar kernel con proceso inicial
-
-	//planificadores
-	//inicializar planificador de largo plazo
-	//inicializar planificador de corto plazo
+    //planificador
+    //
 
     //conexiones
 	arg_memoria.puerto = config_get_string_value(config, "PUERTO_MEMORIA");
