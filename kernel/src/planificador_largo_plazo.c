@@ -1,5 +1,4 @@
-#include "planificador_largo_plazo..h"
-
+#include "planificador_largo_plazo.h"
 /*
 Planificador Largo Plazo
     -> Creación de procesos

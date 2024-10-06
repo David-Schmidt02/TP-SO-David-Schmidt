@@ -3,6 +3,7 @@
 
 t_log *logger;
 t_list* lista_global_tcb;
+t_list* procesos_a_crear_NEW;
 t_tcb* hilo_actual;
 
 /*
