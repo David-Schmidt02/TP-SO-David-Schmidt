@@ -1,6 +1,9 @@
 #include <main.h>
 
 t_log *logger;
+int conexion_cpu_memoria;
+int pid;
+int tid;
 
 int main(int argc, char* argv[]) {
 
@@ -131,7 +134,6 @@ void *cliente_conexion_memoria(void * arg_memoria){
 
 	argumentos_thread * args = arg_memoria;
 	t_paquete* send_handshake;
-	int conexion_cpu_memoria;
 	char *valor = "conexion cpu";
 	protocolo_socket op;
 	int flag=1;

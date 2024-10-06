@@ -30,7 +30,7 @@ typedef struct{
 }RegistroCPU;
 
 typedef struct {
-    uint32_t parametros[2]; // almacena los parámetros que acompañan la instrucción. Por ejemplo, en la instrucción SET AX, 5, el primer parámetro (índice 0) sería AX y el segundo parámetro (índice 1) sería 5.
+    char* parametros[2]; // almacena los parámetros que acompañan la instrucción. Por ejemplo, en la instrucción SET AX, 5, el primer parámetro (índice 0) sería AX y el segundo parámetro (índice 1) sería 5.
     char* ID_instruccion; // Almacena el nombre de la instrucción (por ejemplo, "SET", "SUM", "READ_MEM", etc.).
     int parametros_validos; // indica cuántos parámetros han sido asignados a la instrucción. Esto es útil para asegurarte de que cuando intentas acceder a parametros[0] o parametros[1], estos realmente contengan datos válidos.
 } t_instruccion;

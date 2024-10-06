@@ -48,7 +48,9 @@ typedef enum
     INTERRUPCION,
     PCB_CPU,
     FIN_PRO,
-    PETICION_KERNEL
+    PETICION_KERNEL,
+    CONTEXTO,
+    OBTENER_INSTRUCCION
 
 }protocolo_socket;
 
