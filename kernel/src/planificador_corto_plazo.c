@@ -6,44 +6,60 @@ Planificador Corto Plazo
         -> Prioridades
             -> Se elige el hilo a ejecutar según el que tenga la prioridad más baja
         -> Multicolas
-            -> Una cola por cada nivel de prioridad 
+            -> Una cola por cada nivel de prioridad
             -> Entre colas prioridades sin desalojo
     -> Seleccion de hilos a ejecutar
-        -> Transicionarlo al estado EXEC 
+        -> Transicionarlo al estado EXEC
         -> Mandarlo a CPU por el dispatch
         -> Esperar recibirlo con un motivo (si es necesario replanificarlo)
         -> En caso de que se necesite replanificar (por fin de q x ej) se manda a CPU por interrupt
 */
-void obtener_planificador_corto_plazo(){    
-    if( strcmp(ALGORITMO_PLANIFICACION, "FIFO") == 0 ){
+void obtener_planificador_corto_plazo()
+{
+    if (strcmp(ALGORITMO_PLANIFICACION, "FIFO") == 0)
+    {
         corto_plazo_fifo();
     }
-    else if( strcmp(ALGORITMO_PLANIFICACION, "PRIORIDADES") == 0 ){
+    else if (strcmp(ALGORITMO_PLANIFICACION, "PRIORIDADES") == 0)
+    {
         corto_plazo_prioridades();
     }
-    else if( strcmp(ALGORITMO_PLANIFICACION, "CMN") == 0 ){
+    else if (strcmp(ALGORITMO_PLANIFICACION, "CMN") == 0)
+    {
         corto_plazo_colas_multinivel();
     }
-    else{
-        //mensaje de error 
+    else
+    {
+        // mensaje de error
     }
 
-void corto_plazo_fifo(t_list* lista_global_tcb;){
-    while(1){
-        // la lista no puede estar vacia para desencolar -> aplicar un wait 
-        t_tcb *tcb = 
-        proceso_a_exec(pcb);
-        sem_post(&sem_estado_planificacion_ready_to_exec);
+    void corto_plazo_fifo(t_list * lista_global_tcb)
+    {
+        while (1)
+        {
+            // la lista no puede estar vacia para desencolar -> aplicar un wait
+            t_tcb *tcb = desencolar(lista_global_tcb)
+            //exec_hilo(tcb); -> mandarlo a cpu por el dispatch 
+            // -> esperar a que cpu indique el motivo
 
-        enviar_contexto_de_ejecucion(pcb);
-        
-        t_codigo_operacion motivo_desalojo;
-        t_buffer *buffer = crear_buffer();
-        recibir_paquete(fd_cpu_dispatch, &motivo_desalojo, buffer); // Espera por el Dispatch la llegada del contexto actualizado tras la ejecucion del proceso (pid y registros). Junto con el contexto debe llegar el motivo por el cual finalizo la ejecucion (motivo de desalojo)
-        buffer_desempaquetar_contexto_ejecucion(buffer, pcb); // Modifica al pcb con lo que recibe
-        
-        manejar_motivo_desalojo(pcb, motivo_desalojo, buffer, NULL, NULL);
-        
-        eliminar_buffer(buffer);        
+        }
     }
-}
+
+    t_tcb *desencolar(t_list * lista)
+    {
+        if (lista->head == NULL)
+            return NULL; // No hay nada que desencolar
+
+        // Guardar el primer elemento
+        t_link_element *elemento_a_eliminar = lista->head;
+        t_tcb *tcb = (t_tcb *)elemento_a_eliminar->data;
+
+        // Mover la cabeza de la lista y actualizar contador
+        lista->head = elemento_a_eliminar->next;
+        lista->elements_count--;
+
+        //free(elemento_a_eliminar); -> se debe liberar memoria acá?
+
+        // Devolver el puntero al TCB desencolado
+        return tcb;
+    }
