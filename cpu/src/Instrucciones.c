@@ -32,33 +32,61 @@ uint32_t* registro_aux(RegistroCPU *cpu, char* reg) {
 
 
 // Función para obtener el contexto de ejecución de la memoria
-void obtener_contexto_de_memoria (t_pcb *pcb, int tid) {
+void obtener_contexto_de_memoria (RegistroCPU *registro, int pid) {
+    t_paquete *msjerror;
+    t_list *paquete_respuesta;
     // Crear un paquete de solicitud para obtener el contexto
-    send_handshake = crear_paquete(CONTEXTO); // le pondria handshake?, como se que recibo?
-    agregar_a_paquete(send_handshake, &tid, sizeof(tid)); // Agregar TID
+    send_handshake = crear_paquete(CONTEXTO_RECEIVE); // le pondria handshake?, como se que recibo?
+    agregar_a_paquete(send_handshake, &pid, sizeof(tid)); // Agregar TID
 
     // Enviar la solicitud para obtener el contexto
     enviar_paquete(send_handshake, conexion_cpu_memoria);
     eliminar_paquete(send_handshake); // elimina el paquete después de enviarlo
 
     // Recibir la respuesta
+    if (recibir_operacion(conexion_cpu_memoria)==ERROR_MEMORIA){
+        paquete_respuesta = recibir_paquete(conexion_cpu_memoria)
+        msjerror = list_remove(paquete_respuesta, 0);
+        char *error;
+        memcpy(error, msjerror->buffer, sizeof(msjerror->buffer));
+        log_error(logger, error);
+        // --- AGREGAR INTERRUPCION ACA ---
+    }
     paquete_respuesta = recibir_paquete(conexion_cpu_memoria); // Recibir el contexto de ejecución
     if (paquete_respuesta != NULL) 
     {
-        memcpy(&(pcb->registro), paquete_respuesta->buffer, sizeof(pcb->registro));
+        memcpy(&(registro->registro), paquete_respuesta->buffer, sizeof(paquete_respuesta->buffer));
     
         // Log
-        log_info(logger, "## TID: %d - Contexto inicializado" , pcb->pid);
-        log_info(logger, "%d", pcb->pid);
+        log_info(logger, "## PID: %d - Contexto inicializado", pid);
 
     } else 
         log_info(logger,"Error: No se recibió contexto de ejecución.");
 
-    // Cerrar conexión
-    liberar_conexion(conexion_cpu_memoria);
-
-    log_info(logger, "## TID: %d - Solicito Contexto Ejecución", tid); 
+    log_info(logger, "## PID: %d - Solicito Contexto Ejecución", pid); 
 }
+void enviar_contexto_de_memoria (RegistroCPU *registro, int pid){
+    t_paquete *msjerror;
+    t_list *paquete_respuesta;
+    t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
+    agregar_a_paquete(paquete_send, registro, sizeof(registro));
+    agregar_a_paquete(paquete_send, pid, sizeof(pid));
+    enviar_paquete(paquete_send, conexion_cpu_memoria);
+    eliminar_paquete(paquete_send);
+
+    if (recibir_operacion(conexion_cpu_memoria)==ERROR_MEMORIA){
+        paquete_respuesta = recibir_paquete(conexion_cpu_memoria)
+        msjerror = list_remove(paquete_respuesta, 0);
+        char *error;
+        memcpy(error, msjerror->buffer, sizeof(msjerror->buffer));
+        log_error(logger, error);
+        // --- AGREGAR INTERRUPCION ACA ---
+    }
+    else log_info(logger, "contexto de PID %d enviado correctamente", pid);
+    return;
+
+}
+
 
 // Función para obtener la próxima instrucción
 void fetch(t_pcb *pcb) {
