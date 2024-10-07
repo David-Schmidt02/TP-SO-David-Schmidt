@@ -12,3 +12,6 @@ typedef struct {
 
 // Función auxiliar para obtener el puntero a un registro 
 uint32_t* registro_aux(RegistroCPU *cpu, char *reg);
+
+void enviar_contexto_de_memoria (RegistroCPU *registro, int pid);
+void obtener_contexto_de_memoria (RegistroCPU *registro, int pid);

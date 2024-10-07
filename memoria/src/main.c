@@ -1,6 +1,7 @@
 #include <main.h>
 
 t_log *logger;
+int socket_cliente_cpu; //necesito que sea global para usarlo desde sistema.c
 
 int main(int argc, char* argv[]) {
 
@@ -96,12 +97,12 @@ void *conexion_cpu(void* arg_cpu)
 {
 	argumentos_thread *args = arg_cpu; 
 	t_paquete *handshake_send;
-	t_list *handshake_recv;
+	t_list *paquete_recv;
 	char * handshake_texto = "conexion con memoria";
 	
 	int server = iniciar_servidor(args->puerto);
 	log_info(logger, "Servidor listo para recibir al cliente CPU");
-	int socket_cliente_cpu = esperar_cliente(server);
+	socket_cliente_cpu = esperar_cliente(server);
 
 	//HANDSHAKE
 	handshake_send = crear_paquete(HANDSHAKE);
@@ -114,10 +115,13 @@ void *conexion_cpu(void* arg_cpu)
 		switch (cod_op)
 		{
 			case HANDSHAKE:
-				handshake_recv = recibir_paquete(socket_cliente_cpu);
+				paquete_recv = recibir_paquete(socket_cliente_cpu);
 				log_info(logger, "me llego:cpu");
-				list_iterate(handshake_recv, (void*) iterator);
+				list_iterate(paquete_recv, (void*) iterator);
 				enviar_paquete(handshake_send, socket_cliente_cpu);
+				break;
+			case CONTEXTO_RECEIVE:
+				enviar_contexto();
 				break;
 			case -1:
 				log_error(logger, "el cliente se desconecto. Terminando servidor");

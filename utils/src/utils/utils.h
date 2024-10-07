@@ -49,9 +49,11 @@ typedef enum
     PCB_CPU,
     FIN_PRO,
     PETICION_KERNEL,
-    CONTEXTO,
-    OBTENER_INSTRUCCION
-
+    CONTEXTO_SEND,
+    CONTEXTO_RECEIVE,
+    OBTENER_INSTRUCCION,
+    ERROR_MEMORIA
+    
 }protocolo_socket;
 
 typedef struct
@@ -88,7 +90,7 @@ extern t_log* logger;
 //socket
     void leer_consola(void);
     void iterator(char* value);
-    
+
 /**
 * @fn    decir_hola
 * @brief Imprime un saludo al nombre que se pase por parámetro por consola.
