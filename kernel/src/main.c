@@ -5,6 +5,7 @@ t_log *logger;
 t_list* lista_global_tcb;
 t_list* procesos_a_crear_NEW;
 t_tcb* hilo_actual;
+int conexion_kernel_cpu;
 
 /*
 Anotaciones de lo que entiendo que falta hacer en Kernel
@@ -104,7 +105,7 @@ void *conexion_cpu_dispatch(void * arg_cpu){
 
 	argumentos_thread * args = arg_cpu;
 	t_paquete* send_handshake;
-	int conexion_kernel_cpu;
+	conexion_kernel_cpu;
 	protocolo_socket op;
 	int flag=1;
 	char* valor = "conexion kernel->cpu dispatch";
