@@ -8,6 +8,7 @@ t_tcb* hilo_actual;
 int conexion_kernel_cpu;
 t_list* lista_mutexes;
 t_list* lista_procesos;
+t_list* colaIO;
 
 /*
 Anotaciones de lo que entiendo que falta hacer en Kernel
