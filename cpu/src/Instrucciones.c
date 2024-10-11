@@ -129,8 +129,48 @@ void decode(RegistroCPU *cpu, char *inst) {
     if (strcmp(texto[0], "SET") == 0) 
     {
         // Instrucción SET: Asigna un valor a un registro
+        if (inst->parametros_validos == 2) // Se necesitan 2 parámetros 
+            execute(cpu,1,texto); // 1 = SET
+    } 
+    else if (strcmp(texto[0], "SUM") == 0) 
+    {
+        // Instrucción SUM: Suma el valor de un registro a otro   
         if (inst->parametros_validos == 2) // Se necesitan 2 parámetros
-        { 
+            execute(cpu,2,texto); // 2 = SUM
+    }
+    else if (strcmp(texto[0], "SUB") == 0) 
+    {
+        // Instrucción SUB: Resta el valor de un registro a otro
+        if (inst->parametros_validos == 2) 
+            execute(cpu,3,texto);//3 = SUB
+    } 
+    else if (strcmp(texto[0], "READ_MEM") == 0) 
+    {
+        // Instrucción READ_MEM: Lee de memoria a un registro
+        if (inst->parametros_validos == 2) 
+            execute(cpu,4,texto); // 4 = READ_MEM
+
+    }
+    else if (strcmp(texto[0], "WRITE_MEM") == 0) 
+    {
+        // Instrucción WRITE_MEM: Escribe en memoria desde un registro
+        if (inst->parametros_validos == 2) 
+            execute(cpu,5,texto); // 5 = WRITE_MEM
+    }
+    else if (strcmp(texto[0], "JNZ") == 0) 
+    {
+        // Instrucción JNZ: Salta si el valor de un registro no es cero
+        if (inst->parametros_validos == 2) 
+            execute(cpu,6,texto); // 6 = JNZ
+    } else
+        log_info(logger, "Instrucción no reconocida: %s", strcmp(texto[0]);
+}
+
+// Función que ejecuta una instrucción
+void execute(RegistroCPU *cpu, int instruccion, char*texto) {
+    switch (instruccion)
+    {
+        case 1: // SET
             uint32_t *reg_destino = registro_aux(cpu, texto[1]);
             if (reg_destino != NULL) 
             {
@@ -138,13 +178,8 @@ void decode(RegistroCPU *cpu, char *inst) {
                 log_info(logger, "## Ejecutando: SET - Reg: %d, Valor: %d", inst->parametros[0], inst->parametros[1]);
             } else 
                 log_info(logger, "Error: Registro no válido: %d", inst->parametros[0]);
-        }
-    } 
-    else if (strcmp(texto[0], "SUM") == 0) 
-    {
-        // Instrucción SUM: Suma el valor de un registro a otro   
-        if (inst->parametros_validos == 2) // Se necesitan 2 parámetros
-        { 
+        break;
+        case 2: // SUM
             uint32_t *reg_destino = registro_aux(cpu,texto[1]);    
             uint32_t *reg_origen = registro_aux(cpu, texto[2]);
 
@@ -159,13 +194,8 @@ void decode(RegistroCPU *cpu, char *inst) {
                 log_info(logger, "## Ejecutando: SUM - Reg: %d, Nuevo Valor: %d", texto[1], *reg_destino);
             } else
                 log_info(logger, "Error: Registro no válido en SUM");
-        }
-    }
-    else if (strcmp(texto[0], "SUB") == 0) 
-    {
-        // Instrucción SUB: Resta el valor de un registro a otro
-        if (inst->parametros_validos == 2) 
-        {
+        break;
+        case 3: // SUB
             uint32_t *reg_destino = registro_aux(cpu,texto[1]);    
             uint32_t *reg_origen = registro_aux(cpu, texto[2]);
             if (reg_destino != NULL && reg_origen == NULL)
@@ -179,13 +209,8 @@ void decode(RegistroCPU *cpu, char *inst) {
                 log_info(logger, "## Ejecutando: SUB - Reg: %d, Nuevo Valor: %d", texto[1], *reg_destino);
             } else 
                 log_info(logger, "Error: Registro no válido en SUB");
-        }
-    } 
-    else if (strcmp(texto[0], "READ_MEM") == 0) 
-    {
-        // Instrucción READ_MEM: Lee de memoria a un registro
-        if (inst->parametros_validos == 2) 
-        {
+        break;
+        case 4: // READ MEM
             uint32_t *reg_destino = registro_aux(cpu, texto[1]); // Registro donde se guardará el valor leído
             uint32_t *reg_direccion = registro_aux(cpu, texto[2]); // Registro que contiene la dirección lógica
             if (reg_destino != NULL && reg_direccion != NULL) 
@@ -198,13 +223,8 @@ void decode(RegistroCPU *cpu, char *inst) {
                 *reg_destino = 1234; // Simulación de lectura de memoria, asignamos un valor ficticio
             } else 
                 log_info(logger, "Error: Registro no válido en READ_MEM");
-        }
-    }
-    else if (strcmp(texto[0], "WRITE_MEM") == 0) 
-    {
-        // Instrucción WRITE_MEM: Escribe en memoria desde un registro
-        if (inst->parametros_validos == 2) 
-        {
+        break;
+        case 5: // WRITE MEM
             uint32_t *reg_direccion = registro_aux(cpu, texto[1]); // Dirección lógica
             uint32_t *reg_valor = registro_aux(cpu, texto[2]); // Registro con el valor a escribir
             if (reg_direccion != NULL && reg_valor != NULL) {
@@ -215,13 +235,8 @@ void decode(RegistroCPU *cpu, char *inst) {
                 // iría la lógica de escribir en la memoria real
             } else 
                 log_info(logger,"Error: Registro no válido en WRITE_MEM");
-        }
-    }
-    else if (strcmp(texto[0], "JNZ") == 0) 
-    {
-        // Instrucción JNZ: Salta si el valor de un registro no es cero
-        if (inst->parametros_validos == 2) 
-        {
+        break;
+        case 6: // JNZ
             uint32_t *reg_comparacion = registro_aux(cpu, texto[1]); // Registro a comparar con 0
             if (reg_comparacion != NULL && *reg_comparacion != 0) 
             {
@@ -229,17 +244,11 @@ void decode(RegistroCPU *cpu, char *inst) {
                 log_info(logger, "## JNZ - Salto a la Instrucción: %u", cpu->PC);
             } else if (reg_comparacion == NULL) 
                 log_info(logger, "Error: Registro no válido en JNZ");
-        }
-    } else
-        log_info(logger, "Instrucción no reconocida: %s", strcmp(texto[0]);
-
-}
-
-
-
-// Función que ejecuta una instrucción
-void execute(RegistroCPU *cpu) {
-    fetch(cpu); // Obtener la instrucción actual
+        break;
+    default:
+            log_info(logger, "Error: Instrucción no reconocida");
+        break;
+    }
     cpu->PC++; // Incrementar el contador de programa
 }
 
