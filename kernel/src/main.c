@@ -19,7 +19,7 @@ main.c
 
 int main(int argc, char* argv[]) {
     
-    lista_mutexes = list_create();
+    lista_mutexes = list_create(); //esta lista de mutex es una lista a parte de la que tenemos en el tcb
 	lista_procesos = list_create();
 	
 	// Inicializo las variables globales

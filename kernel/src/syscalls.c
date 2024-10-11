@@ -178,10 +178,11 @@ void IO(float milisec, int tcb_id)
     
 }
 
-void MUTEX_CREATE(char* nombre_mutex) {
+void MUTEX_CREATE(char* nombre_mutex,t_pcb pcb) {
     // Verificar si el mutex ya existe
-    for (int i = 0; i < list_size(lista_mutexes); i++) {
-        t_mutex* mutex = list_get(lista_mutexes, i);
+    
+    for (int i = 0; i < list_size(pcb->listaMUTEX); i++) {
+        t_mutex* mutex = list_get(pcb->listaMUTEX, i);
         if (strcmp(mutex->nombre, nombre_mutex) == 0) {
             log_warning(logger, "El mutex %s ya existe.", nombre_mutex);
             return;
@@ -195,16 +196,15 @@ void MUTEX_CREATE(char* nombre_mutex) {
     nuevo_mutex->hilos_esperando = list_create();
 
     // Agregar el mutex a la lista global
-    list_add(lista_mutexes, nuevo_mutex);
-
+    list_add(pcb->listaMUTEX, nuevo_mutex);
     log_info(logger, "Mutex %s creado exitosamente.", nombre_mutex);
 }
 
-void MUTEX_LOCK(char* nombre_mutex, t_tcb* hilo_actual) {
+void MUTEX_LOCK(char* nombre_mutex, t_tcb* hilo_actual,t_pcb pcb) {
     t_mutex* mutex_encontrado = NULL;
 
-    for (int i = 0; i < list_size(lista_mutexes); i++) {
-        t_mutex* mutex = list_get(lista_mutexes, i);
+    for (int i = 0; i < list_size(pcb->listaMUTEX); i++) {
+        t_mutex* mutex = list_get(pcb->listaMUTEX, i);
         if (strcmp(mutex->nombre, nombre_mutex) == 0) {
             mutex_encontrado = mutex;
             break;
@@ -231,11 +231,11 @@ void MUTEX_LOCK(char* nombre_mutex, t_tcb* hilo_actual) {
     }
 }
 
-void MUTEX_UNLOCK(char* nombre_mutex) {
+void MUTEX_UNLOCK(char* nombre_mutex,t_pcb pcb) {
     t_mutex* mutex_encontrado = NULL;
 
-    for (int i = 0; i < list_size(lista_mutexes); i++) {
-        t_mutex* mutex = list_get(lista_mutexes, i);
+    for (int i = 0; i < list_size(pcb->listaMUTEX); i++) {
+        t_mutex* mutex = list_get(pcb->listaMUTEX, i);
         if (strcmp(mutex->nombre, nombre_mutex) == 0) {
             mutex_encontrado = mutex;
             break;
@@ -264,29 +264,11 @@ void MUTEX_UNLOCK(char* nombre_mutex) {
     }
 }
 
-void DUMP_MEMORY() {
+void DUMP_MEMORY(int pid) {
     log_info(logger, "=== DUMP DE MEMORIA ===");
 
-    // Imprimir información sobre los TCBs (hilos)
-    log_info(logger, "Estado de los Hilos:");
-    for (int i = 0; i < list_size(lista_global_tcb); i++) {
-        t_tcb* hilo = list_get(lista_global_tcb, i);
-        log_info(logger, "Hilo TID: %d, Estado: %d, Prioridad: %d", hilo->tid, hilo->estado, hilo->prioridad);
-    }
-
-    // Imprimir información sobre los mutexes
-    log_info(logger, "Estado de los Mutexes:");
-    for (int i = 0; i < list_size(lista_mutexes); i++) {
-        t_mutex* mutex = list_get(lista_mutexes, i);
-        log_info(logger, "Mutex: %s, Estado: %d, Hilos en espera: %d", mutex->nombre, mutex->estado, list_size(mutex->hilos_esperando));
-    }
-
-    // Imprimir información sobre los procesos
-    log_info(logger, "Estado de los Procesos:");
-    for (int i = 0; i < list_size(lista_procesos); i++) {
-        t_pcb* proceso = list_get(lista_procesos, i);
-        log_info(logger, "Proceso PID: %d, PC: %d, Quantum: %d", proceso->pid, proceso->pc, proceso->quantum);
-    }
+    log_info(logger, "Envio un mensaje a memoria que vacie el proceso con el pid %d",pid);
+    log_info(logger, "Espero respuesta de memoria");
 
     log_info(logger, "FIN DEL DUMP DE MEMORIA");
 }

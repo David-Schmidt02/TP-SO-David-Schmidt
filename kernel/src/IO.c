@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <readline/readline.h>
-/*
+/
 void interfaz() {
     
     while(milisec)
@@ -28,4 +28,3 @@ void interfaz() {
     }
     
 }
-*/

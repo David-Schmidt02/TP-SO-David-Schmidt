@@ -37,7 +37,7 @@ void MUTEX_CREATE(char* nombre_mutex);
 void MUTEX_LOCK(char* nombre_mutex, t_tcb* hilo_actual);
 void MUTEX_UNLOCK(char* nombre_mutex);
 
-void DUMP_MEMORY();
+void DUMP_MEMORY(int pid);
 
 t_tcb* obtener_hilo_por_tid(int tid_to_cancel);
 int obtener_tid_del_paquete(t_paquete *paquete);
