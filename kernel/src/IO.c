@@ -34,21 +34,19 @@ void interfaz() {
 //PLANIFICADOR IO
 //FIFO
 //PASA EL PROCESO A BLOCKED, ESPERA EL TIEMPO Y DESBLOQUEA EL PROFCESO (READY)
-void* acceder_Entrada_Salida()
+void* acceder_Entrada_Salida(void * arg)
 {
     while (1)
     {
         // Debo esperar a tener un elemento en la lista
-        sem_wait(cola_ready->sem_estado);
+        sem_wait(colaIO->sem_estado);
         // Utilizo el mutex
-        sem_wait(cola_ready->mutex_estado);
+        pthread_mutex_lock(colaIO->mutex_estado);
         // Desencolo
-        t_tcb *hilo = list_remove(cola->lista_hilos, 0);
+        t_uso_io *peticion = list_remove(colaIO->lista_io, 0);
         // Debería encolarlo en una cola de EXEC
-        sem_wait(cola_ready->mutex_estado);
-        sem_post(cola_ready->sem_estado);
-        // Transiciona a EXEC
-        enviar_a_cpu_dispatch(hilo);
-        // Espera el motivo de la devolución
+        pthread_mutex_unlock(colaIO->mutex_estado);
+        sleep(peticion->milisegundos)
+        //Falta -> poner en ready el tid
     }
 }

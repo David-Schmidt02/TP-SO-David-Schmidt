@@ -34,6 +34,7 @@ typedef struct
     sem_t *sem_estado;
 } t_cola_hilo;
 
+
 // la cola de procesos que llegan a New
 typedef struct
 {
@@ -42,3 +43,5 @@ typedef struct
     pthread_mutex_t *mutex_estado;
     sem_t *sem_estado;
 } t_cola_proceso;
+
+void *obtener_planificador_corto_plazo(void *);

@@ -1,5 +1,6 @@
 #include <main.h>
 #include <pcb.h>
+#include <IO.h>
 
 t_log *logger;
 t_list* lista_global_tcb;
@@ -8,7 +9,7 @@ t_tcb* hilo_actual;
 int conexion_kernel_cpu;
 t_list* lista_mutexes;
 t_list* lista_procesos;
-t_list* colaIO;
+t_cola_IO *colaIO;
 
 /*
 Anotaciones de lo que entiendo que falta hacer en Kernel
@@ -30,6 +31,7 @@ int main(int argc, char* argv[]) {
     pthread_t tid_memoria;
     pthread_t tid_cpu_dispatch;
     pthread_t tid_cpu_interrupt;
+	pthread_t tid_entradaSalida;
     argumentos_thread arg_memoria;
     argumentos_thread arg_cpu_dispatch;
     argumentos_thread arg_cpu_interrupt;
@@ -41,7 +43,7 @@ int main(int argc, char* argv[]) {
 
     //planificador
     //
-
+	pthread_create(&tid_entradaSalida, NULL, acceder_Entrada_Salida, (void *)&NULL);
     //conexiones
 	arg_memoria.puerto = config_get_string_value(config, "PUERTO_MEMORIA");
     arg_memoria.ip = config_get_string_value(config, "IP_MEMORIA");
@@ -60,6 +62,7 @@ int main(int argc, char* argv[]) {
 	pthread_create(&tid_memoria, NULL, conexion_memoria, (void *)&arg_memoria.puerto);
     pthread_create(&tid_cpu_dispatch, NULL, conexion_cpu_dispatch, (void *)&arg_cpu_dispatch.puerto);
     pthread_create(&tid_cpu_interrupt, NULL, conexion_cpu_interrupt, (void *)&arg_cpu_interrupt.puerto);
+	
 
     //espero fin conexiones
 	pthread_join(tid_memoria, ret_value);

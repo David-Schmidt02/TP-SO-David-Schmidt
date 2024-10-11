@@ -16,7 +16,7 @@ Planificador Corto Plazo
         -> Esperar recibirlo con un motivo (si es necesario replanificarlo)
         -> En caso de que se necesite replanificar (por fin de q x ej) se manda a CPU por interrupt
 */
-void obtener_planificador_corto_plazo()
+void *obtener_planificador_corto_plazo(void * arg)
 {   //debo ver como incluir el ALGORITMO_PLANIFICACION
     if (strcmp(ALGORITMO_PLANIFICACION, "FIFO") == 0)
         corto_plazo_fifo();
