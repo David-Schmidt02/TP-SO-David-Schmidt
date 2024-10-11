@@ -1,15 +1,31 @@
 #include <main.h>
 #include <pcb.h>
 #include <IO.h>
+#include <planificador_corto_plazo.h>
 
 t_log *logger;
+
 t_list* lista_global_tcb;
 t_list* procesos_a_crear_NEW;
 t_tcb* hilo_actual;
+
 int conexion_kernel_cpu;
+
 t_list* lista_mutexes;
 t_list* lista_procesos;
 t_cola_IO *colaIO;
+
+t_cola_hilo* hilos_cola_ready;
+t_config *config;
+
+/*
+t_list* lista_global_tcb;
+t_list* procesos_a_crear_NEW;
+t_cola_hilo* hilos_cola_bloqueados;
+t_tcb* hilo_actual;
+
+int conexion_kernel_cpu;
+*/
 
 /*
 Anotaciones de lo que entiendo que falta hacer en Kernel
@@ -35,15 +51,16 @@ int main(int argc, char* argv[]) {
     argumentos_thread arg_memoria;
     argumentos_thread arg_cpu_dispatch;
     argumentos_thread arg_cpu_interrupt;
+	argumentos_thread arg_planificador;
 
     void *ret_value;
 
     logger = log_create("kernel.log", "Kernel", 1, LOG_LEVEL_DEBUG);
-    t_config *config = config_create("config/kernel.config");
+    config = config_create("config/kernel.config");
 
     //planificador
     //
-	pthread_create(&tid_entradaSalida, NULL, acceder_Entrada_Salida, (void *)&NULL);
+	pthread_create(&tid_entradaSalida, NULL, acceder_Entrada_Salida, (void *)&arg_planificador); //PREGUNTAR TEMA PUERTO
     //conexiones
 	arg_memoria.puerto = config_get_string_value(config, "PUERTO_MEMORIA");
     arg_memoria.ip = config_get_string_value(config, "IP_MEMORIA");

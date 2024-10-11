@@ -14,7 +14,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     //separar el archivo de instrucciones;
     int pid=0; 
     int pc=0;
-    crear_pcb(pid,pc);
+    crear_pcb(pid,pc,prioridadTID);
     
     // D- No debería interpretarse el archivo en cada process create y dentro de este mismo (y por cada instruccion) crear los hilos?
     // los hilos no se almacenan en el proceso sino en la lista global, pero se crean a medida que se leen las intrucciones del archivo dado (?)
@@ -178,7 +178,7 @@ void IO(float milisec, int tcb_id)
     
 }
 
-void MUTEX_CREATE(char* nombre_mutex,t_pcb pcb) {
+void MUTEX_CREATE(char* nombre_mutex,t_pcb *pcb) {
     // Verificar si el mutex ya existe
     
     for (int i = 0; i < list_size(pcb->listaMUTEX); i++) {
@@ -200,7 +200,7 @@ void MUTEX_CREATE(char* nombre_mutex,t_pcb pcb) {
     log_info(logger, "Mutex %s creado exitosamente.", nombre_mutex);
 }
 
-void MUTEX_LOCK(char* nombre_mutex, t_tcb* hilo_actual,t_pcb pcb) {
+void MUTEX_LOCK(char* nombre_mutex, t_tcb* hilo_actual,t_pcb *pcb) {
     t_mutex* mutex_encontrado = NULL;
 
     for (int i = 0; i < list_size(pcb->listaMUTEX); i++) {
@@ -231,7 +231,7 @@ void MUTEX_LOCK(char* nombre_mutex, t_tcb* hilo_actual,t_pcb pcb) {
     }
 }
 
-void MUTEX_UNLOCK(char* nombre_mutex,t_pcb pcb) {
+void MUTEX_UNLOCK(char* nombre_mutex,t_pcb *pcb) {
     t_mutex* mutex_encontrado = NULL;
 
     for (int i = 0; i < list_size(pcb->listaMUTEX); i++) {

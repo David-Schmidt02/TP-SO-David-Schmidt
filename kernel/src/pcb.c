@@ -6,12 +6,13 @@
 int pid=0;
 int pc=0;
 
-t_pcb* crear_pcb()
+t_pcb* crear_pcb(int pid,int pc,int prioridadTID)
 {
     t_pcb* pcb = (t_pcb*)(malloc(sizeof(t_pcb)));
     pcb->pid = pid;
     pcb->pc = pc;
     t_list *listaTCB;
+    list_add(listaTCB,crear_tcb(0,prioridadTID));
     t_list *listaMUTEX;
     pid++;
     pc++;

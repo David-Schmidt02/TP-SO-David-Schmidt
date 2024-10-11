@@ -5,8 +5,8 @@
 #include <readline/readline.h>
 #include <main.h>
 
-extern t_list * colaIO;
-void interfaz() {
+extern t_cola_IO * colaIO;
+/*void interfaz() {
     
     while(milisec)
     {
@@ -29,7 +29,7 @@ void interfaz() {
     return 0;    
     }
     
-}
+}*/
 
 //PLANIFICADOR IO
 //FIFO
@@ -46,7 +46,7 @@ void* acceder_Entrada_Salida(void * arg)
         t_uso_io *peticion = list_remove(colaIO->lista_io, 0);
         // Debería encolarlo en una cola de EXEC
         pthread_mutex_unlock(colaIO->mutex_estado);
-        sleep(peticion->milisegundos)
+        sleep(peticion->milisegundos);
         //Falta -> poner en ready el tid
     }
 }

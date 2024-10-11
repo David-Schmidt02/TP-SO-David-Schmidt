@@ -59,7 +59,7 @@ typedef struct {
 } t_mutex;
 
 
-t_pcb* crear_pcb();
+t_pcb* crear_pcb(int pid,int pc,int prioridadTID);
 t_tcb* crear_tcb(int tid, int prioridad);
 void cambiar_estado(t_tcb* tcb, t_estado estado);
 

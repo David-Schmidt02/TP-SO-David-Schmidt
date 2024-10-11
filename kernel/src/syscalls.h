@@ -33,9 +33,9 @@ void THREAD_JOIN(int tid_a_esperar);
 void THREAD_CANCEL(t_paquete *paquete, int socket_cliente_kernel);
 void THREAD_EXIT(int tid);
 
-void MUTEX_CREATE(char* nombre_mutex);
-void MUTEX_LOCK(char* nombre_mutex, t_tcb* hilo_actual);
-void MUTEX_UNLOCK(char* nombre_mutex);
+void MUTEX_CREATE(char* nombre_mutex,t_pcb* pcb);
+void MUTEX_LOCK(char* nombre_mutex, t_tcb* hilo_actual,t_pcb *pcb);
+void MUTEX_UNLOCK(char* nombre_mutex,t_pcb *pcb);
 
 void DUMP_MEMORY(int pid);
 
