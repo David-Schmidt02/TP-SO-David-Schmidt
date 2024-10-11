@@ -46,6 +46,7 @@ typedef enum
     INSTRUCCIONES,
     TERMINATE,
     INTERRUPCION,
+    SEGMENTATION_FAULT,
     PCB_CPU,
     FIN_PRO,
     PETICION_KERNEL,
@@ -53,7 +54,8 @@ typedef enum
     CONTEXTO_RECEIVE,
     OBTENER_INSTRUCCION,
     ERROR_MEMORIA,
-    INFO_HILO // agregado para cuando el kernel le manda al cpu el tid del hilo planificado a ejecutar
+    INFO_HILO, // agregado para cuando el kernel le manda al cpu el tid del hilo planificado a ejecutar
+    OK
     
 }protocolo_socket;
 
