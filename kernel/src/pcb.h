@@ -3,7 +3,7 @@
 
 #include <stdint.h> 
 #include <utils/utils.h>
-
+#include <commons/collections/list.h>
 
 typedef enum  
 {
@@ -50,6 +50,14 @@ typedef struct {
     t_estado estado;
     t_list* lista_espera; // Lista de hilos que están esperando a que el hilo corriendo termine
 } t_tcb;
+
+// Estructura para manejar el mutex
+typedef struct {
+    char* nombre;
+    int estado; // 0 = libre, 1 = bloqueado
+    t_list* hilos_esperando; // Lista de hilos esperando el mutex
+} t_mutex;
+
 
 t_pcb* crear_pcb();
 t_tcb* crear_tcb(int tid, int prioridad);

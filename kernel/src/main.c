@@ -6,6 +6,8 @@ t_list* lista_global_tcb;
 t_list* procesos_a_crear_NEW;
 t_tcb* hilo_actual;
 int conexion_kernel_cpu;
+t_list* lista_mutexes;
+t_list* lista_procesos;
 
 /*
 Anotaciones de lo que entiendo que falta hacer en Kernel
@@ -17,6 +19,9 @@ main.c
 
 int main(int argc, char* argv[]) {
     
+    lista_mutexes = list_create();
+	lista_procesos = list_create();
+	
 	// Inicializo las variables globales
 	lista_global_tcb = list_create();
     hilo_actual = NULL;
