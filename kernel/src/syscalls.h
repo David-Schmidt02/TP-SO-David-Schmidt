@@ -17,9 +17,10 @@
 #define MUTEX_UNLOCK_OP 9
 #define DUMP_MEMORY_OP 10
 #define OK 11
+#define FIN_PROCESO 12
 
-// Declaración global de la lista de mutexes
 extern t_list* lista_mutexes;
+extern int ultimo_tid;
 
 // Declaración de funciones para manejo de instrucciones
 void element_destroyer(void* elemento);
@@ -28,7 +29,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso,int prioridadTI
 void PROCESS_EXIT(t_tcb* tcb);
 
 // Funciones que implementan las syscalls
-void THREAD_CREATE(FILE* archivo_instrucciones,int pid);
+void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad, t_pcb* pcb);
 void THREAD_JOIN(int tid_a_esperar);
 void THREAD_CANCEL(t_paquete *paquete, int socket_cliente_kernel);
 void THREAD_EXIT(int tid);

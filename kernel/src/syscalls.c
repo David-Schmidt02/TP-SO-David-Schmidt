@@ -6,68 +6,173 @@ extern t_list* lista_global_tcb;  // Lista global de TCBs
 extern t_tcb* hilo_actual;          // Variable global que guarda el hilo actual
 extern t_list* lista_mutexes; // Lista global de mutexes
 extern t_list* lista_procesos; // Lista global de procesos
+extern int ultimo_tid;
+
+t_pcb* obtener_pcb_por_tid(int tid) {
+    for (int i = 0; i < list_size(lista_procesos); i++) {
+        t_pcb* pcb = list_get(lista_procesos, i);
+        for (int j = 0; j < list_size(pcb->listaTCB); j++) {
+            t_tcb* tcb_actual = list_get(pcb->listaTCB, j);
+            if (tcb_actual->tid == tid) {
+                return pcb;
+            }
+        }
+    }
+    return NULL;
+}
 
 //PROCESOS
 
-void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadTID)
-{
-    //separar el archivo de instrucciones;
-    int pid=0; 
-    int pc=0;
-    crear_pcb(pid,pc,prioridadTID);
+void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadTID) {
+    int pid = generar_pid_unico();
+    int pc = 0;
+
+    t_pcb* nuevo_pcb = crear_pcb(pid, pc, prioridadTID);
+
+    nuevo_pcb->quantum = prioridadTID;
+
+    log_info(logger, "Creación de Proceso: ## (<pid>:<%d>) Se crea el Proceso - Estado: NEW", nuevo_pcb->pid);
+
+    t_tcb* tcb_principal = crear_tcb(0, prioridadTID);
+    tcb_principal->estado = NEW;
     
-    // D- No debería interpretarse el archivo en cada process create y dentro de este mismo (y por cada instruccion) crear los hilos?
-    // los hilos no se almacenan en el proceso sino en la lista global, pero se crean a medida que se leen las intrucciones del archivo dado (?)
+    log_info(logger, "Creación del hilo principal para el proceso PID: %d", nuevo_pcb->pid);
 
-    // Agrega el PCB a la lista de procesos
-    //list_add(lista_global_tcb, nuevo_pcb);
+    nuevo_pcb->listaTCB = list_create();
+    nuevo_pcb->listaMUTEX = list_create();
 
-    log_info(logger, "Creación de Proceso: ## (<pid>:<%d>) Se crea el Proceso - Estado: NEW", pid);
+    list_add(nuevo_pcb->listaTCB, tcb_principal);
+    
+    t_list* lista_instrucciones = interpretarArchivo(archivo_instrucciones);
 
-    THREAD_CREATE(archivo_instrucciones, pid);//hilo a crear me falta pasar
-    //asociarTCB(PCB,prioridad,TID=0,t_estado -> new);
+    list_add(lista_procesos, nuevo_pcb);
 
+    log_info(logger, "Proceso PID %d agregado a la lista de procesos.", nuevo_pcb->pid);
+
+    liberarInstrucciones(lista_instrucciones);
+
+    log_info(logger, "## (<PID>:<TID>) - Solicitó syscall: PROCESS_CREATE");
 }
 
-void PROCESS_EXIT(t_tcb* tcb)
-{
+void notificar_memoria_fin_proceso(int pid) {
+    t_paquete* paquete = crear_paquete(FIN_PROCESO);
+    agregar_a_paquete(paquete, &pid, sizeof(int));
+
+    enviar_paquete(paquete, conexion_memoria);
+
+    protocolo_socket respuesta = recibir_operacion(conexion_memoria);
+    if (respuesta == OK) {
+        log_info(logger, "Finalización del proceso con PID %d confirmada por la Memoria.", pid);
+    } else {
+        log_error(logger, "Error al finalizar el proceso con PID %d en la Memoria.", pid);
+    }
+
+    eliminar_paquete(paquete);
+}
+
+void eliminar_mutex(t_mutex* mutex) {
+    if (mutex != NULL) {
+        if (mutex->hilos_esperando != NULL) {
+            list_destroy(mutex->hilos_esperando);
+        }
+        free(mutex->nombre);
+        free(mutex);
+    }
+}
+
+void eliminar_pcb(t_pcb* pcb) {
+    if (pcb->listaTCB != NULL) {
+        list_destroy_and_destroy_elements(pcb->listaTCB, (void*) eliminar_tcb);
+    }
+
+    if (pcb->listaMUTEX != NULL) {
+        list_destroy_and_destroy_elements(pcb->listaMUTEX, (void*) eliminar_mutex); // <-- Asegúrate de tener esta función
+    }
+
+    if (pcb->registro != NULL) {
+        free(pcb->registro);
+    }
+
+    free(pcb);
+
+    log_info(logger, "PCB eliminado exitosamente.");
+}
+
+void PROCESS_EXIT(t_tcb* tcb) {
+    t_pcb* pcb_encontrado = NULL;
     
-    //matar PCB correspondiente al tcb
-    //todos los TCB a t_estado a EXIT
-    //cambiar_estado(tcb, EXIT);
-    //SOLO SI EL TCB ESTA EN 0
+    for (int i = 0; i < list_size(lista_procesos); i++) {
+        t_pcb* pcb = list_get(lista_procesos, i);
+        
+        for (int j = 0; j < list_size(pcb->listaTCB); j++) {
+            t_tcb* tcb_actual = list_get(pcb->listaTCB, j);
+            
+            if (tcb_actual->tid == tcb->tid) {
+                pcb_encontrado = pcb;
+                break;
+            }
+        }
+        
+        if (pcb_encontrado != NULL) {
+            break;
+        }
+    }
+
+    if (pcb_encontrado == NULL) {
+        log_warning(logger, "No se encontró el PCB para el TCB TID: %d", tcb->tid);
+        return;
+    }
+
+    log_info(logger, "Finalizando el proceso con PID: %d", pcb_encontrado->pid);
+
+    for (int i = 0; i < list_size(pcb_encontrado->listaTCB); i++) {
+        t_tcb* tcb_asociado = list_get(pcb_encontrado->listaTCB, i);
+        cambiar_estado(tcb_asociado, EXIT);
+        log_info(logger, "TCB TID: %d del proceso PID: %d ha cambiado a estado EXIT", tcb_asociado->tid, pcb_encontrado->pid);
+    }
+
+    notificar_memoria_fin_proceso(pcb_encontrado->pid);
+
+    list_remove_and_destroy_by_condition(lista_procesos, (void*) (pcb_encontrado->pid == pcb_encontrado->pid), (void*) eliminar_pcb);
+
+    log_info(logger, "Proceso con PID: %d ha sido eliminado.", pcb_encontrado->pid);
+    log_info(logger, "## Finaliza el proceso %d", pcb_encontrado->pid);
 }
 
 
 //HILOS
 
-void THREAD_CREATE(FILE* archivo_instrucciones, int pid)
-{
-    int tid=0;
-    int prioridad=0;
+void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad, t_pcb* pcb) {
+    int tid = ++ultimo_tid;
 
-    //por lo que entendí estas creando un hilo para tratar TODAS las instrucciones de un archivo
+    t_tcb* nuevo_tcb = crear_tcb(tid, prioridad);
+    cambiar_estado(nuevo_tcb, READY);
 
-    interpretarArchivo(archivo_instrucciones);
-    t_tcb* tcb = crear_tcb(tid, prioridad);
-    cambiar_estado(tcb,READY);
-    //log_info(logger, "Creación de Hilo: ## (<%s>:<%d>) Se crea el Hilo - Estado: %d", pid, tid, tcb->estado);
-    log_info(logger, "Creación de Hilo: ## (<%d>:<%d>) Se crea el Hilo - Estado: %d", pid, tid, tcb->estado);
+    nuevo_tcb->instrucciones = interpretarArchivo(archivo_instrucciones);
+    list_add(pcb->listaTCB, nuevo_tcb);
 
+    log_info(logger, "## (%d:%d) Se crea el Hilo - Estado: READY", pcb->pid, tid);
 }
 
-void THREAD_JOIN(int tid_a_esperar)
-{
+void THREAD_JOIN(int tid_a_esperar) {
     t_tcb* hilo_a_esperar = obtener_tcb_por_tid(tid_a_esperar);
-    
+
     if (hilo_a_esperar == NULL || hilo_a_esperar->estado == EXIT) {
         log_info(logger, "THREAD_JOIN: Hilo TID %d no encontrado o ya finalizado.", tid_a_esperar);
         return;
     }
-    
+
     t_tcb* hilo_actual = obtener_tcb_actual();
     cambiar_estado(hilo_actual, BLOCK);
     agregar_hilo_a_lista_de_espera(hilo_a_esperar, hilo_actual);
+
+    // Obtengo el PCB correspondiente al hilo actual
+    t_pcb* pcb_hilo_actual = obtener_pcb_por_tid(hilo_actual->tid);
+    if (pcb_hilo_actual != NULL) {
+        log_info(logger, "## (%d:%d) - Bloqueado por: THREAD_JOIN", pcb_hilo_actual->pid, hilo_actual->tid);
+    } else {
+        log_warning(logger, "No se encontró el PCB para el TID %d.", hilo_actual->tid);
+    }
 
     log_info(logger, "THREAD_JOIN: Hilo TID %d se bloquea esperando a Hilo TID %d.", hilo_actual->tid, tid_a_esperar);
 }
@@ -166,20 +271,27 @@ void THREAD_EXIT(int tid) {
     }
 
     hilo_a_salir->estado = EXIT;
+
+    // Obtengo el PCB correspondiente al hilo
+    t_pcb* pcb_hilo_a_salir = obtener_pcb_por_tid(hilo_a_salir->tid);
+    if (pcb_hilo_a_salir == NULL) {
+        log_warning(logger, "No se encontró el PCB para el TID %d.", hilo_a_salir->tid);
+        return;
+    }
+
     log_info(logger, "Hilo TID %d finalizado.", tid);
+    log_info(logger, "## (%d:%d) Finaliza el hilo", pcb_hilo_a_salir->pid, hilo_a_salir->tid);
 
     notificar_memoria_fin_hilo(hilo_a_salir);
-
     eliminar_tcb(hilo_a_salir);
 }
 
 void IO(float milisec, int tcb_id)
 {
-    
+ //log_info(logger, "## (%d:%d) finalizó IO y pasa a READY", hilo_actual->pid, hilo_actual->tid);   
 }
 
 void MUTEX_CREATE(char* nombre_mutex,t_pcb *pcb) {
-    // Verificar si el mutex ya existe
     
     for (int i = 0; i < list_size(pcb->listaMUTEX); i++) {
         t_mutex* mutex = list_get(pcb->listaMUTEX, i);
@@ -189,13 +301,11 @@ void MUTEX_CREATE(char* nombre_mutex,t_pcb *pcb) {
         }
     }
 
-    // Crear el nuevo mutex
     t_mutex* nuevo_mutex = malloc(sizeof(t_mutex));
     nuevo_mutex->nombre = strdup(nombre_mutex);
     nuevo_mutex->estado = 0; // Mutex empieza libre
     nuevo_mutex->hilos_esperando = list_create();
 
-    // Agregar el mutex a la lista global
     list_add(pcb->listaMUTEX, nuevo_mutex);
     log_info(logger, "Mutex %s creado exitosamente.", nombre_mutex);
 }
@@ -211,13 +321,11 @@ void MUTEX_LOCK(char* nombre_mutex, t_tcb* hilo_actual,t_pcb *pcb) {
         }
     }
 
-    // Si el mutex no existe, reportar error
     if (mutex_encontrado == NULL) {
         log_warning(logger, "El mutex %s no existe.", nombre_mutex);
         return;
     }
 
-    // Si el mutex está libre, se bloquea
     if (mutex_encontrado->estado == 0) {
         mutex_encontrado->estado = 1; // Bloqueo
         log_info(logger, "Mutex %s adquirido por el hilo TID %d.", nombre_mutex, hilo_actual->tid);
@@ -242,13 +350,11 @@ void MUTEX_UNLOCK(char* nombre_mutex,t_pcb *pcb) {
         }
     }
 
-    // Si el mutex no existe, reportar error
     if (mutex_encontrado == NULL) {
         log_warning(logger, "El mutex %s no existe.", nombre_mutex);
         return;
     }
 
-    // Si el mutex está bloqueado
     if (mutex_encontrado->estado == 1) {
         mutex_encontrado->estado = 0; // Liberar el mutex
         log_info(logger, "Mutex %s liberado.", nombre_mutex);
