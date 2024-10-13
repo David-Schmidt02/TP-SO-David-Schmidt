@@ -1,6 +1,9 @@
 #include <main.h>
 
 t_log *logger;
+int conexion_cpu_memoria;
+int pid;
+int tid;
 
 int main(int argc, char* argv[]) {
 
@@ -67,6 +70,9 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 					list_iterate(handshake_recv, (void*) iterator);
 					enviar_paquete(handshake_send, socket_cliente_kernel);
 					break;
+				case INSTRUCCIONES:	
+					
+					break;
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
 					return (void *)EXIT_FAILURE;
@@ -128,7 +134,6 @@ void *cliente_conexion_memoria(void * arg_memoria){
 
 	argumentos_thread * args = arg_memoria;
 	t_paquete* send_handshake;
-	int conexion_cpu_memoria;
 	char *valor = "conexion cpu";
 	protocolo_socket op;
 	int flag=1;
@@ -167,3 +172,4 @@ void *cliente_conexion_memoria(void * arg_memoria){
 	liberar_conexion(conexion_cpu_memoria);
     return (void *)EXIT_SUCCESS;
 }
+
