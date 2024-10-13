@@ -26,13 +26,13 @@ extern int ultimo_tid;
 void element_destroyer(void* elemento);
 
 void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso,int prioridadTID);
-void PROCESS_EXIT(t_tcb* tcb);
+void PROCESS_EXIT();
 
 // Funciones que implementan las syscalls
-void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad, t_pcb* pcb);
+void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad);
 void THREAD_JOIN(int tid_a_esperar);
-void THREAD_CANCEL(t_paquete *paquete, int socket_cliente_kernel);
-void THREAD_EXIT(int tid);
+void THREAD_CANCEL(int tid_hilo_a_cancelar);
+void THREAD_EXIT();
 
 void MUTEX_CREATE(char* nombre_mutex,t_pcb* pcb);
 void MUTEX_LOCK(char* nombre_mutex, t_tcb* hilo_actual,t_pcb *pcb);

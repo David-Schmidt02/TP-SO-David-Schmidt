@@ -1,4 +1,7 @@
 #include "planificador_largo_plazo.h"
+
+extern t_list* procesos_a_crear_NEW;
+extern t_cola_proceso* procesos_cola_ready;
 /*
 Planificador Largo Plazo
     -> Creación de procesos
@@ -13,4 +16,3 @@ Planificador Largo Plazo
             libera el TCB asociado (se tiene una lista global de TCBs) y se desbloquean todos los hilos bloqueados por este hilo
             ahora finalizado
 */
-

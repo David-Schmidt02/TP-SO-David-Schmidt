@@ -1,10 +1,19 @@
 #include "planificador_corto_plazo.h"
 
 extern int conexion_kernel_cpu;
-extern t_tcb* hilo_actual; // variable global que indica que hilo se está ejecutando actualmente, 
-//va a servir para no perderlo una vez se mande a cpu y para volver a encolarlo si fue desalojado por fin de q
+extern t_tcb* hilo_actual; // hilo planificado actualmente, 
+extern t_pcb* proceso_actual;
+
 extern t_cola_hilo* hilos_cola_ready;
+extern t_cola_hilo* hilos_cola_bloqueados;
+
 extern t_config *config;
+
+extern t_list* lista_global_tcb;  // Lista global de TCBs  (NO SE USA)      
+extern t_list* lista_mutexes; // Lista global de mutexes
+extern t_list* lista_procesos; // Lista global de procesos
+
+char* algoritmo;
 
 /*
 Planificador Corto Plazo
@@ -21,15 +30,15 @@ Planificador Corto Plazo
         -> En caso de que se necesite replanificar (por fin de q x ej) se manda a CPU por interrupt
 */
 void obtener_planificador_corto_plazo()
-{   //debo ver como incluir el ALGORITMO_PLANIFICACION -> desde el .h  que lo leería desde el .config
-    char * algoritmo = config_get_string_value(config, "ALGORITMO_PLANIFICACION");
-    
+{ 
+    algoritmo = config_get_string_value(config, "ALGORITMO_PLANIFICACION");
     if (strcmp(algoritmo, "FIFO") == 0)
         corto_plazo_fifo(hilos_cola_ready);
     else if (strcmp(algoritmo, "PRIORIDADES") == 0)
         corto_plazo_prioridades(hilos_cola_ready);
-    //else if (strcmp(algoritmo, "CMN") == 0)
-    //    corto_plazo_colas_multinivel(hilos_cola_ready);
+    else if (strcmp(algoritmo, "CMN") == 0){
+        //corto_plazo_colas_multinivel(hilos_cola_ready);
+        }
     else
     {
         // mensaje de error
@@ -40,24 +49,23 @@ void corto_plazo_fifo(t_cola_hilo *cola_ready)
 {
     while (1)
     {
-        t_tcb *hilo_actual;
-        // Debo esperar a tener un elemento en la lista
         sem_wait(cola_ready->sem_estado);
-        // Utilizo el mutex
-        sem_wait(cola_ready->mutex_estado);
-        // Desencolo
-        t_tcb *hilo = list_remove(cola_ready->lista_hilos, 0);
+        pthread_mutex_lock(cola_ready->mutex_estado);
+        t_tcb *hilo = desencolar_hilos_fifo(cola_ready);
         // Debería encolarlo en una cola de EXEC o modificar su estado solamente
-        hilo->estado = EXEC;  // Modificar estado a EXEC
+        hilo->estado = EXEC; 
         hilo_actual = hilo;
-        sem_wait(cola_ready->mutex_estado);
+        pthread_mutex_unlock(cola_ready->mutex_estado);
         sem_post(cola_ready->sem_estado);
-        // Transiciona a EXEC
-        //enviar_a_cpu_dispatch(hilo);
-        // Espera el motivo de la devolución
+        enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
         recibir_motivo_devolucion();
     }
 
+}
+
+t_tcb* desencolar_hilos_fifo(t_cola_hilo* cola_ready){
+    t_tcb *hilo = list_remove(cola_ready->lista_hilos, 0);
+    return hilo;
 }
 
 void corto_plazo_prioridades(t_cola_hilo *cola_ready)
@@ -65,23 +73,33 @@ void corto_plazo_prioridades(t_cola_hilo *cola_ready)
         // Debo esperar a tener un elemento en la lista
         sem_wait(cola_ready->sem_estado);
         // Utilizo el mutex
-        sem_wait(cola_ready->mutex_estado);
+        pthread_mutex_lock(cola_ready->mutex_estado);
         // Ordenar la lista según prioridad (0 es la máxima prioridad)
-        list_sort(cola_ready, (void *)comparar_prioridades); 
+        list_sort(cola_ready->lista_hilos, (void *)comparar_prioridades); 
         // Desencolar el hilo con la prioridad más baja (en la cabeza de la lista)
-        t_tcb *hilo; 
-        //hilo = desencolar_hilo(cola_ready);
+        t_tcb *hilo = desencolar_hilos_prioridades(cola_ready);
         // Transicionar el hilo a EXEC y enviarlo a CPU
         hilo->estado = EXEC;  // Modificar estado a EXEC
-        hilo_actual = hilo; // Si quieres moverlo a una estructura de hilo en ejecución
-        //enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
+        hilo_actual = hilo; // Si querés moverlo a una estructura de hilo en ejecución
+        enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
         // Recibir el motivo de la devolución y actuar en consecuencia
         recibir_motivo_devolucion();
+}
+
+t_tcb* desencolar_hilos_prioridades(t_cola_hilo *cola_ready)
+{
+    sem_wait(cola_ready->sem_estado);
+    pthread_mutex_lock(cola_ready->mutex_estado);
+    list_sort(cola_ready->lista_hilos, (void*)comparar_prioridades);
+    t_tcb *hilo = list_remove(cola_ready->lista_hilos, 0);
+    hilo->estado = EXIT;
+    pthread_mutex_unlock(cola_ready->mutex_estado);
 }
 
 int comparar_prioridades(t_tcb *a, t_tcb *b) {
     return a->prioridad - b->prioridad;
 }
+
 
 // Inicializar las colas multinivel
 void inicializar_colas_multinivel(t_colas_multinivel *multinivel) {

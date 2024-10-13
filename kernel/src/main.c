@@ -5,8 +5,9 @@
 
 t_log *logger;
 
-t_list* lista_global_tcb;
-t_list* procesos_a_crear_NEW;
+t_list* lista_global_tcb; // lista para manipular los hilos
+
+t_pcb* proceso_actual;
 t_tcb* hilo_actual;
 
 int conexion_kernel_cpu;
@@ -15,22 +16,19 @@ t_list* lista_mutexes;
 t_list* lista_procesos;
 t_cola_IO *colaIO;
 
-t_cola_hilo* hilos_cola_ready;
+// Listas para planificar los procesos e hilos (largo plazo)
+t_list* procesos_a_crear_NEW;
+t_cola_proceso* procesos_cola_ready;
+
+// Listas para planificar los hilos (corto plazo)
+t_cola_hilo* hilos_cola_ready; 
+t_cola_hilo* hilos_cola_bloqueados;
 t_config *config;
 
-/*
-t_list* lista_global_tcb;
-t_list* procesos_a_crear_NEW;
-t_cola_hilo* hilos_cola_bloqueados;
-t_tcb* hilo_actual;
-
-int conexion_kernel_cpu;
-*/
 
 /*
 Anotaciones de lo que entiendo que falta hacer en Kernel
 main.c
-    -> Crear dos sockets para mantener una conexión constante con CPU
     -> Crear una funcion que a partir de cada petición necesaria a memoria se cree una conexión efímera
     -> Un proceso inicial al inicializar el módulo kernel
 */
@@ -40,7 +38,8 @@ int main(int argc, char* argv[]) {
     lista_mutexes = list_create(); //esta lista de mutex es una lista a parte de la que tenemos en el tcb
 	lista_procesos = list_create();
 	
-	// Inicializo las variables globales
+	// Inicializo las variables globales -> despues puedo englobar en otra funcion donde inicialice:
+	//variables globales, listas de hilos, listas de procesos, listas de mutexes, etc...
 	lista_global_tcb = list_create();
     hilo_actual = NULL;
 

@@ -11,15 +11,7 @@
 #include <main.h>
 #include <pcb.h>
 
-// permite identificar las colas de distintos estados por los nombres
-// Variables del config
-
-extern char* ALGORITMO_PLANIFICACION;
-extern int QUANTUM;
-extern char* LOG_LEVEL;
-
 // motivos por el cual el cpu devuelve el tid al kernel
-
 typedef enum
 {
     FINALIZACION,
@@ -60,8 +52,10 @@ typedef struct {
 
 void obtener_planificador_corto_plazo();
 void corto_plazo_fifo(t_cola_hilo *cola_ready);
+t_tcb* desencolar_hilos_fifo(t_cola_hilo* cola_ready);
 void corto_plazo_prioridades(t_cola_hilo *cola_ready);
 int comparar_prioridades(t_tcb *a, t_tcb *b);
+t_tcb* desencolar_hilos_prioridades(t_cola_hilo *cola_ready);
 void inicializar_colas_multinivel(t_colas_multinivel *multinivel);
 t_cola_hilo *obtener_o_crear_cola(t_colas_multinivel *multinivel, int prioridad);
 void encolar_hilo_multinivel(t_colas_multinivel *multinivel, t_tcb *hilo);
