@@ -40,6 +40,7 @@ void MUTEX_UNLOCK(char* nombre_mutex,t_pcb *pcb);
 
 void DUMP_MEMORY(int pid);
 
+int generar_pid_unico();
 t_tcb* obtener_hilo_por_tid(int tid_to_cancel);
 int obtener_tid_del_paquete(t_paquete *paquete);
 
