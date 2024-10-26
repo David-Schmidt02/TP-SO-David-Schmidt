@@ -1,6 +1,7 @@
 #include <main.h>
 #include <pcb.h>
-#include "syscalls.h"
+#include <syscalls.h>
+#include "planificador_corto_plazo.h"
 
 extern t_list* lista_global_tcb;  // Lista global de TCBs
 extern t_tcb* hilo_actual;          
@@ -56,10 +57,13 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     list_add(lista_procesos, nuevo_pcb);
 
     log_info(logger, "Proceso PID %d agregado a la lista de procesos.", nuevo_pcb->pid);
-
+    
     liberarInstrucciones(lista_instrucciones);
 
     log_info(logger, "## (<PID>:<TID>) - Solicitó syscall: PROCESS_CREATE");
+
+    //Llamada al planificador de largo plazo para encolar este proceso
+    
 }
 
 void notificar_memoria_fin_proceso(int pid) {
@@ -145,8 +149,6 @@ void PROCESS_EXIT() {
     log_info(logger, "## Finaliza el proceso %d", pcb_encontrado->pid);
 }
 
-
-
 //HILOS
 
 void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad) {
@@ -191,7 +193,6 @@ void finalizar_hilo(t_tcb* hilo) {
         cambiar_estado(hilo_en_espera, READY);
     }
 }
-
 
 void THREAD_CANCEL(int tid_hilo_a_cancelar) { // Esta sys recibe el tid solamente del hilo a cancelar
     t_tcb* hilo_a_cancelar = obtener_tcb_por_tid(tid_hilo_a_cancelar);

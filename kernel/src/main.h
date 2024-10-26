@@ -1,5 +1,5 @@
-#ifndef H_MAIN_
-#define H_MAIN_
+#ifndef MAIN_H
+#define MAIN_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,7 +22,6 @@ typedef struct
 void *conexion_memoria(void * arg_memoria);
 void *conexion_cpu_dispatch(void * arg_cpu_dispatch);
 void *conexion_cpu_interrupt(void * arg_cpu_interrupt);
-
-void levantar_conexiones();
+//void levantar_conexiones();
 
 #endif

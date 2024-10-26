@@ -4,6 +4,7 @@
 #include <stdint.h> 
 #include <utils/utils.h>
 #include "pcb.h"
+#include <main.h>
 
 // Códigos de operación
 #define HANDSHAKE 1

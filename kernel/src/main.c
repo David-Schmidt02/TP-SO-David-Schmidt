@@ -2,13 +2,11 @@
 #include <pcb.h>
 #include <IO.h>
 #include <planificador_corto_plazo.h>
+#include <planificador_largo_plazo.h>
 
 t_log *logger;
 
 t_list* lista_global_tcb; // lista para manipular los hilos
-
-t_pcb* proceso_actual;
-t_tcb* hilo_actual;
 
 int conexion_kernel_cpu;
 
@@ -16,15 +14,12 @@ t_list* lista_mutexes;
 t_list* lista_procesos;
 t_cola_IO *colaIO;
 
-// Listas para planificar los procesos e hilos (largo plazo)
-t_list* procesos_a_crear_NEW;
-t_cola_proceso* procesos_cola_ready;
-
 // Listas para planificar los hilos (corto plazo)
-t_cola_hilo* hilos_cola_ready; 
-t_cola_hilo* hilos_cola_bloqueados;
 t_config *config;
 
+// Mutex para las conexiones con CPU
+pthread_mutex_t mutex_socket_cpu_dispatch;
+pthread_mutex_t mutex_socket_cpu_interrupt;
 
 /*
 Anotaciones de lo que entiendo que falta hacer en Kernel
@@ -35,13 +30,19 @@ main.c
 
 int main(int argc, char* argv[]) {
     
+	int quantum = config_get_int_value(config, "QUANTUM");
+	printf(quantum);
+	
     lista_mutexes = list_create(); //esta lista de mutex es una lista a parte de la que tenemos en el tcb
 	lista_procesos = list_create();
 	
 	// Inicializo las variables globales -> despues puedo englobar en otra funcion donde inicialice:
 	//variables globales, listas de hilos, listas de procesos, listas de mutexes, etc...
+	
 	lista_global_tcb = list_create();
-    hilo_actual = NULL;
+	//hilo_actual=NULL;
+	pthread_mutex_init(&mutex_socket_cpu_dispatch, NULL);
+    pthread_mutex_init(&mutex_socket_cpu_interrupt, NULL);
 
     pthread_t tid_memoria;
     pthread_t tid_cpu_dispatch;
@@ -71,15 +72,11 @@ int main(int argc, char* argv[]) {
     arg_cpu_interrupt.ip = config_get_string_value(config, "IP_CPU");
 
     //conexiones
-
-	/*Es correcto inicializar la conexion a memoria de esta forma si se debe realizar para cada peticion
-	una conexion efímera?*/
 	
 	pthread_create(&tid_memoria, NULL, conexion_memoria, (void *)&arg_memoria.puerto);
     pthread_create(&tid_cpu_dispatch, NULL, conexion_cpu_dispatch, (void *)&arg_cpu_dispatch.puerto);
     pthread_create(&tid_cpu_interrupt, NULL, conexion_cpu_interrupt, (void *)&arg_cpu_interrupt.puerto);
 	
-
     //espero fin conexiones
 	pthread_join(tid_memoria, ret_value);
 	pthread_join(tid_cpu_dispatch, ret_value);
@@ -130,7 +127,6 @@ void *conexion_cpu_dispatch(void * arg_cpu){
 
 	argumentos_thread * args = arg_cpu;
 	t_paquete* send_handshake;
-	conexion_kernel_cpu;
 	protocolo_socket op;
 	int flag=1;
 	char* valor = "conexion kernel->cpu dispatch";

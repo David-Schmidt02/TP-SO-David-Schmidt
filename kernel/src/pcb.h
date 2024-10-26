@@ -39,6 +39,7 @@ typedef struct {
     int pid;
     int pc;
     int quantum;
+    int memoria_necesaria;
     t_list *listaTCB;
     t_list *listaMUTEX;
     RegistroCPU *registro;
@@ -64,6 +65,7 @@ typedef struct {
 t_pcb* crear_pcb(int pid,int pc,int prioridadTID);
 t_tcb* crear_tcb(int pid,int tid, int prioridad);
 void cambiar_estado(t_tcb* tcb, t_estado estado);
+int generar_pid_unico();
 
 #endif
 
