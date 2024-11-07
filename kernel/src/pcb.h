@@ -3,7 +3,7 @@
 
 #include <stdint.h> 
 #include <utils/utils.h>
-
+#include <commons/collections/list.h>
 
 typedef enum  
 {
@@ -39,21 +39,33 @@ typedef struct {
     int pid;
     int pc;
     int quantum;
+    int memoria_necesaria;
     t_list *listaTCB;
     t_list *listaMUTEX;
     RegistroCPU *registro;
 } t_pcb;
 
 typedef struct {
+    int pid;
     int tid;
     int prioridad;
     t_estado estado;
     t_list* lista_espera; // Lista de hilos que están esperando a que el hilo corriendo termine
+    t_list* instrucciones;  // Lista de instrucciones para el hilo
 } t_tcb;
 
-t_pcb* crear_pcb();
-t_tcb* crear_tcb(int tid, int prioridad);
+// Estructura para manejar el mutex
+typedef struct {
+    char* nombre;
+    int estado; // 0 = libre, 1 = bloqueado
+    t_list* hilos_esperando; // Lista de hilos esperando el mutex
+} t_mutex;
+
+
+t_pcb* crear_pcb(int pid,int pc,int prioridadTID);
+t_tcb* crear_tcb(int pid,int tid, int prioridad);
 void cambiar_estado(t_tcb* tcb, t_estado estado);
+int generar_pid_unico();
 
 #endif
 

@@ -30,7 +30,7 @@ extern t_list *sch_cola_ready,*sch_cola_new,*sch_cola_new_plus,*sch_cola_block,*
 
 //semaforos
 extern sem_t sem_p_ready;
-extern pthread_mutex_t m_cola_new, m_cola_ready, m_cola_new_plus,m_cola_exec;
+extern pthread_mutex_t m_cola_new, m_cola_ready, m_cola_new_plus, m_cola_exec;
 
 struct arg_struct {
     char * puerto;
@@ -46,13 +46,16 @@ typedef enum
     INSTRUCCIONES,
     TERMINATE,
     INTERRUPCION,
+    //SEGMENTATION_FAULT, Se podría usar en CPU el enum motivo del planificador_corto_plazo.h
     PCB_CPU,
     FIN_PRO,
     PETICION_KERNEL,
     CONTEXTO_SEND,
     CONTEXTO_RECEIVE,
     OBTENER_INSTRUCCION,
-    ERROR_MEMORIA
+    ERROR_MEMORIA,
+    INFO_HILO, // agregado para cuando el kernel le manda al cpu el tid del hilo planificado a ejecutar
+    OK
     
 }protocolo_socket;
 

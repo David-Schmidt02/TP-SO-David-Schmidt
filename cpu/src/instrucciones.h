@@ -5,10 +5,9 @@
 #include <utils/utils.h>
 #include "../../kernel/src/pcb.h"
 typedef struct {
-    t_instruccion num_instruccion[18]; /* Instrucciones, en el ejemple con el PROCESS_CREATE le tira un 256, calculo que ese es el numero maximo
-                                            pero en total hay 18 si no conte mal*/
-    int cont;  // Contador de instrucciones
-} memoria;
+    char* tipo;       // Tipo de interrupción (por ejemplo, "SEGMENTATION_FAULT", "INTERRUPCION(en este caso solo kernel)")
+    int prioridad;    // Prioridad de la interrupción (1 = alta, 2 = media, etc.)
+} t_interrupcion;
 
 // Función auxiliar para obtener el puntero a un registro 
 uint32_t* registro_aux(RegistroCPU *cpu, char *reg);

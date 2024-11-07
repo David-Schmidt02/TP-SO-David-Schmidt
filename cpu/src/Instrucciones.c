@@ -2,33 +2,34 @@
 
 extern t_log *logger;
 extern int conexion_cpu_memoria;
+extern int conexion_cpu_dispatch;
 extern int pid;
 extern int tid;
 RegistroCPU cpu;
 t_paquete *send_handshake;
 t_paquete *paquete_respuesta;
+t_list* lista_interrupciones;
 
 uint32_t* registro_aux(RegistroCPU *cpu, char* reg) {
-    if  (strcmp(reg,'AX'))
+    if (strcmp(reg, "AX") == 0)
         return &(cpu->AX);
-    else if  (strcmp(reg,'BX'))
+    else if (strcmp(reg, "BX") == 0)
         return &(cpu->BX);
-    else if  (strcmp(reg,'CX'))
+    else if (strcmp(reg, "CX") == 0)
         return &(cpu->CX);
-    else if  (strcmp(reg,'DX'))
+    else if (strcmp(reg, "DX") == 0)
         return &(cpu->DX);
-    else if  (strcmp(reg,'EX'))
+    else if (strcmp(reg, "EX") == 0)
         return &(cpu->EX);
-    else if  (strcmp(reg,'FX'))
+    else if (strcmp(reg, "FX") == 0)
         return &(cpu->FX);
-    else if  (strcmp(reg,'GX'))
+    else if (strcmp(reg, "GX") == 0)
         return &(cpu->GX);
-    else if  (strcmp(reg,'HX'))
+    else if (strcmp(reg, "HX") == 0)
         return &(cpu->HX);
     return NULL; // En caso de que el registro no sea válido
     
 }
-
 
 
 // Función para obtener el contexto de ejecución de la memoria
@@ -126,11 +127,52 @@ void traducir_direccion(RegistroCPU *cpu, uint32_t dir_logica, uint32_t *dir_fis
 void decode(RegistroCPU *cpu, char *inst) {
     char *texto[5] = string_split(inst," "); //5 porque hay instrucciiones que poseen 4 valores: PROCESS_CREATE(0) PROCESO1(1) 256(2) 1(3), la 5ta es pos NULL. ejemplo: string_split("hola, mundo", ",") => ["hola", " mundo", NULL]
     // Compara el ID de la instrucción y ejecuta la operación correspondiente
-    if (strcmp(texto[0], "SET") == 0) 
+    if (strcmp(texto[0], "SET") == 0 && texto[1] && texto[2]) 
     {
         // Instrucción SET: Asigna un valor a un registro
-        if (inst->parametros_validos == 2) // Se necesitan 2 parámetros
-        { 
+        if (inst->parametros_validos == 2) // Se necesitan 2 parámetros 
+            execute(cpu,1,texto); // 1 = SET
+    } 
+    else if (strcmp(texto[0], "SUM") == 0 && texto[1] && texto[2]) 
+    {
+        // Instrucción SUM: Suma el valor de un registro a otro   
+        if (inst->parametros_validos == 2 ) // Se necesitan 2 parámetros
+            execute(cpu,2,texto); // 2 = SUM
+    }
+    else if (strcmp(texto[0], "SUB") == 0 && texto[1] && texto[2]) 
+    {
+        // Instrucción SUB: Resta el valor de un registro a otro
+        if (inst->parametros_validos == 2) 
+            execute(cpu,3,texto);//3 = SUB
+    } 
+    else if (strcmp(texto[0], "READ_MEM") == 0 && texto[1] && texto[2]) 
+    {
+        // Instrucción READ_MEM: Lee de memoria a un registro
+        if (inst->parametros_validos == 2) 
+            execute(cpu,4,texto); // 4 = READ_MEM
+
+    }
+    else if (strcmp(texto[0], "WRITE_MEM") == 0 && texto[1] && texto[2]) 
+    {
+        // Instrucción WRITE_MEM: Escribe en memoria desde un registro
+        if (inst->parametros_validos == 2) 
+            execute(cpu,5,texto); // 5 = WRITE_MEM
+    }
+    else if (strcmp(texto[0], "JNZ") == 0 && texto[1] && texto[2]) 
+    {
+        // Instrucción JNZ: Salta si el valor de un registro no es cero
+        if (inst->parametros_validos == 2) 
+            execute(cpu,6,texto); // 6 = JNZ
+    } else
+        log_info(logger, "Instrucción no reconocida: %s", texto[0];
+        // interrupcion
+}
+
+// Función que ejecuta una instrucción
+void execute(RegistroCPU *cpu, int instruccion, char *texto) {
+    switch (instruccion)
+    {
+        case 1: // SET
             uint32_t *reg_destino = registro_aux(cpu, texto[1]);
             if (reg_destino != NULL) 
             {
@@ -138,13 +180,8 @@ void decode(RegistroCPU *cpu, char *inst) {
                 log_info(logger, "## Ejecutando: SET - Reg: %d, Valor: %d", inst->parametros[0], inst->parametros[1]);
             } else 
                 log_info(logger, "Error: Registro no válido: %d", inst->parametros[0]);
-        }
-    } 
-    else if (strcmp(texto[0], "SUM") == 0) 
-    {
-        // Instrucción SUM: Suma el valor de un registro a otro   
-        if (inst->parametros_validos == 2) // Se necesitan 2 parámetros
-        { 
+        break;
+        case 2: // SUM
             uint32_t *reg_destino = registro_aux(cpu,texto[1]);    
             uint32_t *reg_origen = registro_aux(cpu, texto[2]);
 
@@ -159,13 +196,8 @@ void decode(RegistroCPU *cpu, char *inst) {
                 log_info(logger, "## Ejecutando: SUM - Reg: %d, Nuevo Valor: %d", texto[1], *reg_destino);
             } else
                 log_info(logger, "Error: Registro no válido en SUM");
-        }
-    }
-    else if (strcmp(texto[0], "SUB") == 0) 
-    {
-        // Instrucción SUB: Resta el valor de un registro a otro
-        if (inst->parametros_validos == 2) 
-        {
+        break;
+        case 3: // SUB
             uint32_t *reg_destino = registro_aux(cpu,texto[1]);    
             uint32_t *reg_origen = registro_aux(cpu, texto[2]);
             if (reg_destino != NULL && reg_origen == NULL)
@@ -179,13 +211,8 @@ void decode(RegistroCPU *cpu, char *inst) {
                 log_info(logger, "## Ejecutando: SUB - Reg: %d, Nuevo Valor: %d", texto[1], *reg_destino);
             } else 
                 log_info(logger, "Error: Registro no válido en SUB");
-        }
-    } 
-    else if (strcmp(texto[0], "READ_MEM") == 0) 
-    {
-        // Instrucción READ_MEM: Lee de memoria a un registro
-        if (inst->parametros_validos == 2) 
-        {
+        break;
+        case 4: // READ MEM
             uint32_t *reg_destino = registro_aux(cpu, texto[1]); // Registro donde se guardará el valor leído
             uint32_t *reg_direccion = registro_aux(cpu, texto[2]); // Registro que contiene la dirección lógica
             if (reg_destino != NULL && reg_direccion != NULL) 
@@ -198,13 +225,8 @@ void decode(RegistroCPU *cpu, char *inst) {
                 *reg_destino = 1234; // Simulación de lectura de memoria, asignamos un valor ficticio
             } else 
                 log_info(logger, "Error: Registro no válido en READ_MEM");
-        }
-    }
-    else if (strcmp(texto[0], "WRITE_MEM") == 0) 
-    {
-        // Instrucción WRITE_MEM: Escribe en memoria desde un registro
-        if (inst->parametros_validos == 2) 
-        {
+        break;
+        case 5: // WRITE MEM
             uint32_t *reg_direccion = registro_aux(cpu, texto[1]); // Dirección lógica
             uint32_t *reg_valor = registro_aux(cpu, texto[2]); // Registro con el valor a escribir
             if (reg_direccion != NULL && reg_valor != NULL) {
@@ -215,43 +237,164 @@ void decode(RegistroCPU *cpu, char *inst) {
                 // iría la lógica de escribir en la memoria real
             } else 
                 log_info(logger,"Error: Registro no válido en WRITE_MEM");
-        }
-    }
-    else if (strcmp(texto[0], "JNZ") == 0) 
-    {
-        // Instrucción JNZ: Salta si el valor de un registro no es cero
-        if (inst->parametros_validos == 2) 
-        {
+        break;
+        case 6: // JNZ
             uint32_t *reg_comparacion = registro_aux(cpu, texto[1]); // Registro a comparar con 0
             if (reg_comparacion != NULL && *reg_comparacion != 0) 
             {
-                cpu->PC = texto[2]; // Actualiza el PC 
+                cpu->PC = atoi(texto[2]); // Actualiza el PC, que se supone que es entero el valor del PC
                 log_info(logger, "## JNZ - Salto a la Instrucción: %u", cpu->PC);
             } else if (reg_comparacion == NULL) 
                 log_info(logger, "Error: Registro no válido en JNZ");
-        }
-    } else
-        log_info(logger, "Instrucción no reconocida: %s", strcmp(texto[0]);
-
-}
-
-
-
-// Función que ejecuta una instrucción
-void execute(RegistroCPU *cpu) {
-    fetch(cpu); // Obtener la instrucción actual
+        break;
+    default:
+            log_info(logger, "Error: Instrucción no reconocida");
+        break;
+    }
     cpu->PC++; // Incrementar el contador de programa
 }
 
-void checkInterrupt(RegistroCPU *cpu) {
+void checkInterrupt(RegistroCPU *cpu) { 
+    if (recibir_interrupcion() == 1) { // Verificar si el Kernel ha enviado una interrupción
+        log_info(logger, "## Llega interrupción del Kernel al puerto Interrupt");
+        agregar_interrupcion("INTERRUPCION", 2);  // Interrupción de kernel, prioridad media
+    }
 
-}
+    // Verificar si la CPU generó alguna interrupción (ej: Segmentation Fault)
+    if (cpu_genero_interrupcion()) {  // esta función determina si la CPU generó una interrupción crítica
+        log_info(logger, "## Llega interrupción de la CPU");
+        agregar_interrupcion("SEGMENTATION_FAULT", 1);  // Interrupción crítica de la CPU, prioridad alta
+    }
 
-// Función que inicia el ciclo de ejecución de la CPU
-void runCPU(RegistroCPU *cpu) {
-    while (cpu->PC < memoria.cont) { // Mientras haya instrucciones
-        execute(cpu); // Ejecuta la instrucción
-        checkInterrupt(cpu); // Verifica por interrupciones
+    // Obtener la interrupción de mayor prioridad
+    t_interrupcion* interrupcion_actual = obtener_interrupcion_mayor_prioridad();
+    
+    if (interrupcion_actual != NULL) {
+        if (strcmp(interrupcion_actual->tipo, "SEGMENTATION_FAULT") == 0) {
+            // Manejar Segmentation Fault (interrupción crítica)
+            log_info(logger, "Manejando interrupción: SEGMENTATION_FAULT");
+            
+            // Guardar el contexto de ejecución en Memoria
+            enviar_contexto_de_memoria(cpu, pid);
+            
+            // Notificar al Kernel de la interrupción crítica
+            notificar_kernel_interrupcion(pid, tid);
+
+            // Detener la ejecución del hilo
+            detener_ejecucion();
+
+        } else if (strcmp(interrupcion_actual->tipo, "INTERRUPCION") == 0) {
+            // Manejar interrupción del Kernel
+            log_info(logger, "Manejando interrupción: INTERRUPCION_KERNEL");
+
+            // Guardar el contexto de ejecución en Memoria
+            enviar_contexto_de_memoria(cpu, pid);
+            
+            // Notificar al Kernel de la interrupción de menor prioridad
+            notificar_kernel_interrupcion(pid, tid);
+
+            // No necesariamente detener la ejecución, solo avisar
+        }
+        liberar_interrupcion(interrupcion_actual);
     }
 }
 
+
+int recibir_interrupcion() {
+    // Kernel envía una señal de interrupción a la CPU
+    t_paquete *paquete_interrupcion = recibir_paquete(conexion_cpu_dispatch);
+
+    // Revisar si el paquete contiene una interrupción
+    if (paquete_interrupcion != NULL && strcmp(paquete_interrupcion->buffer, "INTERRUPCION") == 0) {
+        log_info(logger, "Interrupción recibida del Kernel");
+        eliminar_paquete(paquete_interrupcion);
+        return 1;  // Se detecta interrupción
+    } else {
+        eliminar_paquete(paquete_interrupcion);  // Limpiar el paquete
+        return 0;  // No hay interrupción
+    }
+}
+
+void enviar_contexto_de_memoria(RegistroCPU *registro, int pid) {
+    t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
+    
+    // Agregar los registros de la CPU al paquete para enviarlos a la memoria
+    agregar_a_paquete(paquete_send, registro, sizeof(RegistroCPU));  
+    agregar_a_paquete(paquete_send, &pid, sizeof(int));  // Agregamos el PID del proceso
+
+    // Enviar el paquete a la memoria
+    enviar_paquete(paquete_send, conexion_cpu_memoria);
+    eliminar_paquete(paquete_send);  // Eliminar el paquete después de enviarlo
+
+    // Recibir confirmación de la memoria
+    t_paquete *paquete_respuesta = recibir_paquete(conexion_cpu_memoria);
+    if (paquete_respuesta != NULL && strcmp(paquete_respuesta->buffer, "OK") == 0) {
+        log_info(logger, "Contexto de PID %d enviado correctamente a Memoria", pid);
+    } else 
+        log_error(logger, "Error al enviar contexto de PID %d a Memoria", pid);
+
+    eliminar_paquete(paquete_respuesta);  // Limpiar paquete de respuesta
+}
+
+void notificar_kernel_interrupcion(int pid, int tid) {
+    t_paquete *paquete_notify = crear_paquete(INTERRUPCION);
+
+    // Enviamos el PID y TID para notificar al Kernel que el proceso fue interrumpido
+    agregar_a_paquete(paquete_notify, &pid, sizeof(int));  
+    agregar_a_paquete(paquete_notify, &tid, sizeof(int));  
+
+    // Enviamos la notificación al Kernel
+    enviar_paquete(paquete_notify, conexion_cpu_dispatch);  
+    eliminar_paquete(paquete_notify);  // Eliminamos el paquete tras enviarlo
+
+    log_info(logger, "Notificación enviada al Kernel por la interrupción del PID %d, TID %d", pid, tid);
+
+    // Esperamos una confirmación de que el Kernel recibió la interrupción
+    t_paquete *paquete_respuesta = recibir_paquete(conexion_cpu_dispatch);
+    if (paquete_respuesta != NULL && strcmp(paquete_respuesta->buffer, "OK") == 0) {
+        log_info(logger, "Kernel reconoció la interrupción para PID %d, TID %d", pid, tid);
+    } else 
+        log_error(logger, "Error al notificar al Kernel sobre la interrupción de PID %d, TID %d", pid, tid);
+    
+    eliminar_paquete(paquete_respuesta);  // Limpiar el paquete de respuesta
+}
+
+void agregar_interrupcion(char* tipo, int prioridad) { // Las interrupciones se pueden generar tanto por la CPU como por el Kernel. Las añadimos a la lista de interrupciones con su respectiva prioridad.
+    t_interrupcion* nueva_interrupcion = malloc(sizeof(t_interrupcion));
+    nueva_interrupcion->tipo = strdup(tipo); // si no uso el strdup, tanto "nueva_interrupcion->tipo" como "tipo" apuntarian al mismo lugar, por lo que si se modifica uno se modifica el otro; 
+    nueva_interrupcion->prioridad = prioridad; // aca no importa porque es entero xd
+    
+    // Insertamos la interrupción en la lista
+    list_add(lista_interrupciones, nueva_interrupcion);
+    log_info(logger, "Interrupción agregada: %s con prioridad %d", tipo, prioridad);
+}
+
+t_interrupcion* obtener_interrupcion_mayor_prioridad() {
+    if (list_is_empty(lista_interrupciones)) 
+        return NULL;
+
+    t_interrupcion* interrupcion_mayor_prioridad = list_get(lista_interrupciones, 0);  // Suponemos que hay al menos una interrupción
+    int indice_mayor_prioridad = 0;
+
+    // Recorrer la lista para encontrar la interrupción con mayor prioridad (menor valor numérico)
+    for (int i = 1; i < list_size(lista_interrupciones); i++) {
+        t_interrupcion* interrupcion_actual = list_get(lista_interrupciones, i);
+        if (interrupcion_actual->prioridad < interrupcion_mayor_prioridad->prioridad) { //Si encontramos una interrupción con menor prioridad numérica (prioridad más alta), actualizamos nuestro candidato.
+            interrupcion_mayor_prioridad = interrupcion_actual;
+            indice_mayor_prioridad = i;
+        }
+    }
+    
+    // Una vez que encontramos la interrupción con mayor prioridad, la eliminamos de la lista
+        list_remove_and_destroy_element(lista_interrupciones, indice_mayor_prioridad, (void*) liberar_interrupcion());
+
+
+    return interrupcion_mayor_prioridad;
+}
+
+void liberar_interrupcion(t_interrupcion* interrupcion) {
+    if (interrupcion != NULL) {
+        free(interrupcion->tipo);  // Liberamos la cadena duplicada con strdup
+        free(interrupcion);  // Liberamos la estructura
+    }
+}
