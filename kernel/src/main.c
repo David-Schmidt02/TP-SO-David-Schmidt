@@ -5,7 +5,7 @@
 #include <planificador_largo_plazo.h>
 
 t_log *logger;
-
+t_list *lista_t_peticiones;
 t_list* lista_global_tcb; // lista para manipular los hilos
 
 int conexion_kernel_cpu;
@@ -20,6 +20,10 @@ t_config *config;
 // Mutex para las conexiones con CPU
 pthread_mutex_t mutex_socket_cpu_dispatch;
 pthread_mutex_t mutex_socket_cpu_interrupt;
+pthread_mutex_t *mutex_lista_t_peticiones;
+
+//semaforos
+sem_t *sem_lista_t_peticiones;
 
 /*
 Anotaciones de lo que entiendo que falta hacer en Kernel
@@ -59,7 +63,6 @@ int main(int argc, char* argv[]) {
     config = config_create("config/kernel.config");
 
     //planificador
-    //
 	pthread_create(&tid_entradaSalida, NULL, acceder_Entrada_Salida, (void *)&arg_planificador); //PREGUNTAR TEMA PUERTO
     //conexiones
 	arg_memoria.puerto = config_get_string_value(config, "PUERTO_MEMORIA");
@@ -72,10 +75,10 @@ int main(int argc, char* argv[]) {
     arg_cpu_interrupt.ip = config_get_string_value(config, "IP_CPU");
 
     //conexiones
-	
-	pthread_create(&tid_memoria, NULL, conexion_memoria, (void *)&arg_memoria.puerto);
-    pthread_create(&tid_cpu_dispatch, NULL, conexion_cpu_dispatch, (void *)&arg_cpu_dispatch.puerto);
-    pthread_create(&tid_cpu_interrupt, NULL, conexion_cpu_interrupt, (void *)&arg_cpu_interrupt.puerto);
+	lista_t_peticiones = list_create();
+	pthread_create(&tid_memoria, NULL, administrador_peticiones_memoria, (void *)&arg_memoria);
+    pthread_create(&tid_cpu_dispatch, NULL, conexion_cpu_dispatch, (void *)&arg_cpu_dispatch);
+    pthread_create(&tid_cpu_interrupt, NULL, conexion_cpu_interrupt, (void *)&arg_cpu_interrupt);
 	
     //espero fin conexiones
 	pthread_join(tid_memoria, ret_value);
@@ -209,4 +212,44 @@ void *conexion_cpu_interrupt(void * arg_cpu){
 	eliminar_paquete(send_handshake);
 	liberar_conexion(conexion_kernel_cpu);
     return (void *)EXIT_SUCCESS;
+}
+
+void *administrador_peticiones_memoria(void* arg_server){
+
+	peticion_t *peticion; //FALTA CREAR STRUCT
+	argumentos_thread * args = arg_server;
+	pthread_t aux_thread;
+	int conexion_kernel_memoria;
+	
+	while(flag){
+		sem_wait(sem_lista_t_peticiones);
+		pthread_mutex_lock(mutex_lista_t_peticiones);
+		peticion = list_remove(lista_t_peticiones, 0);
+		pthread_mutex_unlock(mutex_lista_t_peticiones);
+
+		do
+		{
+			conexion_kernel_memoria = crear_conexion(args->ip, args->puerto);
+			sleep(1);
+
+		}while(conexion_kernel_memoria == -1);
+
+		//dependiendo de la peticion -> switch case
+		//case x:
+		pthread_create(&aux_thread, NULL, peticion_kernel, (void *)&conexion_kernel_memoria);
+		log_info(logger, "nueva peticion iniciada");
+		//case terminate:
+		//flag = 0;
+	}
+
+	close(server);
+    pthread_exit(EXIT_SUCCESS);
+}
+void *peticion_kernel(void * args){
+	int conexion_kernel_memoria = *args;
+	//manejo de peticion
+	//recibir info de memoria
+	//guarda la info en var global
+	
+	//termina
 }
