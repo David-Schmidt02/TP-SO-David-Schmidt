@@ -1,9 +1,11 @@
 #include <main.h>
 #include <pcb.h>
-#include "syscalls.h"
+#include <syscalls.h>
+#include "planificador_corto_plazo.h"
 
 extern t_list* lista_global_tcb;  // Lista global de TCBs
-extern t_tcb* hilo_actual;          // Variable global que guarda el hilo actual
+extern t_tcb* hilo_actual;          
+extern t_pcb* proceso_actual;
 extern t_list* lista_mutexes; // Lista global de mutexes
 extern t_list* lista_procesos; // Lista global de procesos
 extern int ultimo_tid;
@@ -20,7 +22,14 @@ t_pcb* obtener_pcb_por_tid(int tid) {
     }
     return NULL;
 }
-
+t_pcb* obtener_pcb_por_pid(int pid) {
+    for (int i = 0; i < list_size(lista_procesos); i++) {
+        t_pcb* pcb = list_get(lista_procesos, i);
+        if (pcb->pid== pid)
+            return pcb;
+    }
+    return NULL;
+}
 //PROCESOS
 
 void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadTID) {
@@ -33,7 +42,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
 
     log_info(logger, "Creación de Proceso: ## (<pid>:<%d>) Se crea el Proceso - Estado: NEW", nuevo_pcb->pid);
 
-    t_tcb* tcb_principal = crear_tcb(0, prioridadTID);
+    t_tcb* tcb_principal = crear_tcb(pid, 0, prioridadTID);
     tcb_principal->estado = NEW;
     
     log_info(logger, "Creación del hilo principal para el proceso PID: %d", nuevo_pcb->pid);
@@ -48,10 +57,13 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     list_add(lista_procesos, nuevo_pcb);
 
     log_info(logger, "Proceso PID %d agregado a la lista de procesos.", nuevo_pcb->pid);
-
+    
     liberarInstrucciones(lista_instrucciones);
 
     log_info(logger, "## (<PID>:<TID>) - Solicitó syscall: PROCESS_CREATE");
+
+    //Llamada al planificador de largo plazo para encolar este proceso
+    
 }
 
 void notificar_memoria_fin_proceso(int pid) {
@@ -98,60 +110,57 @@ void eliminar_pcb(t_pcb* pcb) {
     log_info(logger, "PCB eliminado exitosamente.");
 }
 
-void PROCESS_EXIT(t_tcb* tcb) {
+void PROCESS_EXIT() {
+    // Usamos el pid del hilo actual
+    int pid_buscado = hilo_actual->pid;
     t_pcb* pcb_encontrado = NULL;
-    
+
+    // Buscar el PCB que coincide con el pid del hilo actual
     for (int i = 0; i < list_size(lista_procesos); i++) {
         t_pcb* pcb = list_get(lista_procesos, i);
-        
-        for (int j = 0; j < list_size(pcb->listaTCB); j++) {
-            t_tcb* tcb_actual = list_get(pcb->listaTCB, j);
-            
-            if (tcb_actual->tid == tcb->tid) {
-                pcb_encontrado = pcb;
-                break;
-            }
-        }
-        
-        if (pcb_encontrado != NULL) {
+        if (pid_buscado == pcb->pid) {
+            pcb_encontrado = pcb;
             break;
         }
     }
 
+    // Validar si se encontró el PCB
     if (pcb_encontrado == NULL) {
-        log_warning(logger, "No se encontró el PCB para el TCB TID: %d", tcb->tid);
+        log_warning(logger, "No se encontró el PCB para el proceso con PID: %d", pid_buscado);
         return;
     }
 
     log_info(logger, "Finalizando el proceso con PID: %d", pcb_encontrado->pid);
 
+    // Cambiar el estado de todos los TCBs asociados a EXIT
     for (int i = 0; i < list_size(pcb_encontrado->listaTCB); i++) {
         t_tcb* tcb_asociado = list_get(pcb_encontrado->listaTCB, i);
         cambiar_estado(tcb_asociado, EXIT);
         log_info(logger, "TCB TID: %d del proceso PID: %d ha cambiado a estado EXIT", tcb_asociado->tid, pcb_encontrado->pid);
     }
 
+    // Notificar a la memoria que el proceso ha finalizado
     notificar_memoria_fin_proceso(pcb_encontrado->pid);
 
+    // Eliminar el PCB de la lista de procesos
     list_remove_and_destroy_by_condition(lista_procesos, (void*) (pcb_encontrado->pid == pcb_encontrado->pid), (void*) eliminar_pcb);
 
     log_info(logger, "Proceso con PID: %d ha sido eliminado.", pcb_encontrado->pid);
     log_info(logger, "## Finaliza el proceso %d", pcb_encontrado->pid);
 }
 
-
 //HILOS
 
-void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad, t_pcb* pcb) {
+void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad) {
     int tid = ++ultimo_tid;
 
-    t_tcb* nuevo_tcb = crear_tcb(tid, prioridad);
+    t_tcb* nuevo_tcb = crear_tcb(proceso_actual->pid, tid, prioridad);
     cambiar_estado(nuevo_tcb, READY);
 
     nuevo_tcb->instrucciones = interpretarArchivo(archivo_instrucciones);
-    list_add(pcb->listaTCB, nuevo_tcb);
+    list_add(proceso_actual->listaTCB, nuevo_tcb);
 
-    log_info(logger, "## (%d:%d) Se crea el Hilo - Estado: READY", pcb->pid, tid);
+    log_info(logger, "## (%d:%d) Se crea el Hilo - Estado: READY", proceso_actual->pid, tid);
 }
 
 void THREAD_JOIN(int tid_a_esperar) {
@@ -162,12 +171,11 @@ void THREAD_JOIN(int tid_a_esperar) {
         return;
     }
 
-    t_tcb* hilo_actual = obtener_tcb_actual();
     cambiar_estado(hilo_actual, BLOCK);
     agregar_hilo_a_lista_de_espera(hilo_a_esperar, hilo_actual);
 
     // Obtengo el PCB correspondiente al hilo actual
-    t_pcb* pcb_hilo_actual = obtener_pcb_por_tid(hilo_actual->tid);
+    t_pcb* pcb_hilo_actual = obtener_pcb_por_pid(hilo_actual->pid);
     if (pcb_hilo_actual != NULL) {
         log_info(logger, "## (%d:%d) - Bloqueado por: THREAD_JOIN", pcb_hilo_actual->pid, hilo_actual->tid);
     } else {
@@ -186,18 +194,15 @@ void finalizar_hilo(t_tcb* hilo) {
     }
 }
 
-
-void THREAD_CANCEL(t_paquete *paquete, int socket_cliente_kernel) {
-    int tid_to_cancel = obtener_tid_del_paquete(paquete);
-
-    t_tcb* hilo_a_cancelar = obtener_hilo_por_tid(tid_to_cancel);
+void THREAD_CANCEL(int tid_hilo_a_cancelar) { // Esta sys recibe el tid solamente del hilo a cancelar
+    t_tcb* hilo_a_cancelar = obtener_tcb_por_tid(tid_hilo_a_cancelar);
     if (hilo_a_cancelar == NULL) {
-        log_warning(logger, "TID %d no existe o ya fue finalizado.", tid_to_cancel);
+        log_warning(logger, "TID %d no existe o ya fue finalizado.", tid_hilo_a_cancelar);
         return;
     }
 
     hilo_a_cancelar->estado = EXIT;
-    log_info(logger, "Hilo TID %d movido a EXIT.", tid_to_cancel);
+    log_info(logger, "Hilo TID %d movido a EXIT.", tid_hilo_a_cancelar);
 
     // Log obligatorio: Finalización del hilo
     log_info(logger, "## (%d:%d) Finaliza el hilo", hilo_a_cancelar->tid);
@@ -205,23 +210,6 @@ void THREAD_CANCEL(t_paquete *paquete, int socket_cliente_kernel) {
     notificar_memoria_fin_hilo(hilo_a_cancelar);
 
     eliminar_tcb(hilo_a_cancelar);
-}
-
-int obtener_tid_del_paquete(t_paquete *paquete) {
-    // Si el TID es el primer dato en el buffer del paquete
-    int tid;
-    memcpy(&tid, paquete->buffer->stream, sizeof(int));  // Primeros 4 bytes como el TID
-    return tid;
-}
-
-t_tcb* obtener_hilo_por_tid(int tid_to_cancel) {
-    for (int i = 0; i < list_size(lista_global_tcb); i++) {
-        t_tcb* hilo = list_get(lista_global_tcb, i);
-        if (hilo->tid == tid_to_cancel) {
-            return hilo;
-        }
-    }
-    return NULL;
 }
 
 void notificar_memoria_fin_hilo(t_tcb* hilo) {
@@ -262,11 +250,10 @@ void eliminar_tcb(t_tcb* hilo) {
     free(hilo);  // Libero el TCB
 }
 
-void THREAD_EXIT(int tid) {
-    // Obtengo el TCB correspondiente al TID
-    t_tcb* hilo_a_salir = obtener_tcb_por_tid(tid);
+void THREAD_EXIT() {// No recibe ningún parámetro, trabaja con hilo_actual
+    t_tcb* hilo_a_salir = hilo_actual;
     if (hilo_a_salir == NULL) {
-        log_warning(logger, "No se encontró el TID %d para finalizar el hilo.", tid);
+        log_warning(logger, "No se encontró el TID %d para finalizar el hilo.", hilo_a_salir->tid);
         return;
     }
 
@@ -279,7 +266,7 @@ void THREAD_EXIT(int tid) {
         return;
     }
 
-    log_info(logger, "Hilo TID %d finalizado.", tid);
+    log_info(logger, "Hilo TID %d finalizado.", hilo_a_salir->tid);
     log_info(logger, "## (%d:%d) Finaliza el hilo", pcb_hilo_a_salir->pid, hilo_a_salir->tid);
 
     notificar_memoria_fin_hilo(hilo_a_salir);

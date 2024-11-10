@@ -17,7 +17,7 @@ t_pcb* crear_pcb(int pid,int pc,int prioridadTID)
     pcb->listaTCB = list_create();
     pcb->listaMUTEX = list_create();
 
-    t_tcb* tcb_principal = crear_tcb(0, prioridadTID);
+    t_tcb* tcb_principal = crear_tcb(pid, 0, prioridadTID);
     list_add(pcb->listaTCB, tcb_principal);
     
     t_list *listaMUTEX;
@@ -26,11 +26,12 @@ t_pcb* crear_pcb(int pid,int pc,int prioridadTID)
     return pcb;
 }
 
-t_tcb* crear_tcb(int tid, int prioridad)
+t_tcb* crear_tcb(int pid,int tid, int prioridad)
 {
     //falta agregar a la listaTCB
     t_tcb* tcb = (t_tcb*)(malloc(sizeof(t_tcb)));
     tcb->tid = tid;
+    tcb->pid = pid;
     tcb->prioridad = prioridad;
     cambiar_estado(tcb,NEW);
     tcb->lista_espera = list_create();  // Inicializa la lista de hilos en espera
