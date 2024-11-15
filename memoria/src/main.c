@@ -2,6 +2,7 @@
 
 t_log *logger;
 int socket_cliente_cpu; //necesito que sea global para usarlo desde sistema.c
+t_memoria *memoria_usuario;
 
 int main(int argc, char* argv[]) {
 
@@ -17,6 +18,9 @@ int main(int argc, char* argv[]) {
     t_config *config = config_create("config/memoria.config");
 
     void *ret_value;
+
+	//inicializar memoria
+	inicializar_memoria(config_get_int_value(config, "TIPO_PARTICION"));
 
     //conexiones
 	arg_cpu.puerto = config_get_string_value(config, "PUERTO_CPU");
@@ -39,6 +43,9 @@ int main(int argc, char* argv[]) {
 	log_info(logger,"conexion con filesystem cerrada con status code: %d", (int)ret_value);
 	//espero fin conexiones
 
+}
+void inicializar_memoria(enum particiones tipo_particion){
+	
 }
 void *server_multihilo_kernel(void* arg_server){
 
@@ -135,47 +142,6 @@ void *conexion_cpu(void* arg_cpu)
 		
 	close(server);
 	close(socket_cliente_cpu);
-    pthread_exit(EXIT_SUCCESS);
-}
-void *conexion_kernel(void* arg_kernel) //reemplazado por server_multihilo_kernel
-{
-	argumentos_thread * args = arg_kernel; 
-	t_paquete *handshake_send;
-	t_list *handshake_recv;
-	char * handshake_texto = "conexion con memoria";
-	
-	int server = iniciar_servidor(args->puerto);
-	log_info(logger, "Servidor listo para recibir al cliente Kernel");
-	
-	int socket_cliente_kernel = esperar_cliente(server);
-	//HANDSHAKE
-	handshake_send = crear_paquete(HANDSHAKE);
-	agregar_a_paquete (handshake_send, handshake_texto , strlen(handshake_texto)+1);
-	//HANDSHAKE_end
-
-
-		while(true){
-			int cod_op = recibir_operacion(socket_cliente_kernel);
-			switch (cod_op)
-			{
-				case HANDSHAKE:
-					handshake_recv = recibir_paquete(socket_cliente_kernel);
-					log_info(logger, "me llego: kernel");
-					list_iterate(handshake_recv, (void*) iterator);
-					enviar_paquete(handshake_send, socket_cliente_kernel);
-					break;
-				case -1:
-					log_error(logger, "el cliente se desconecto. Terminando servidor");
-					return (void *)EXIT_FAILURE;
-					break;
-				default:
-					log_warning(logger,"Operacion desconocida. No quieras meter la pata");
-					break;
-			}
-		}
-		
-	close(server);
-	close(socket_cliente_kernel);
     pthread_exit(EXIT_SUCCESS);
 }
 void *cliente_conexion_filesystem(void * arg_fs){

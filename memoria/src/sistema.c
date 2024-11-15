@@ -1,6 +1,6 @@
 #include "sistema.h"
 
-int enviar_contexto(){
+void enviar_contexto(){
     t_list *paquete_recv;
     t_paquete *paquete_send;
     int pid;
@@ -77,8 +77,8 @@ int buscar_tid(t_list *lista, int tid){
 }
 void error_contexto(char * error){
     log_error(logger, error);
-    t_paquete send = crear_paquete(ERROR_MEMORIA);
-    send = agregar_a_paquete(send, error, sizeof(error));
+    t_paquete *send = crear_paquete(ERROR_MEMORIA);
+    agregar_a_paquete(send, error, sizeof(error));
     eliminar_paquete(send);
     return;
 }
