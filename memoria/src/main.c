@@ -44,8 +44,10 @@ int main(int argc, char* argv[]) {
 	//espero fin conexiones
 
 }
-void inicializar_memoria(enum particiones tipo_particion){
-	
+void inicializar_memoria(int tipo_particion){
+	//implementar :D
+	//inicializar las tablas
+	//hacer malloc del void *
 }
 void *server_multihilo_kernel(void* arg_server){
 
