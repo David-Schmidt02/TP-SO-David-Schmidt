@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <commons/log.h>
-#include <utils/utils.h>
+#include "utils/utils.h"
 #include <pthread.h>
 #include <semaphore.h>
 #include <pcb.h>
@@ -23,8 +23,6 @@ typedef struct
 {
     t_estado nombre_estado;
     t_list *lista_hilos;
-    pthread_mutex_t *mutex_estado;
-    sem_t *sem_estado;
 } t_cola_hilo;
 
 //estructura para las listas del algoritmo multinivel, con su cola de hilos y nivel de prioridad
@@ -45,11 +43,12 @@ t_tcb* desencolar_hilos_fifo();
 void corto_plazo_prioridades();
 t_tcb* desencolar_hilos_prioridades();
 int comparar_prioridades(t_tcb *a, t_tcb *b);
-
-void corto_plazo_colas_multinivel(t_colas_multinivel *multinivel);;
-void encolar_hilo_multinivel(t_tcb *hilo);
+void inicializar_semaforos_corto_plazo();
+void corto_plazo_colas_multinivel();
+t_cola_hilo* buscar_cola_menor_prioridad(t_colas_multinivel *multinivel, t_nivel_prioridad **nivel_a_ejecutar);
+void encolar_corto_plazo_multinivel(t_tcb *hilo);
 bool nivel_existe(void* elemento);
-void ejecutar_round_robin(t_cola_hilo* cola, int prioridad);
+void ejecutar_round_robin(t_cola_hilo *cola, t_tcb * hilo_a_ejecutar);
 void contar_quantum(void *hilo_void);
 //void *comparar_prioridades_colas(t_nivel_prioridad *a, t_nivel_prioridad *b);
 

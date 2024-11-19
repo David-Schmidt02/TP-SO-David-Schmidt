@@ -16,14 +16,10 @@ typedef struct
 {
     t_estado nombre_estado;
     t_list *lista_procesos;
-    pthread_mutex_t *mutex_estado;
-    sem_t *sem_estado;
 } t_cola_proceso;
 
 typedef struct {
     t_list *lista_procesos;  // Lista de procesos a crear
-    pthread_mutex_t *mutex_estado;
-    sem_t *sem_estado;
 } t_cola_procesos_a_crear;
 
 

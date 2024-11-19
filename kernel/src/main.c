@@ -215,8 +215,7 @@ void *conexion_cpu_interrupt(void * arg_cpu){
 }
 
 void *administrador_peticiones_memoria(void* arg_server){
-
-	peticion_t *peticion; //FALTA CREAR STRUCT
+	t_peticion *peticion; //FALTA CREAR STRUCT
 	argumentos_thread * args = arg_server;
 	pthread_t aux_thread;
 	int conexion_kernel_memoria;
@@ -253,3 +252,11 @@ void *peticion_kernel(void * args){
 	
 	//termina
 }
+
+/*Peticiones que se deben enviar a memoria
+- Creacion de Proceso
+- Finalizacion de Proceso
+- Creacion de Hilo
+- Finalizacion de Hilo
+- Dump Memory
+*/

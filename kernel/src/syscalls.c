@@ -2,13 +2,27 @@
 #include <pcb.h>
 #include <syscalls.h>
 #include "planificador_corto_plazo.h"
+#include "planificador_largo_plazo.h"
 
 extern t_list* lista_global_tcb;  // Lista global de TCBs
+
 extern t_tcb* hilo_actual;          
 extern t_pcb* proceso_actual;
+
+//Estructuras provenientes del planificador_largo_plazo
+extern t_cola_proceso* procesos_cola_ready;
+extern pthread_mutex_t * mutex_procesos_cola_ready;
+extern sem_t * sem_estado_procesos_cola_ready;
+
+extern t_cola_procesos_a_crear* procesos_a_crear;
+extern pthread_mutex_t * mutex_procesos_a_crear;
+extern sem_t * sem_estado_procesos_a_crear;
+
+
 extern t_list* lista_mutexes; // Lista global de mutexes
 extern t_list* lista_procesos; // Lista global de procesos
 extern int ultimo_tid;
+
 
 t_pcb* obtener_pcb_por_tid(int tid) {
     for (int i = 0; i < list_size(lista_procesos); i++) {
@@ -44,7 +58,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
 
     t_tcb* tcb_principal = crear_tcb(pid, 0, prioridadTID);
     tcb_principal->estado = NEW;
-    
+
     log_info(logger, "Creación del hilo principal para el proceso PID: %d", nuevo_pcb->pid);
 
     nuevo_pcb->listaTCB = list_create();
@@ -54,7 +68,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     
     t_list* lista_instrucciones = interpretarArchivo(archivo_instrucciones);
 
-    list_add(lista_procesos, nuevo_pcb);
+    list_add(procesos_a_crear->lista_procesos, nuevo_pcb);
 
     log_info(logger, "Proceso PID %d agregado a la lista de procesos.", nuevo_pcb->pid);
     
@@ -62,6 +76,8 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
 
     log_info(logger, "## (<PID>:<TID>) - Solicitó syscall: PROCESS_CREATE");
 
+    //acá queda el proceso creado y agregado a lista_procesos
+    //tengo que ver como modificarlo y en donde llamar a memoria-> se llama en el planificador de largo plazo
     //Llamada al planificador de largo plazo para encolar este proceso
     
 }
