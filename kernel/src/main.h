@@ -23,6 +23,22 @@ typedef struct
 }t_paquete_peticion;
 
 
+typedef enum  
+{
+    CREATE_PROCESS,
+    EXIT_PROCESS,
+    CREATE_THREAD,
+    EXIT_TREADH,
+    DUMP_MEMORY
+}t_tipo_peticion;
+
+typedef struct 
+{
+    t_tipo_peticion tipo;
+    t_pcb proceso;
+    t_tcb hilo;
+}t_peticion;
+
 typedef struct{
     int tid;
     int milisegundos;
