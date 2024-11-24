@@ -1,3 +1,5 @@
+/*
+
 #include "bloques.h"
 extern t_config* config;
 extern t_log* logger;
