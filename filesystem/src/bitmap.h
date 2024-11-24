@@ -1,7 +1,6 @@
 #ifndef BITMAP_H
 #define BITMAP_H
 
-#include "bitmap.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
