@@ -29,7 +29,7 @@ typedef struct t_memoria{
 }t_memoria;
 
 typedef struct elemento_procesos{
-    int PID;
+    int TID;
     int inicio;
     int size;
 }elemento_procesos;
@@ -45,6 +45,5 @@ typedef struct elemento_particiones_fijas{
 
 struct t_proceso{
     t_tcb *tcb;
-    char *pseudocodigo;
     int size;
 }typedef t_proceso;
