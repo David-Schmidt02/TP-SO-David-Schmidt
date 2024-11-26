@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
     void *ret_value;
 
 	//inicializar memoria
-	inicializar_memoria(config_get_int_value(config, "TIPO_PARTICION"));
+	inicializar_memoria(config_get_int_value(config, "TIPO_PARTICION")); //1 fija 0 dinamica
 
     //conexiones
 	arg_cpu.puerto = config_get_string_value(config, "PUERTO_CPU");
@@ -48,6 +48,19 @@ void inicializar_memoria(int tipo_particion){
 	//implementar :D
 	//inicializar las tablas
 	//hacer malloc del void *
+	switch(tipo_particion){
+		case 0: // particiones dinamicas
+		log_error(logger, "particiones dinamicas no implementadas todavia");
+		__assert_fail("particiones dinamicas no implementadas todavia");
+		break;
+		
+		case 1: // fijas
+			memoria_usuario->espacio=malloc(sizeof(uint32_t)*100;
+			memoria_usuario->tipo_particion = FIJAS;
+			memoria_usuario->fija_size=40;
+			memoria_usuario->tabla_particiones_fijas = list_create();
+			break;
+	}
 }
 void *server_multihilo_kernel(void* arg_server){
 
