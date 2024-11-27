@@ -1,35 +1,42 @@
 #include "sistema.h"
 
 void enviar_contexto(){
-    t_list *paquete_recv;
+    t_list *paquete_recv_list;
+    t_paquete *paquete_recv;
     t_paquete *paquete_send;
     int pid;
     int tid;
     int PC;
+
     
-    paquete_recv = recibir_paquete(socket_cliente_cpu);
-    pid = (int)list_remove(paquete_recv, 0)->buffer;
-    tid = (int)list_remove(paquete_recv, 0)->buffer;
-    PC = (int)list_remove(paquete_recv, 0)->buffer;
+    paquete_recv_list = recibir_paquete(socket_cliente_cpu);
+
+    paquete_recv = list_remove(paquete_recv_list, 0);
+    pid = (int)paquete_recv->buffer->stream;
+    paquete_recv = list_remove(paquete_recv_list, 0);
+    tid = (int)paquete_recv->buffer->stream;
+    paquete_recv = list_remove(paquete_recv_list, 0);
+    PC = (int)paquete_recv->buffer->stream;
 
     if(pid <= 0 || tid < 0 || PC < 0){
         log_error(logger, "CPU envio parametros incorrectos pidiendo el contexto de ejecucion");
     }
     int index_pcb = buscar_pid(lista_pcb_memoria, pid);
     if(index_pcb==-1){
-        error_contexto("No se encontro el PID %d en memoria", pid);
+        error_contexto("No se encontro el PID en memoria");
     }
     t_pcb *pcb_aux = list_get(lista_pcb_memoria, index_pcb);
     int index_thread = buscar_tid(pcb_aux->listaTCB, tid);
     if(index_thread==-1){
-        error_contexto("No se encontro el TID %d en el proceso %d", tid, pid);
+        error_contexto("No se encontro el TID en el proceso");
     }
     t_tcb *tcb_aux = list_get(pcb_aux->listaTCB, index_thread);
 
     agregar_a_paquete(paquete_send, pcb_aux->registro, sizeof(pcb_aux->registro));
-
+    enviar_paquete(paquete_send, socket_cliente_cpu);
+    eliminar_paquete(paquete_send);
 }
-int recibir_contexto(){
+void recibir_contexto(){
 
     t_list *paquete_recv_list;
     t_paquete *paquete_recv;
@@ -40,12 +47,14 @@ int recibir_contexto(){
     t_pcb *aux_pcb;
 
     paquete_recv_list = recibir_paquete(socket_cliente_cpu);
-    registro = (RegistroCPU)list_remove(paquete_recv_list, 0)->buffer;
-    pid = (int)list_remove(paquete_recv_list, 0)->buffer;
+    paquete_recv = list_remove(paquete_recv_list, 0);
+    memcpy(registro, paquete_recv->buffer->stream, sizeof(RegistroCPU));
+    paquete_recv = list_remove(paquete_recv_list, 0);
+    memcpy(&pid, paquete_recv->buffer->stream, sizeof(int));
     
     index_pcb = buscar_pid(lista_pcb_memoria, pid);
     if(index_pcb==-1){
-        error_contexto("No se encontro el PID %d en memoria", pid);
+        error_contexto("No se encontro el PID en memoria");
     }
     aux_pcb = list_get(lista_pcb_memoria, index_pcb);
     aux_pcb->registro = registro;
@@ -59,8 +68,11 @@ int recibir_contexto(){
 }
 //retorna index de pid en la lista de PCB
 int buscar_pid(t_list *lista, int pid){
+    t_pcb *elemento;
+    
     for (int i=0;i<list_size(lista);i++){
-        if(list_get(lista, i).pid==pid){
+        elemento = list_get(lista, i);
+        if(elemento->pid==pid){
             return i;
         }
     }
@@ -68,8 +80,11 @@ int buscar_pid(t_list *lista, int pid){
 }
 //retorna index de tid en la lista de threads
 int buscar_tid(t_list *lista, int tid){
+    t_tcb *elemento;
+    
     for (int i=0;i<list_size(lista);i++){
-        if(list_get(lista, i).tid==tid){
+        elemento = list_get(lista, i);
+        if(elemento->tid==tid){
             return i;
         }
     }
@@ -78,7 +93,34 @@ int buscar_tid(t_list *lista, int tid){
 void error_contexto(char * error){
     log_error(logger, error);
     t_paquete *send = crear_paquete(ERROR_MEMORIA);
-    agregar_a_paquete(send, error, sizeof(error));
+    enviar_paquete(send, socket_cliente_cpu);
+    //agregar_a_paquete(send, error, sizeof(error));
     eliminar_paquete(send);
     return;
+}
+void agregar_a_lista_particion_fija(){
+    
+}
+void crear_proceso(){
+
+}
+int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu. Si falla, retorna -1
+	if(PC<0){
+        log_error(logger, "PC invalido");
+		return -1;
+	}
+	
+	t_paquete *paquete_send;
+	t_tcb *tcb_aux;
+	int index;
+	char * instruccion;
+
+	index = buscar_tid(lista_pcb_memoria, tid);
+	tcb_aux = list_get(lista_pcb_memoria, index);
+	instruccion = list_get(tcb_aux->instrucciones, PC);
+
+	paquete_send = crear_paquete(OBTENER_INSTRUCCION);
+	agregar_a_paquete(paquete_send, instruccion, sizeof(instruccion));
+	enviar_paquete(paquete_send, socket_cliente_cpu);
+	eliminar_paquete(paquete_send);
 }

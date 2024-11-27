@@ -3,6 +3,7 @@
 t_log *logger;
 int socket_cliente_cpu; //necesito que sea global para usarlo desde sistema.c
 t_memoria *memoria_usuario;
+t_list *lista_pcb_memoria;
 
 int main(int argc, char* argv[]) {
 
@@ -45,17 +46,14 @@ int main(int argc, char* argv[]) {
 
 }
 void inicializar_memoria(int tipo_particion){
-	//implementar :D
-	//inicializar las tablas
-	//hacer malloc del void *
 	switch(tipo_particion){
 		case 0: // particiones dinamicas
-		log_error(logger, "particiones dinamicas no implementadas todavia");
-		__assert_fail("particiones dinamicas no implementadas todavia");
-		break;
+			log_error(logger, "particiones dinamicas no implementadas todavia");
+			break;
 		
 		case 1: // fijas
-			memoria_usuario->espacio=malloc(sizeof(uint32_t)*100;
+			memoria_usuario = malloc(sizeof(t_memoria));
+			memoria_usuario->espacio=malloc(100*sizeof(uint32_t));
 			memoria_usuario->tipo_particion = FIJAS;
 			memoria_usuario->fija_size=40;
 			memoria_usuario->tabla_particiones_fijas = list_create();
