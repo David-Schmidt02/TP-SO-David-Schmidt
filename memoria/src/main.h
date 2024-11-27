@@ -6,7 +6,7 @@
 #include <string.h>
 #include <commons/log.h>
 #include <utils/utils.h>
-#include <sistema.h>
+#include "../../kernel/src/pcb.h"
 
 void enviar_contexto(void);
 void *conexion_kernel(void * arg_kernel);
@@ -14,7 +14,7 @@ void *conexion_cpu(void * arg_cpu);
 void *cliente_conexion_filesystem(void * arg_fs);
 void *server_multihilo_kernel(void* arg_server);
 void *peticion_kernel(void* arg_peticion);
-void inicializar_memoria(int tipo_particion);
+void inicializar_memoria(int tipo_particion, int size);
 void levantar_conexiones(void);
 
 
@@ -25,6 +25,7 @@ enum particiones{
 
 typedef struct t_memoria{
     void *espacio;
+    int size;
     enum particiones tipo_particion;
     int fija_size;
     t_list *tabla_particiones_fijas;

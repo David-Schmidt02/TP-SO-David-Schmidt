@@ -94,12 +94,28 @@ void error_contexto(char * error){
     log_error(logger, error);
     t_paquete *send = crear_paquete(ERROR_MEMORIA);
     enviar_paquete(send, socket_cliente_cpu);
-    //agregar_a_paquete(send, error, sizeof(error));
+    //agregar_a_paquete(send, error, sizeof(error)); se puede mandar error sin mensaje. Sino se complejiza el manejo de la respuesta del lado de cpu
     eliminar_paquete(send);
     return;
 }
-void agregar_a_lista_particion_fija(){
-    
+void agregar_a_tabla_particion_fija(t_tcb *tcb){
+    int index;
+    elemento_particiones_fijas *aux;
+    //buscar lugar vacio
+
+    //modificar elemento para agregar a lista
+    aux = list_get(memoria_usuario->tabla_particiones_fijas, index);
+    aux->libre_ocupado = tcb->tid; //no liberar aux, sino se pierde el elemento xd
+
+}
+void inicializar_tabla_particion_fija(){
+    elemento_particiones_fijas * aux;
+    aux->libre_ocupado = 0; // elemento libre
+
+    for(i=0;(int)(memoria_usuario->size/memoria_usuario->fija_size);i++){ //i = index de particion. llena la tabla de particiones "libres"
+        list_add(memoria_usuario->tabla_particiones_fijas, aux);
+    }
+    return;
 }
 void crear_proceso(){
 

@@ -3,10 +3,11 @@
 
 #include <stdint.h> 
 #include <utils/utils.h>
-#include "../../kernel/src/pcb.h"
+#include <main.h>
 
 extern t_list *lista_pcb_memoria; //lista de pcb
 extern int socket_cliente_cpu;
+extern t_memoria *memoria_usuario;
 
 //cpu
 void enviar_contexto(void);
