@@ -38,6 +38,8 @@ void inicializar_bloques(int block_count, int block_size, t_config *configuint32
         log_error(logger, "Error al mapear bloques.dat en memoria");
         exit(EXIT_FAILURE);
     }
+
+    fclose(archivo);
     free(path_bloques);
     fclose(archivo);
     free(path_bloques);
