@@ -81,6 +81,7 @@ int buscar_pid(t_list *lista, int pid){
             return list_iterator_index(iterator);
         }
     }
+    list_iterator_destroy(iterator);
     return -1;
 }
 //retorna index de tid en la lista de threads
@@ -94,6 +95,7 @@ int buscar_tid(t_list *lista, int tid){
             return list_iterator_index(iterator);
         }
     }
+    list_iterator_destroy(iterator);
     return -1;
 }
 void error_contexto(char * error){
@@ -104,19 +106,23 @@ void error_contexto(char * error){
     eliminar_paquete(send);
     return;
 }
-void agregar_a_tabla_particion_fija(t_tcb *tcb){
-    int index;
+/// @brief busca un lugar vacio en la tabla y agrega el tid
+/// @returns index donde guardo el tid
+/// @param tcb 
+int agregar_a_tabla_particion_fija(t_tcb *tcb){
+    
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_particiones_fijas);
-
     elemento_particiones_fijas *aux;
-    //buscar lugar vacio
+    
+
     while(list_iterator_has_next(iterator)) {
         aux = list_iterator_next(iterator);
         if (aux->libre_ocupado==0){
             aux->libre_ocupado = tcb->tid; //no liberar aux, sino se pierde el elemento xd
             break;
         }
-    }
+    }return list_iterator_index(iterator);
+    list_iterator_destroy(iterator);
 }
 void inicializar_tabla_particion_fija(){
     elemento_particiones_fijas * aux;
@@ -128,8 +134,10 @@ void inicializar_tabla_particion_fija(){
     }
     return;
 }
-void crear_proceso(){
-
+void crear_proceso(t_tcb *tcb){
+    int index = agregar_a_tabla_particion_fija(tcb);
+    tcb->registro->base=&(uint32_t)memoria_usuario->espacio[memoria_usuario->fija_size*index]; //guarda la direccion de inicio del segmento en el registro "base"
+    tcb->registro->limite=memoria_usuario->fija_size;
 }
 int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu. Si falla, retorna -1
 	if(PC<0){

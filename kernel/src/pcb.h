@@ -49,6 +49,7 @@ typedef struct {
     int pid;
     int tid;
     int prioridad;
+    RegistroCPU *registro;
     t_estado estado;
     t_list* lista_espera; // Lista de hilos que están esperando a que el hilo corriendo termine
     t_list* instrucciones;  // Lista de instrucciones para el hilo
