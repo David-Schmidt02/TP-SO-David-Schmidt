@@ -35,12 +35,11 @@ void inicializar_bitmap(const char* mount_dir,uint32_t block_count) {
     log_info(logger, "path bitmap:%s",path_bitmap);
     FILE *archivo_bitmap = fopen(path_bitmap, "rb+");
     if (!archivo_bitmap) {
-        uint8_t* buffer = calloc(tamanio_bitmap, sizeof(uint8_t));
-        if (!buffer) {
-            log_error(logger, "Error al asignar memoria para el buffer del bitmap.");
+        archivo_bitmap = fopen(path_bitmap, "wb+");
+        if (!archivo_bitmap) {
+            log_error(logger, "Error al crear el archivo bitmap.dat");
             exit(EXIT_FAILURE);
         }
-
         rewind(archivo_bitmap);
         size_t elementos_escritos = fwrite(buffer, sizeof(uint8_t), tamanio_bitmap, archivo_bitmap);
         if (elementos_escritos != tamanio_bitmap) {
