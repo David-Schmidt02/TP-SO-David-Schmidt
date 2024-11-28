@@ -7,6 +7,7 @@
 #include <commons/log.h>
 #include <utils/utils.h>
 #include "../../kernel/src/pcb.h"
+#include <sistema.h>
 
 void enviar_contexto(void);
 void *conexion_kernel(void * arg_kernel);
