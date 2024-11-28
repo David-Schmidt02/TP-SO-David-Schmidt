@@ -24,7 +24,19 @@
   "settings": {
     "debug.onTaskErrors": "abort",
     "files.associations": {
-      "*.h": "c"
+      "*.h": "c",
+      "array": "c",
+      "deque": "c",
+      "forward_list": "c",
+      "list": "c",
+      "string": "c",
+      "unordered_map": "c",
+      "unordered_set": "c",
+      "vector": "c",
+      "string_view": "c",
+      "format": "c",
+      "initializer_list": "c",
+      "span": "c"
     },
     "C_Cpp.errorSquiggles": "disabled",
     "makefile.launchConfigurations": [

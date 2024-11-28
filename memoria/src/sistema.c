@@ -69,11 +69,12 @@ void recibir_contexto(){
 //retorna index de pid en la lista de PCB
 int buscar_pid(t_list *lista, int pid){
     t_pcb *elemento;
-    
-    for (int i=0;i<list_size(lista);i++){
-        elemento = list_get(lista, i);
-        if(elemento->pid==pid){
-            return i;
+    t_list_iterator * iterator = list_iterator_create(lista);
+
+    while(list_iterator_has_next(iterator)){
+        elemento = list_iterator_next(iterator);
+        if(elemento->pid == pid){
+            return list_iterator_index(iterator);
         }
     }
     return -1;
@@ -81,11 +82,12 @@ int buscar_pid(t_list *lista, int pid){
 //retorna index de tid en la lista de threads
 int buscar_tid(t_list *lista, int tid){
     t_tcb *elemento;
-    
-    for (int i=0;i<list_size(lista);i++){
-        elemento = list_get(lista, i);
-        if(elemento->tid==tid){
-            return i;
+    t_list_iterator * iterator = list_iterator_create(lista);
+
+    while(list_iterator_has_next(iterator)){
+        elemento = list_iterator_next(iterator);
+        if(elemento->tid == tid){
+            return list_iterator_index(iterator);
         }
     }
     return -1;
@@ -100,20 +102,25 @@ void error_contexto(char * error){
 }
 void agregar_a_tabla_particion_fija(t_tcb *tcb){
     int index;
+    t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_particiones_fijas);
+
     elemento_particiones_fijas *aux;
     //buscar lugar vacio
-
-    //modificar elemento para agregar a lista
-    aux = list_get(memoria_usuario->tabla_particiones_fijas, index);
-    aux->libre_ocupado = tcb->tid; //no liberar aux, sino se pierde el elemento xd
-
+    while(list_iterator_has_next(iterator)) {
+        aux = list_iterator_next(iterator);
+        if (aux->libre_ocupado==0){
+            aux->libre_ocupado = tcb->tid; //no liberar aux, sino se pierde el elemento xd
+            break;
+        }
+    }
 }
 void inicializar_tabla_particion_fija(){
     elemento_particiones_fijas * aux;
     aux->libre_ocupado = 0; // elemento libre
+    t_list_iterator iterator = list_iterator_create(memoria_usuario->tabla_particiones_fijas);
 
     for(i=0;(int)(memoria_usuario->size/memoria_usuario->fija_size);i++){ //i = index de particion. llena la tabla de particiones "libres"
-        list_add(memoria_usuario->tabla_particiones_fijas, aux);
+        list_iterator_add(iterator, aux);
     }
     return;
 }

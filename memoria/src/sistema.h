@@ -19,5 +19,6 @@ void error_contexto(char *error);
 void crear_proceso();
 int obtener_instruccion(int PC, int tid);
 void agregar_a_lista_particion_fija(void);
+void buscar_vacio(void* ptr)
 
 #endif
