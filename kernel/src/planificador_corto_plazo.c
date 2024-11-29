@@ -176,6 +176,7 @@ void corto_plazo_colas_multinivel() {
         t_cola_hilo *cola_a_ejecutar = buscar_cola_menor_prioridad(colas_multinivel, &nivel_a_ejecutar);
 
         // Si encontramos una cola válida para ejecutar
+        // Esto podría llamarse t_tcb * desencolar_hilos_colas_multinivel()
         if (cola_a_ejecutar != NULL && nivel_a_ejecutar != NULL) {
             // Extraemos el primer hilo en la cola de menor prioridad
             t_tcb *hilo_a_ejecutar = list_remove(cola_a_ejecutar->lista_hilos, 0);
@@ -325,7 +326,7 @@ bool nivel_existe(void* elemento) {
     return nivel->nivel_prioridad == hilo_actual->prioridad;
 }
 
-/*
+
 void enviar_a_cpu_dispatch(int tid, int pid)
 {
     t_paquete * send_handshake = crear_paquete(INFO_HILO);

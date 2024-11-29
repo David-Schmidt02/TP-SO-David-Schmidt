@@ -28,16 +28,25 @@ typedef enum
     CREATE_PROCESS,
     EXIT_PROCESS,
     CREATE_THREAD,
-    EXIT_TREADH,
+    EXIT_THREAD,
     DUMP_MEMORY
-}t_tipo_peticion;
+}protocolo_peticion;
 
 typedef struct 
 {
-    t_tipo_peticion tipo;
-    t_pcb proceso;
-    t_tcb hilo;
+    protocolo_peticion tipo;
+    t_pcb *proceso;
+    t_tcb *hilo;
+    bool respuesta_recibida;
+    bool respuesta_exitosa;
 }t_peticion;
+
+typedef struct
+{
+    int socket;
+    t_peticion *peticion;
+}t_paquete_peticion;
+
 
 typedef struct{
     int tid;
