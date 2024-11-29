@@ -19,6 +19,7 @@ typedef struct
 } t_cola_proceso;
 
 typedef struct {
+    t_estado nombre_estado;
     t_list *lista_procesos;  // Lista de procesos a crear
 } t_cola_procesos_a_crear;
 

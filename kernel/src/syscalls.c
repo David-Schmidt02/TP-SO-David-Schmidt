@@ -14,19 +14,41 @@ extern t_cola_proceso* procesos_cola_ready;
 extern pthread_mutex_t * mutex_procesos_cola_ready;
 extern sem_t * sem_estado_procesos_cola_ready;
 
+extern t_cola_hilo* hilos_cola_exit;
+extern pthread_mutex_t * mutex_hilos_cola_exit;
+extern sem_t * sem_estado_hilos_cola_exit;
+
 extern t_cola_procesos_a_crear* procesos_a_crear;
 extern pthread_mutex_t * mutex_procesos_a_crear;
 extern sem_t * sem_estado_procesos_a_crear;
+//
 
+//Estructuras provenientes del planificador_corto_plazo
+extern t_cola_hilo* hilos_cola_ready;
+extern pthread_mutex_t * mutex_hilos_cola_ready;
+extern sem_t * sem_estado_hilos_cola_ready;
+
+extern t_cola_hilo* hilos_cola_bloqueados;
+extern pthread_mutex_t * mutex_hilos_cola_bloqueados;
+extern sem_t * sem_estado_hilos_cola_bloqueados;
+
+extern t_colas_multinivel *colas_multinivel;
+extern pthread_mutex_t * mutex_colas_multinivel;
+extern sem_t * sem_estado_multinivel;
+
+extern char* algoritmo;
+//
 
 extern t_list* lista_mutexes; // Lista global de mutexes
 extern t_list* lista_procesos; // Lista global de procesos
 extern int ultimo_tid;
+//
+
 
 
 t_pcb* obtener_pcb_por_tid(int tid) {
-    for (int i = 0; i < list_size(lista_procesos); i++) {
-        t_pcb* pcb = list_get(lista_procesos, i);
+    for (int i = 0; i < list_size(procesos_cola_ready->lista_procesos); i++) {
+        t_pcb* pcb = list_get(procesos_cola_ready->lista_procesos, i);
         for (int j = 0; j < list_size(pcb->listaTCB); j++) {
             t_tcb* tcb_actual = list_get(pcb->listaTCB, j);
             if (tcb_actual->tid == tid) {
@@ -37,8 +59,8 @@ t_pcb* obtener_pcb_por_tid(int tid) {
     return NULL;
 }
 t_pcb* obtener_pcb_por_pid(int pid) {
-    for (int i = 0; i < list_size(lista_procesos); i++) {
-        t_pcb* pcb = list_get(lista_procesos, i);
+    for (int i = 0; i < list_size(procesos_cola_ready->lista_procesos); i++) {
+        t_pcb* pcb = list_get(procesos_cola_ready->lista_procesos, i);
         if (pcb->pid== pid)
             return pcb;
     }
@@ -75,27 +97,22 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     liberarInstrucciones(lista_instrucciones);
 
     log_info(logger, "## (<PID>:<TID>) - Solicitó syscall: PROCESS_CREATE");
-
-    //acá queda el proceso creado y agregado a lista_procesos
-    //tengo que ver como modificarlo y en donde llamar a memoria-> se llama en el planificador de largo plazo
-    //Llamada al planificador de largo plazo para encolar este proceso
     
 }
 
 void notificar_memoria_fin_proceso(int pid) {
-    t_paquete* paquete = crear_paquete(FIN_PROCESO);
-    agregar_a_paquete(paquete, &pid, sizeof(int));
 
-    enviar_paquete(paquete, conexion_memoria);
-
-    protocolo_socket respuesta = recibir_operacion(conexion_memoria);
-    if (respuesta == OK) {
+    t_peticion *peticion = malloc(sizeof(t_peticion));
+        peticion->tipo = PROCESS_EXIT_OP;
+        peticion->proceso = obtener_pcb_por_pid(pid); 
+        peticion->hilo = NULL; // No aplica en este caso  
+        peticion->respuesta_recibida = false;
+        encolar_peticion_memoria(peticion);
+    if (peticion->respuesta_exitosa) {
         log_info(logger, "Finalización del proceso con PID %d confirmada por la Memoria.", pid);
     } else {
-        log_error(logger, "Error al finalizar el proceso con PID %d en la Memoria.", pid);
-    }
-
-    eliminar_paquete(paquete);
+        log_info(logger, "Error al finalizar el proceso con PID %d en la Memoria.", pid);
+        }   
 }
 
 void eliminar_mutex(t_mutex* mutex) {
@@ -132,8 +149,8 @@ void PROCESS_EXIT() {
     t_pcb* pcb_encontrado = NULL;
 
     // Buscar el PCB que coincide con el pid del hilo actual
-    for (int i = 0; i < list_size(lista_procesos); i++) {
-        t_pcb* pcb = list_get(lista_procesos, i);
+    for (int i = 0; i < list_size(procesos_cola_ready->lista_procesos); i++) {
+        t_pcb* pcb = list_get(procesos_cola_ready->lista_procesos, i);
         if (pid_buscado == pcb->pid) {
             pcb_encontrado = pcb;
             break;
@@ -152,6 +169,7 @@ void PROCESS_EXIT() {
     for (int i = 0; i < list_size(pcb_encontrado->listaTCB); i++) {
         t_tcb* tcb_asociado = list_get(pcb_encontrado->listaTCB, i);
         cambiar_estado(tcb_asociado, EXIT);
+        //acá hay que hacer dos cosas, eliminarlos de la cola de hilos y moverlos a una cola de exit
         log_info(logger, "TCB TID: %d del proceso PID: %d ha cambiado a estado EXIT", tcb_asociado->tid, pcb_encontrado->pid);
     }
 
@@ -159,10 +177,57 @@ void PROCESS_EXIT() {
     notificar_memoria_fin_proceso(pcb_encontrado->pid);
 
     // Eliminar el PCB de la lista de procesos
-    list_remove_and_destroy_by_condition(lista_procesos, (void*) (pcb_encontrado->pid == pcb_encontrado->pid), (void*) eliminar_pcb);
+    list_remove_and_destroy_by_condition(procesos_cola_ready->lista_procesos, (void*) (pcb_encontrado->pid == pcb_encontrado->pid), (void*) eliminar_pcb);
 
     log_info(logger, "Proceso con PID: %d ha sido eliminado.", pcb_encontrado->pid);
     log_info(logger, "## Finaliza el proceso %d", pcb_encontrado->pid);
+}
+
+//Ademas de eliminar el hilo de acá me tengo que asegurar de que memoria destruya las estructuras de los mismos
+void eliminar_hilos_del_pcb_fifo_prioridades(int pid) {
+    pthread_mutex_lock(mutex_hilos_cola_ready);
+    
+    for (int i = 0; i < list_size(hilos_cola_ready->lista_hilos); i++) {
+        t_tcb *hilo = list_get(hilos_cola_ready->lista_hilos, i);
+        if (hilo->pid == pid) {
+            list_remove(hilos_cola_ready->lista_hilos, i);
+            i--;
+            encolar_en_exit(hilo); //se agrega a la cola de exit
+            sem_wait(sem_estado_hilos_cola_ready);
+        }
+    }
+    pthread_mutex_unlock(mutex_hilos_cola_ready);
+    log_info(logger, "Todos los hilos del proceso %d eliminados de READY.", pid);
+}
+
+void eliminar_hilos_del_pcb_multinivel(int pid) {
+    pthread_mutex_lock(mutex_colas_multinivel);
+
+    // Iterar sobre cada nivel de prioridad
+    for (int i = 0; i < list_size(colas_multinivel->niveles_prioridad); i++) {
+        t_nivel_prioridad *nivel = list_get(colas_multinivel->niveles_prioridad, i);
+
+        pthread_mutex_lock(nivel->cola_hilos->mutex_estado);
+        for (int j = 0; j < list_size(nivel->cola_hilos->lista_hilos); j++) {
+            t_tcb *hilo = list_get(nivel->cola_hilos->lista_hilos, j);
+            if (hilo->pid == pid) {
+                list_remove(nivel->cola_hilos->lista_hilos, j);
+                j--;
+                encolar_en_exit(hilo);//se agrega a la cola de exit
+                sem_wait(sem_estado_multinivel);
+            }
+        }
+        pthread_mutex_unlock(nivel->cola_hilos->mutex_estado);
+    }
+    pthread_mutex_unlock(mutex_colas_multinivel);
+    log_info(logger, "Todos los hilos del proceso %d eliminados de las colas multinivel.", pid);
+}
+
+void encolar_en_exit(t_tcb * hilo){
+    pthread_mutex_lock(mutex_hilos_cola_exit);
+    list_add(hilos_cola_exit->lista_procesos, hilo);
+    pthread_mutex_unlock(mutex_hilos_cola_exit);
+    sem_post(sem_estado_hilos_cola_exit);
 }
 
 //HILOS
@@ -229,32 +294,17 @@ void THREAD_CANCEL(int tid_hilo_a_cancelar) { // Esta sys recibe el tid solament
 }
 
 void notificar_memoria_fin_hilo(t_tcb* hilo) {
-    t_config *config = config_create("config/kernel.config");
-
-    char* PUERTO_MEMORIA = config_get_string_value(config, "PUERTO_MEMORIA");
-    char* IP_MEMORIA = config_get_string_value(config, "IP_MEMORIA");
-
-    int conexion_kernel_memoria = crear_conexion(IP_MEMORIA, PUERTO_MEMORIA);
-    if (conexion_kernel_memoria == -1) {
-        log_error(logger, "No se pudo establecer conexión con Memoria para finalizar el hilo.");
-        return;
-    }
-
-    t_paquete* paquete = crear_paquete(FIN_HILO);
-
-    agregar_a_paquete(paquete, &hilo->tid, sizeof(int));
-
-    enviar_paquete(paquete, conexion_kernel_memoria);
-
-    protocolo_socket respuesta = recibir_operacion(conexion_kernel_memoria);
-    if (respuesta == OK) {  // Define OK antes de usar
-        log_info(logger, "Finalización del hilo TID %d en Memoria confirmada.", hilo->tid);
+    t_peticion *peticion = malloc(sizeof(t_peticion));
+        peticion->tipo = THREAD_EXIT_OP;
+        peticion->proceso = NULL; // No aplica en este caso
+        peticion->hilo = hilo; 
+        peticion->respuesta_recibida = false;
+        encolar_peticion_memoria(peticion);
+    if (peticion->respuesta_exitosa) {
+        log_info(logger, "Finalización del hilo con TID %d confirmada por la Memoria.", hilo->tid);
     } else {
-        log_error(logger, "Error al finalizar el hilo TID %d en Memoria.", hilo->tid);
-    }
-
-    eliminar_paquete(paquete);
-    liberar_conexion(conexion_kernel_memoria);
+        log_info(logger, "Error al finalizar el hilo con TID %d en la Memoria.", hilo->tid);
+        }   
 }
 
 void eliminar_tcb(t_tcb* hilo) {

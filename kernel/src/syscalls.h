@@ -8,15 +8,18 @@
 
 // Códigos de operación
 #define HANDSHAKE 1
-#define PROCESS_CREATE_OP 2
-#define FIN_HILO 3
-#define THREAD_CREATE_OP 4
+//#define PROCESS_CREATE_OP 2
+//#define FIN_HILO 3
+//#define THREAD_CREATE_OP 4
 #define THREAD_JOIN_OP 5
-#define THREAD_EXIT_OP 6
+//#define THREAD_EXIT_OP 6
+//
 #define MUTEX_CREATE_OP 7
 #define MUTEX_LOCK_OP 8
 #define MUTEX_UNLOCK_OP 9
-#define DUMP_MEMORY_OP 10
+//
+//#define DUMP_MEMORY_OP 10
+
 #define OK 11
 #define FIN_PROCESO 12
 
@@ -57,6 +60,9 @@ t_list* obtener_lista_de_hilos_que_esperan(t_tcb* hilo);
 
 // Funciones para gestionar la finalización de hilos
 void notificar_memoria_fin_hilo(t_tcb* hilo);
+
+void encolar_peticion_memoria(t_peticion * peticion);
+
 void eliminar_tcb(t_tcb* hilo);
 
 #endif

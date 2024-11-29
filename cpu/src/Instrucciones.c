@@ -46,7 +46,7 @@ void obtener_contexto_de_memoria (RegistroCPU *registro, int pid) {
 
     // Recibir la respuesta
     if (recibir_operacion(conexion_cpu_memoria)==ERROR_MEMORIA){
-        paquete_respuesta = recibir_paquete(conexion_cpu_memoria)
+        paquete_respuesta = recibir_paquete(conexion_cpu_memoria);
         msjerror = list_remove(paquete_respuesta, 0);
         char *error;
         memcpy(error, msjerror->buffer, sizeof(msjerror->buffer));

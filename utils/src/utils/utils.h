@@ -60,6 +60,18 @@ typedef enum
     
 }protocolo_socket;
 
+
+typedef enum  
+{
+    PROCESS_CREATE_OP,
+    PROCESS_EXIT_OP,
+    THREAD_CREATE_OP,
+    THREAD_EXIT_OP,
+    DUMP_MEMORY_OP,
+    ERROR,
+    SUCCESS
+}protocolo_peticion;
+
 typedef struct
 {
 	int size;

@@ -36,10 +36,8 @@ typedef struct {
     t_list *niveles_prioridad; // Lista de niveles de prioridad
 } t_colas_multinivel;
 
-
 void corto_plazo_fifo();
 t_tcb* desencolar_hilos_fifo();
-
 void corto_plazo_prioridades();
 t_tcb* desencolar_hilos_prioridades();
 int comparar_prioridades(t_tcb *a, t_tcb *b);
@@ -50,7 +48,7 @@ void encolar_corto_plazo_multinivel(t_tcb *hilo);
 bool nivel_existe(void* elemento);
 void ejecutar_round_robin(t_cola_hilo *cola, t_tcb * hilo_a_ejecutar);
 void contar_quantum(void *hilo_void);
-//void *comparar_prioridades_colas(t_nivel_prioridad *a, t_nivel_prioridad *b);
+void *comparar_prioridades_colas(t_nivel_prioridad *a, t_nivel_prioridad *b);
 
 void enviar_a_cpu_dispatch(int tid, int pid);
 void enviar_a_cpu_interrupt(int tid);
