@@ -21,7 +21,9 @@ int main(int argc, char* argv[]) {
     void *ret_value;
 
 	//inicializar memoria
-	inicializar_memoria(config_get_int_value(config, "TIPO_PARTICION"), config_get_int_value(config, "TAM_MEMORIA")); //1 fija 0 dinamica
+	t_list *particiones;
+	cargar_lista_particiones(particiones);
+	inicializar_memoria(config_get_int_value(config, "TIPO_PARTICION"), config_get_int_value(config, "TAM_MEMORIA"), particiones); //1 fija 0 dinamica
 
     //conexiones
 	arg_cpu.puerto = config_get_string_value(config, "PUERTO_CPU");
@@ -45,7 +47,7 @@ int main(int argc, char* argv[]) {
 	//espero fin conexiones
 
 }
-void inicializar_memoria(int tipo_particion, int size){
+void inicializar_memoria(int tipo_particion, int size, t_list *particiones){
 	switch(tipo_particion){
 		case 0: // particiones dinamicas
 			log_error(logger, "particiones dinamicas no implementadas todavia");
@@ -54,13 +56,16 @@ void inicializar_memoria(int tipo_particion, int size){
 		case 1: // fijas
 			memoria_usuario = malloc(sizeof(t_memoria));
 			memoria_usuario->tabla_particiones_fijas = list_create();
-			inicializar_tabla_particion_fija();
+			inicializar_tabla_particion_fija(particiones);
 			memoria_usuario->espacio=malloc(size*sizeof(uint32_t));
 			memoria_usuario->size = size;
 			memoria_usuario->tipo_particion = FIJAS;
-			memoria_usuario->fija_size=40;
+			memoria_usuario->fija_size=SIZE_PARTICION;
 			break;
 	}
+}
+void cargar_lista_particiones(t_list * particiones){
+	return;
 }
 void *server_multihilo_kernel(void* arg_server){
 

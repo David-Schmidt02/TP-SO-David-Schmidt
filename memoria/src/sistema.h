@@ -5,6 +5,8 @@
 #include <utils/utils.h>
 #include <main.h>
 
+#define SIZE_PARTICION 40
+
 //cpu
 void enviar_contexto(void);
 void recibir_contexto();
@@ -16,6 +18,6 @@ int agregar_a_tabla_particion_fija(t_tcb *tcb);
 void crear_proceso();
 int obtener_instruccion(int PC, int tid);
 void buscar_vacio(void* ptr);
-void inicializar_tabla_particion_fija(void);
+void inicializar_tabla_particion_fija(t_list *particiones);
 
 #endif

@@ -15,8 +15,9 @@ void *conexion_cpu(void * arg_cpu);
 void *cliente_conexion_filesystem(void * arg_fs);
 void *server_multihilo_kernel(void* arg_server);
 void *peticion_kernel(void* arg_peticion);
-void inicializar_memoria(int tipo_particion, int size);
+void inicializar_memoria(int tipo_particion, int size, t_list *);
 void levantar_conexiones(void);
+void cargar_lista_particiones(t_list *);
 
 
 enum particiones{
@@ -48,6 +49,8 @@ typedef struct elemento_huecos{
 
 typedef struct elemento_particiones_fijas{
     int libre_ocupado;
+    uint32_t base;
+    int size;
 }elemento_particiones_fijas;
 
 struct t_proceso{

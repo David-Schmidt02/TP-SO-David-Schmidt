@@ -124,7 +124,7 @@ int agregar_a_tabla_particion_fija(t_tcb *tcb){
     }return list_iterator_index(iterator);
     list_iterator_destroy(iterator);
 }
-void inicializar_tabla_particion_fija(){
+void inicializar_tabla_particion_fija(t_list *particiones){
     elemento_particiones_fijas * aux;
     aux->libre_ocupado = 0; // elemento libre
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_particiones_fijas);
@@ -136,8 +136,10 @@ void inicializar_tabla_particion_fija(){
 }
 void crear_proceso(t_tcb *tcb){
     int index = agregar_a_tabla_particion_fija(tcb);
-    tcb->registro->base=&(uint32_t)memoria_usuario->espacio[memoria_usuario->fija_size*index]; //guarda la direccion de inicio del segmento en el registro "base"
-    tcb->registro->limite=memoria_usuario->fija_size;
+    elemento_particiones_fijas *aux = list_get(memoria_usuario->lista_pcb_memoria, index);
+    tcb->registro->base=aux->base; //guarda la direccion de inicio del segmento en el registro "base"
+    tcb->registro->limite=aux->size;
+    //agregar pcb a la lista global
 }
 int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu. Si falla, retorna -1
 	if(PC<0){
