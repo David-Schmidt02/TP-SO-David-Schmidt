@@ -127,11 +127,22 @@ int agregar_a_tabla_particion_fija(t_tcb *tcb){
 void inicializar_tabla_particion_fija(t_list *particiones){
     elemento_particiones_fijas * aux;
     aux->libre_ocupado = 0; // elemento libre
-    t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_particiones_fijas);
+    aux->base = 0;
+    aux->size = 0;
+    uint32_t acumulador = 0;
+    t_list_iterator *iterator_particiones = list_iterator_create(particiones);
+    t_list_iterator *iterator_tabla = list_iterator_create(memoria_usuario->tabla_particiones_fijas);
 
-    for(int i=0;(int)(memoria_usuario->size/memoria_usuario->fija_size);i++){ //i = index de particion. llena la tabla de particiones "libres"
-        list_iterator_add(iterator, aux);
+    while(list_iterator_has_next(iterator_particiones)){
+        aux->libre_ocupado = 0;
+        aux->base = acumulador;
+        aux->size = list_iterator_next(iterator_particiones);
+        acumulador += (uint32_t)aux->size;
+        list_iterator_add(iterator_tabla, aux);
     }
+
+    list_iterator_destroy(iterator_particiones);
+    list_iterator_destroy(iterator_tabla);
     return;
 }
 void crear_proceso(t_tcb *tcb){

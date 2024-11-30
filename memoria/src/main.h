@@ -8,6 +8,7 @@
 #include <utils/utils.h>
 #include "../../kernel/src/pcb.h"
 #include <sistema.h>
+#include <>
 
 void enviar_contexto(void);
 void *conexion_kernel(void * arg_kernel);
@@ -17,7 +18,7 @@ void *server_multihilo_kernel(void* arg_server);
 void *peticion_kernel(void* arg_peticion);
 void inicializar_memoria(int tipo_particion, int size, t_list *);
 void levantar_conexiones(void);
-void cargar_lista_particiones(t_list *);
+void cargar_lista_particiones(t_list *, char **);
 
 
 enum particiones{

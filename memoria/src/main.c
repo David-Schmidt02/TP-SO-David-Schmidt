@@ -22,7 +22,9 @@ int main(int argc, char* argv[]) {
 
 	//inicializar memoria
 	t_list *particiones;
-	cargar_lista_particiones(particiones);
+	char ** particiones_string = config_get_array_value(config, "PARTICIONES");
+	cargar_lista_particiones(particiones, particiones_string);
+	string_array_destroy(particiones_string);
 	inicializar_memoria(config_get_int_value(config, "TIPO_PARTICION"), config_get_int_value(config, "TAM_MEMORIA"), particiones); //1 fija 0 dinamica
 
     //conexiones
@@ -64,8 +66,16 @@ void inicializar_memoria(int tipo_particion, int size, t_list *particiones){
 			break;
 	}
 }
-void cargar_lista_particiones(t_list * particiones){
-	return;
+void cargar_lista_particiones(t_list * particiones, char **particiones_array){
+	
+	t_list_iterator * iterator;
+	iterator = list_iterator_create(particiones);
+
+	for(int i=0;particiones_array[i]!=NULL;i++){
+		iterator->actual = particiones_array[i];
+		list_iterator_next(iterator);
+	}
+	list_iterator_destroy(iterator);
 }
 void *server_multihilo_kernel(void* arg_server){
 
