@@ -8,7 +8,6 @@
 #include <utils/utils.h>
 #include "../../kernel/src/pcb.h"
 #include <sistema.h>
-#include <>
 
 void enviar_contexto(void);
 void *conexion_kernel(void * arg_kernel);
@@ -30,7 +29,6 @@ typedef struct t_memoria{
     void *espacio;
     int size;
     enum particiones tipo_particion;
-    int fija_size;
     t_list *tabla_particiones_fijas;
     t_list *tabla_huecos;
     t_list *tabla_procesos;

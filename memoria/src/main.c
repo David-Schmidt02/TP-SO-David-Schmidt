@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
     void *ret_value;
 
 	//inicializar memoria
-	t_list *particiones;
+	t_list *particiones = list_create();
 	char ** particiones_string = config_get_array_value(config, "PARTICIONES");
 	cargar_lista_particiones(particiones, particiones_string);
 	string_array_destroy(particiones_string);
@@ -62,20 +62,17 @@ void inicializar_memoria(int tipo_particion, int size, t_list *particiones){
 			memoria_usuario->espacio=malloc(size*sizeof(uint32_t));
 			memoria_usuario->size = size;
 			memoria_usuario->tipo_particion = FIJAS;
-			memoria_usuario->fija_size=SIZE_PARTICION;
 			break;
 	}
 }
 void cargar_lista_particiones(t_list * particiones, char **particiones_array){
 	
-	t_list_iterator * iterator;
-	iterator = list_iterator_create(particiones);
-
+	char* elemento = malloc(sizeof(char*)*20);
+	elemento = *particiones_array;
+	elemento[2];
 	for(int i=0;particiones_array[i]!=NULL;i++){
-		iterator->actual = particiones_array[i];
-		list_iterator_next(iterator);
+		list_add(particiones, particiones_array[i]);
 	}
-	list_iterator_destroy(iterator);
 }
 void *server_multihilo_kernel(void* arg_server){
 

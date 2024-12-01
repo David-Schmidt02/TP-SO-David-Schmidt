@@ -124,8 +124,21 @@ int agregar_a_tabla_particion_fija(t_tcb *tcb){
     }return list_iterator_index(iterator);
     list_iterator_destroy(iterator);
 }
+/// @brief busca el TID en la tabla de particiones fijas y devuelve el index
+/// @param tid 
+/// @return index o -1 -> error
+int buscar_en_tabla_fija(int tid){
+    t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_particiones_fijas);
+    elemento_particiones_fijas *aux;
+    while(list_iterator_has_next(iterator)){
+        aux = list_iterator_next(iterator);
+        if(aux->libre_ocupado == tid){
+            return list_iterator_index(iterator);
+        }
+    }return -1;
+}
 void inicializar_tabla_particion_fija(t_list *particiones){
-    elemento_particiones_fijas * aux;
+    elemento_particiones_fijas * aux = malloc(sizeof(elemento_particiones_fijas));
     aux->libre_ocupado = 0; // elemento libre
     aux->base = 0;
     aux->size = 0;
@@ -136,7 +149,7 @@ void inicializar_tabla_particion_fija(t_list *particiones){
     while(list_iterator_has_next(iterator_particiones)){
         aux->libre_ocupado = 0;
         aux->base = acumulador;
-        aux->size = list_iterator_next(iterator_particiones);
+        aux->size = (int)list_iterator_next(iterator_particiones);
         acumulador += (uint32_t)aux->size;
         list_iterator_add(iterator_tabla, aux);
     }
@@ -147,10 +160,35 @@ void inicializar_tabla_particion_fija(t_list *particiones){
 }
 void crear_proceso(t_tcb *tcb){
     int index = agregar_a_tabla_particion_fija(tcb);
-    elemento_particiones_fijas *aux = list_get(memoria_usuario->lista_pcb_memoria, index);
+    elemento_particiones_fijas *aux = list_get(memoria_usuario->tabla_particiones_fijas, index);
     tcb->registro->base=aux->base; //guarda la direccion de inicio del segmento en el registro "base"
     tcb->registro->limite=aux->size;
     //agregar pcb a la lista global
+    list_add(memoria_usuario->lista_pcb_memoria, tcb);
+}
+void fin_proceso(int tid){ // potencialmente faltan semaforos
+    int index;
+    
+    switch(memoria_usuario->tipo_particion){
+
+        case FIJAS:
+            elemento_particiones_fijas *aux;
+            index = buscar_en_tabla_fija(tid);
+            if(index!=(-1)){
+                aux = list_get(memoria_usuario->tabla_particiones_fijas, index);
+                aux->libre_ocupado = 0;
+            }
+            index = buscar_tid(memoria_usuario->lista_pcb_memoria, tid);
+            //mutex?
+            list_remove(memoria_usuario->lista_pcb_memoria, index);
+            //mutex?
+            
+        case DINAMICAS:
+            //falta hacer
+            break;
+    }
+   
+
 }
 int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu. Si falla, retorna -1
 	if(PC<0){
