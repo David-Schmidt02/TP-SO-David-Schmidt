@@ -1,6 +1,5 @@
 #include "sistema.h"
 
-extern t_list *lista_pcb_memoria; //lista de pcb
 extern int socket_cliente_cpu;
 extern t_memoria *memoria_usuario;
 
@@ -25,11 +24,11 @@ void enviar_contexto(){
     if(pid <= 0 || tid < 0 || PC < 0){
         log_error(logger, "CPU envio parametros incorrectos pidiendo el contexto de ejecucion");
     }
-    int index_pcb = buscar_pid(lista_pcb_memoria, pid);
+    int index_pcb = buscar_pid(memoria_usuario->lista_pcb, pid);
     if(index_pcb==-1){
         error_contexto("No se encontro el PID en memoria");
     }
-    t_pcb *pcb_aux = list_get(lista_pcb_memoria, index_pcb);
+    t_pcb *pcb_aux = list_get(memoria_usuario->lista_pcb, index_pcb);
     int index_thread = buscar_tid(pcb_aux->listaTCB, tid);
     if(index_thread==-1){
         error_contexto("No se encontro el TID en el proceso");
@@ -56,11 +55,11 @@ void recibir_contexto(){
     paquete_recv = list_remove(paquete_recv_list, 0);
     memcpy(&pid, paquete_recv->buffer->stream, sizeof(int));
     
-    index_pcb = buscar_pid(lista_pcb_memoria, pid);
+    index_pcb = buscar_pid(memoria_usuario->lista_pcb, pid);
     if(index_pcb==-1){
         error_contexto("No se encontro el PID en memoria");
     }
-    aux_pcb = list_get(lista_pcb_memoria, index_pcb);
+    aux_pcb = list_get(memoria_usuario->lista_pcb, index_pcb);
     aux_pcb->registro = registro;
 
     paquete_send = crear_paquete(CONTEXTO_SEND);
@@ -109,7 +108,7 @@ void error_contexto(char * error){
 /// @brief busca un lugar vacio en la tabla y agrega el tid
 /// @returns index donde guardo el tid
 /// @param tcb 
-int agregar_a_tabla_particion_fija(t_tcb *tcb){
+int agregar_a_tabla_particion_fija(t_pcb *pcb){
     
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_particiones_fijas);
     elemento_particiones_fijas *aux;
@@ -118,7 +117,7 @@ int agregar_a_tabla_particion_fija(t_tcb *tcb){
     while(list_iterator_has_next(iterator)) {
         aux = list_iterator_next(iterator);
         if (aux->libre_ocupado==0){
-            aux->libre_ocupado = tcb->tid; //no liberar aux, sino se pierde el elemento xd
+            aux->libre_ocupado = pcb->pid; //no liberar aux, sino se pierde el elemento xd
             break;
         }
     }return list_iterator_index(iterator);
@@ -127,12 +126,12 @@ int agregar_a_tabla_particion_fija(t_tcb *tcb){
 /// @brief busca el TID en la tabla de particiones fijas y devuelve el index
 /// @param tid 
 /// @return index o -1 -> error
-int buscar_en_tabla_fija(int tid){
+int buscar_en_tabla_fija(int pid){
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_particiones_fijas);
     elemento_particiones_fijas *aux;
     while(list_iterator_has_next(iterator)){
         aux = list_iterator_next(iterator);
-        if(aux->libre_ocupado == tid){
+        if(aux->libre_ocupado == pid){
             return list_iterator_index(iterator);
         }
     }return -1;
@@ -158,37 +157,84 @@ void inicializar_tabla_particion_fija(t_list *particiones){
     list_iterator_destroy(iterator_tabla);
     return;
 }
-void crear_proceso(t_tcb *tcb){
-    int index = agregar_a_tabla_particion_fija(tcb);
+void crear_proceso(t_pcb *pcb){
+    int index = agregar_a_tabla_particion_fija(pcb);
     elemento_particiones_fijas *aux = list_get(memoria_usuario->tabla_particiones_fijas, index);
-    tcb->registro->base=aux->base; //guarda la direccion de inicio del segmento en el registro "base"
-    tcb->registro->limite=aux->size;
+    pcb->registro->base=aux->base; //guarda la direccion de inicio del segmento en el registro "base"
+    pcb->registro->limite=aux->size;
     //agregar pcb a la lista global
-    list_add(memoria_usuario->lista_pcb_memoria, tcb);
-}
-void fin_proceso(int tid){ // potencialmente faltan semaforos
-    int index;
+    list_add(memoria_usuario->lista_pcb, pcb);
     
+    t_list_iterator *iterator = list_iterator_create(pcb->listaTCB); // iterator para listaTCB
+    t_tcb * tcb_aux;
+    while(list_iterator_has_next(iterator)){ // llena la lista de tcb con los tcb que vinieron dentro del pcb
+        tcb_aux = list_iterator_next(iterator);
+        list_add(memoria_usuario->lista_tcb, tcb_aux);
+    }
+}
+void crear_thread(t_tcb *tcb){
+    int index_pid;
+    t_pcb *pcb_aux;
+    index_pid = buscar_tid(memoria_usuario->lista_pcb, tcb->tid);
+
+    pcb_aux = list_get(memoria_usuario->lista_pcb, index_pid);
+    list_add(pcb_aux->listaTCB, tcb);
+    list_add(memoria_usuario->lista_tcb, tcb);
+
+}
+void fin_proceso(int pid){ // potencialmente faltan semaforos
+    int index_pid, index_tid;
+    t_pcb *pcb_aux;
+    t_tcb *tcb_aux;
     switch(memoria_usuario->tipo_particion){
 
         case FIJAS:
             elemento_particiones_fijas *aux;
-            index = buscar_en_tabla_fija(tid);
-            if(index!=(-1)){
-                aux = list_get(memoria_usuario->tabla_particiones_fijas, index);
+            index_pid = buscar_en_tabla_fija(pid);
+            if(index_pid!=(-1)){
+                aux = list_get(memoria_usuario->tabla_particiones_fijas, index_pid);
                 aux->libre_ocupado = 0;
             }
-            index = buscar_tid(memoria_usuario->lista_pcb_memoria, tid);
+            index_pid = buscar_pid(memoria_usuario->lista_pcb, pid);
+            pcb_aux = list_get(memoria_usuario->lista_pcb, index_pid);
+            
+            t_list_iterator *iterator = list_iterator_create(pcb_aux->listaTCB);
+            while(list_iterator_has_next(iterator)){
+                tcb_aux = list_iterator_next(iterator);
+                index_tid = buscar_tid(memoria_usuario->lista_tcb, tcb_aux->tid);
+                list_remove(memoria_usuario->lista_tcb, index_tid);
+            }
             //mutex?
-            list_remove(memoria_usuario->lista_pcb_memoria, index);
+            list_remove(memoria_usuario->lista_pcb, index_pid);
             //mutex?
             
         case DINAMICAS:
             //falta hacer
             break;
     }
-   
+}
+void fin_thread(int tid){
+    int index_tid, index_pid;
+    int pid;
+    t_tcb *tcb_aux;
+    t_pcb *pcb_aux;
+    index_tid = buscar_tid(memoria_usuario->lista_tcb, tid);
 
+    tcb_aux = list_get(memoria_usuario->lista_tcb, index_tid);
+    pid = tcb_aux->pid;
+
+    index_pid = buscar_pid(memoria_usuario->lista_pcb, pid);
+    pcb_aux = list_get(memoria_usuario->lista_pcb, index_pid);
+
+    t_list_iterator *iterator = list_iterator_create(pcb_aux->listaTCB);
+    while(list_iterator_has_next(iterator)){
+        tcb_aux = list_iterator_next(iterator);
+        if (tcb_aux->tid == tid){
+            list_iterator_remove(iterator);
+            break;
+        }
+    }
+    list_remove(memoria_usuario->lista_tcb, index_tid);
 }
 int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu. Si falla, retorna -1
 	if(PC<0){
@@ -197,12 +243,14 @@ int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu.
 	}
 	
 	t_paquete *paquete_send;
-	t_tcb *tcb_aux;
-	int index;
+    t_tcb *tcb_aux;
+	int index_tid;
 	char * instruccion;
+    int pid;
 
-	index = buscar_tid(lista_pcb_memoria, tid);
-	tcb_aux = list_get(lista_pcb_memoria, index);
+    index_tid = buscar_tid(memoria_usuario->lista_tcb, tid); //consigo tcb
+    tcb_aux = list_get(memoria_usuario->lista_tcb, index_tid);
+
 	instruccion = list_get(tcb_aux->instrucciones, PC);
 
 	paquete_send = crear_paquete(OBTENER_INSTRUCCION);

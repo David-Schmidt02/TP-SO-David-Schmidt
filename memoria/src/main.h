@@ -32,7 +32,8 @@ typedef struct t_memoria{
     t_list *tabla_particiones_fijas;
     t_list *tabla_huecos;
     t_list *tabla_procesos;
-    t_list *lista_pcb_memoria;
+    t_list *lista_pcb;
+    t_list *lista_tcb;
 }t_memoria;
 
 typedef struct elemento_procesos{

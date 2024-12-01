@@ -58,6 +58,8 @@ void inicializar_memoria(int tipo_particion, int size, t_list *particiones){
 		case 1: // fijas
 			memoria_usuario = malloc(sizeof(t_memoria));
 			memoria_usuario->tabla_particiones_fijas = list_create();
+			memoria_usuario->lista_pcb = list_create();
+			memoria_usuario->lista_tcb = list_create();
 			inicializar_tabla_particion_fija(particiones);
 			memoria_usuario->espacio=malloc(size*sizeof(uint32_t));
 			memoria_usuario->size = size;
