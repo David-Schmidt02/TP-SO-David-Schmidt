@@ -135,11 +135,11 @@ void *peticion_kernel_NEW_PROCESS(void* arg_peticion){
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
-	enviar_paquete(paquete_send);
+	enviar_paquete(paquete_send, socket);
 
 	eliminar_paquete(paquete_send);
 	eliminar_paquete(paquete_recv);
-	list_remove(paquete_list);
+	list_destroy(paquete_list);
 	close(socket); //cerrar socket
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
