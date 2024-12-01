@@ -6,10 +6,13 @@
 #include <main.h>
 
 #define SIZE_PARTICION 40
+#define OK_MEMORIA 1
 
 //cpu
 void enviar_contexto(void);
 void recibir_contexto();
+t_paquete *obtener_contexto(int pid, int tid);
+void actualizar_contexto_ejecucion(void);
 int buscar_pid(t_list *lista, int pid);
 int buscar_tid(t_list *lista, int tid);
 
