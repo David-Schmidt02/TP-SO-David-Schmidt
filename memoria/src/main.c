@@ -82,7 +82,7 @@ void *server_multihilo_kernel(void* arg_server){
 	pthread_t aux_thread;
 	t_list *lista_t_peticiones = list_create();
 	void* ret_value;
-	int cod_op;
+	protocolo_socket cod_op;
 	int flag = 1; //1: operar, 0: TERMINATE
 
 	int server = iniciar_servidor(args->puerto); //abro server
@@ -96,8 +96,8 @@ void *server_multihilo_kernel(void* arg_server){
 		cod_op = recibir_operacion(socket_cliente_kernel);
 		switch (cod_op)
 		{
-			case 0:
-				pthread_create(&aux_thread, NULL, peticion_kernel, (void *)&socket_cliente_kernel);
+			case OBTENER_INSTRUCCION:
+				pthread_create(&aux_thread, NULL, peticion_kernel_NEW_PROCESS, (void *)&socket_cliente_kernel);
 				list_add(lista_t_peticiones, &aux_thread);
 				log_info(logger, "nueva peticion");
 				break;
@@ -121,11 +121,25 @@ void *server_multihilo_kernel(void* arg_server){
 	close(server);
     pthread_exit(EXIT_SUCCESS);
 }
-void *peticion_kernel(void* arg_peticion){
+void *peticion_kernel_NEW_PROCESS(void* arg_peticion){
 	int socket = (int)arg_peticion;
+	t_pcb *pcb;
 	//atender peticion
-	sleep(10); //opcional hasta tener implementado la peticion
+	t_list * paquete_list;
+	t_paquete * paquete_recv;
+	t_paquete * paquete_send;
+
+	paquete_list = recibir_paquete(socket);
+	pcb = list_remove(paquete_list, 0);
+	crear_proceso(pcb);
+	
 	//notificar resultado a kernel
+	paquete_send = crear_paquete(OK);
+	enviar_paquete(paquete_send);
+
+	eliminar_paquete(paquete_send);
+	eliminar_paquete(paquete_recv);
+	list_remove(paquete_list);
 	close(socket); //cerrar socket
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }

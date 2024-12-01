@@ -186,6 +186,7 @@ void fin_proceso(int pid){ // potencialmente faltan semaforos
     int index_pid, index_tid;
     t_pcb *pcb_aux;
     t_tcb *tcb_aux;
+    
     switch(memoria_usuario->tipo_particion){
 
         case FIJAS:
@@ -202,16 +203,18 @@ void fin_proceso(int pid){ // potencialmente faltan semaforos
             while(list_iterator_has_next(iterator)){
                 tcb_aux = list_iterator_next(iterator);
                 index_tid = buscar_tid(memoria_usuario->lista_tcb, tcb_aux->tid);
-                list_remove(memoria_usuario->lista_tcb, index_tid);
+                tcb_aux = list_remove(memoria_usuario->lista_tcb, index_tid);
             }
             //mutex?
-            list_remove(memoria_usuario->lista_pcb, index_pid);
+            pcb_aux = list_remove(memoria_usuario->lista_pcb, index_pid);
             //mutex?
             
         case DINAMICAS:
             //falta hacer
             break;
     }
+    free(tcb_aux);
+    free(pcb_aux);
 }
 void fin_thread(int tid){
     int index_tid, index_pid;
@@ -235,6 +238,7 @@ void fin_thread(int tid){
         }
     }
     list_remove(memoria_usuario->lista_tcb, index_tid);
+    free(tcb_aux);
 }
 int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu. Si falla, retorna -1
 	if(PC<0){
