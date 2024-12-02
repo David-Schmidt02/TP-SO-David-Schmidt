@@ -98,6 +98,7 @@ void encolar_corto_plazo_fifo(t_tcb * hilo){
     list_add(hilos_cola_ready->lista_procesos, hilo);
     pthread_mutex_unlock(mutex_hilos_cola_ready);
     sem_post(sem_estado_hilos_cola_ready);
+    log_info(logger, "Se hace un post del semáforo de estado de hilos_cola_ready");
 }
 
 t_tcb* desencolar_hilos_fifo(){
@@ -153,6 +154,8 @@ void encolar_corto_plazo_prioridades(t_tcb * hilo){
     }
     list_add_in_index(hilos_cola_ready->lista_hilos, i, hilo);
     pthread_mutex_unlock(mutex_hilos_cola_ready);
+    sem_post(sem_estado_hilos_cola_ready);
+    log_info(logger, "Se hace un post del semáforo de estado de hilos_cola_ready");
 }
 
 t_tcb* desencolar_hilos_prioridades()
@@ -176,7 +179,6 @@ void corto_plazo_colas_multinivel() {
         t_cola_hilo *cola_a_ejecutar = buscar_cola_menor_prioridad(colas_multinivel, &nivel_a_ejecutar);
 
         // Si encontramos una cola válida para ejecutar
-        // Esto podría llamarse t_tcb * desencolar_hilos_colas_multinivel()
         if (cola_a_ejecutar != NULL && nivel_a_ejecutar != NULL) {
             // Extraemos el primer hilo en la cola de menor prioridad
             t_tcb *hilo_a_ejecutar = list_remove(cola_a_ejecutar->lista_hilos, 0);
@@ -326,7 +328,6 @@ bool nivel_existe(void* elemento) {
     return nivel->nivel_prioridad == hilo_actual->prioridad;
 }
 
-
 void enviar_a_cpu_dispatch(int tid, int pid)
 {
     t_paquete * send_handshake = crear_paquete(INFO_HILO);
@@ -466,20 +467,21 @@ t_cola_hilo* inicializar_cola_hilo(t_estado estado) {
 }
 
 void inicializar_semaforos_corto_plazo(){
+    printf("MUTEX DE LA COLA DE HILOS EN READY CREADO CORRECTAMENTE\n");
     mutex_hilos_cola_ready = malloc(sizeof(pthread_mutex_t));
     if (mutex_hilos_cola_ready == NULL) {
         perror("Error al asignar memoria para mutex de cola");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_init(mutex_hilos_cola_ready, NULL);
-
+    printf("MUTEX DE LA COLA DE HILOS EN EXIT CREADO CORRECTAMENTE\n");
     mutex_hilos_cola_exit = malloc(sizeof(pthread_mutex_t));
     if (mutex_hilos_cola_exit == NULL) {
         perror("Error al asignar memoria para mutex de cola");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_init(mutex_hilos_cola_exit, NULL);
-
+    printf("MUTEX DE LA COLA DE HILOS BLOQUEADOS CREADO CORRECTAMENTE\n");
     mutex_hilos_cola_bloqueados = malloc(sizeof(pthread_mutex_t));
     if (mutex_hilos_cola_bloqueados == NULL) {
         perror("Error al asignar memoria para mutex de cola");
@@ -495,6 +497,7 @@ void inicializar_semaforos_corto_plazo(){
     }
     pthread_mutex_init(mutex_colas_multinivel, NULL);
 
+    printf("SEMÁFORO DE ESTADO DE LA COLA DE HILOS EN READY CREADO CORRECTAMENTE\n");
     sem_estado_hilos_cola_ready = malloc(sizeof(sem_t));
     if (sem_estado_hilos_cola_ready == NULL) {
         perror("Error al asignar memoria para semáforo de cola");
@@ -502,20 +505,21 @@ void inicializar_semaforos_corto_plazo(){
     }
     sem_init(sem_estado_hilos_cola_ready, 0, 0);
 
+    printf("SEMÁFORO DE ESTADO DE LA COLA DE HILOS EN EXIT CREADO CORRECTAMENTE\n");
     sem_estado_hilos_cola_exit = malloc(sizeof(sem_t));
     if (sem_estado_hilos_cola_exit == NULL) {
         perror("Error al asignar memoria para semáforo de cola");
         exit(EXIT_FAILURE);
     }
     sem_init(sem_estado_hilos_cola_exit, 0, 0);
-
+    printf("SEMÁFORO DE ESTADO DE LA COLA BLOQUEADOS EN EXIT CREADO CORRECTAMENTE\n");
     sem_estado_hilos_cola_bloqueados = malloc(sizeof(sem_t));
     if (sem_estado_hilos_cola_bloqueados == NULL) {
         perror("Error al asignar memoria para semáforo de cola");
         exit(EXIT_FAILURE);
     }
     sem_init(sem_estado_hilos_cola_bloqueados, 0, 0);
-
+    printf("SEMÁFORO DE ESTADO DE LA COLA DE HILOS MULTINIVEL CREADO CORRECTAMENTE\n");
     sem_estado_multinivel = malloc(sizeof(sem_t));
     if (sem_estado_multinivel == NULL) {
         perror("Error al asignar memoria para semáforo de cola");

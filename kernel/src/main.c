@@ -4,20 +4,20 @@
 #include <planificador_largo_plazo.h>
 #include <syscalls.h>
 
-t_log *logger;
+extern t_log *logger;
 
-//Config
+// Config
 t_config *config;
-char * algoritmo;
-int quantum;
+extern char *algoritmo;
+extern int quantum;
 //
 
-//Conexion con Memoria
-int conexion_kernel_memoria;
+// Conexion con Memoria
+extern int conexion_kernel_memoria;
 
-t_list *lista_t_peticiones;
-sem_t * sem_lista_t_peticiones;
-pthread_mutex_t *mutex_lista_t_peticiones;
+extern t_list *lista_t_peticiones;
+extern sem_t *sem_lista_t_peticiones;
+extern pthread_mutex_t *mutex_lista_t_peticiones;
 
 sem_t * sem_proceso_finalizado; // utilizado para reintentar crear procesos
 
@@ -36,36 +36,36 @@ sem_t * sem_estado_cpu_dispatch;
 sem_t * sem_estado_cpu_interrupt;
 //
 
-//Colas y semáforos del planificador de largo plazo
-t_cola_proceso* procesos_cola_ready;
-pthread_mutex_t * mutex_procesos_cola_ready;
-sem_t * sem_estado_procesos_cola_ready;
+// Colas y semáforos del planificador de largo plazo
+extern t_cola_proceso* procesos_cola_ready;
+extern pthread_mutex_t *mutex_procesos_cola_ready;
+extern sem_t *sem_estado_procesos_cola_ready;
 
-t_cola_procesos_a_crear* procesos_a_crear;
-pthread_mutex_t * mutex_procesos_a_crear;
-sem_t * sem_estado_procesos_a_crear;
+extern t_cola_procesos_a_crear* procesos_a_crear;
+extern pthread_mutex_t *mutex_procesos_a_crear;
+extern sem_t *sem_estado_procesos_a_crear;
 //
 
-//Colas y semáforos del planificador de corto plazo
-t_cola_hilo* hilos_cola_ready;
-pthread_mutex_t * mutex_hilos_cola_ready;
-sem_t * sem_estado_hilos_cola_ready;
+// Colas y semáforos del planificador de corto plazo
+extern t_cola_hilo* hilos_cola_ready;
+extern pthread_mutex_t *mutex_hilos_cola_ready;
+extern sem_t *sem_estado_hilos_cola_ready;
 
-t_cola_hilo* hilos_cola_exit;
-pthread_mutex_t * mutex_hilos_cola_exit;
-sem_t * sem_estado_hilos_cola_exit;
+extern t_cola_hilo* hilos_cola_exit;
+extern pthread_mutex_t *mutex_hilos_cola_exit;
+extern sem_t *sem_estado_hilos_cola_exit;
 
-t_cola_hilo* hilos_cola_bloqueados;
-pthread_mutex_t * mutex_hilos_cola_bloqueados;
-sem_t * sem_estado_hilos_cola_bloqueados;
+extern t_cola_hilo* hilos_cola_bloqueados;
+extern pthread_mutex_t *mutex_hilos_cola_bloqueados;
+extern sem_t *sem_estado_hilos_cola_bloqueados;
 
-t_colas_multinivel *colas_multinivel;
-pthread_mutex_t * mutex_colas_multinivel;
-sem_t * sem_estado_multinivel;
+extern t_colas_multinivel *colas_multinivel;
+extern pthread_mutex_t *mutex_colas_multinivel;
+extern sem_t *sem_estado_multinivel;
 //
 
-t_list* lista_global_tcb; // lista para manipular los hilos
-t_list* lista_mutexes;
+extern t_list* lista_global_tcb; // lista para manipular los hilos
+extern t_list* lista_mutexes;
 
 
 //Colas y semáforos de IO
@@ -223,7 +223,7 @@ void *conexion_cpu_interrupt(void * arg_cpu){
 	liberar_conexion(conexion_kernel_cpu_interrupt);
     return (void *)EXIT_SUCCESS;
 }
-
+//esta funcion no se usa en las pruebas
 void *administrador_peticiones_memoria(void* arg_server){
 	t_peticion *peticion;
 	t_paquete_peticion args_peticion; 
@@ -496,6 +496,7 @@ void inicializar_semaforos(){
 }
 
 void inicializar_semaforos_conexion_cpu(){
+	printf("MUTEX DE LA CONEXION CON CPU DISPATCH CREADO CORRECTAMENTE\n");
 	mutex_socket_cpu_dispatch = malloc(sizeof(pthread_mutex_t));
     if (mutex_socket_cpu_dispatch == NULL) {
         perror("Error al asignar memoria para mutex de CPU dispatch");

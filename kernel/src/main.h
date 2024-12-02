@@ -34,7 +34,7 @@ typedef enum
 
 typedef struct 
 {
-    protocolo_peticion tipo;
+    protocolo_socket tipo;
     t_pcb *proceso;
     t_tcb *hilo;
     bool respuesta_recibida;
