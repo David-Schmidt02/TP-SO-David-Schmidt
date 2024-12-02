@@ -1,8 +1,9 @@
 #ifndef BLOCKS_H
 #define BLOCKS_H
 
-#include "bloques.h"
+#include <utils.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -13,14 +14,14 @@
 #include <signal.h>
 #include <commons/bitarray.h>
 #include <commons/log.h>
-#include "main.h"
+#include <commons/config.h>
+#include <bitmap.h>
 
 extern t_config *config;
 extern t_log *logger;
 
-
-void *bloques = NULL;
-int block_size = 4; 
+extern void *bloques;
+extern int block_size;
 
 void inicializar_bloques(uint32_t block_count, int block_size, char* mount_dir);
 void escribir_bloque(int bloque, void *contenido, size_t tamanio);

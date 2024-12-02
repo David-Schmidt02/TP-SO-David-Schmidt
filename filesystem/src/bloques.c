@@ -3,9 +3,7 @@ extern t_config* config;
 extern t_log* logger;
 extern int retardo_acceso;
 
-extern retardo_acceso;
-
-void inicializar_bloques(int block_count, int block_size, t_config *configuint32_t block_count, int block_size, char* mount_dir) {
+void inicializar_bloques(uint32_t block_count, int block_size, char* mount_dir) {
     if (mount_dir == NULL) {
         log_info(logger, "Error: No se encontró 'MOUNT_DIR' en la configuración.");
         return exit(EXIT_FAILURE);

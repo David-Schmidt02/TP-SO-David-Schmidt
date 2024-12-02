@@ -3,6 +3,7 @@
 static t_bitarray* bitmap; // Estructura que representa el bitmap en memoria
 static pthread_mutex_t mutex_bitmap;
 static FILE* bitmap_file;
+t_buffer *buffer;
 
 extern t_config *config;
 extern t_log *logger;
