@@ -23,7 +23,16 @@ typedef struct {
     t_list *lista_procesos;  // Lista de procesos a crear
 } t_cola_procesos_a_crear;
 
+t_cola_proceso* inicializar_cola_procesos_ready();
+t_cola_procesos_a_crear* inicializar_cola_procesos_a_crear();
+void inicializar_semaforos_largo_plazo();
+void largo_plazo_fifo();
+t_pcb* desencolar_proceso_a_crear();
+void encolar_proceso_en_ready(t_pcb * proceso);
+void encolar_hilo_principal_corto_plazo(t_pcb * proceso);
 
-//void encolar_largo_plazo();
+void* planificador_corto_plazo_hilo(void* arg);
+void *simular_respuesta_memoria(void *arg);
+
 
 #endif

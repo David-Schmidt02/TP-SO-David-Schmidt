@@ -1,24 +1,15 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+#include <pcb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <commons/log.h>
 #include <utils/utils.h>
-
-typedef enum  
-{
-    CREATE_PROCESS,
-    EXIT_PROCESS,
-    CREATE_THREAD,
-    EXIT_THREAD,
-    DUMP_MEMORY
-}protocolo_peticion;
-
 typedef struct 
 {
-    protocolo_peticion tipo;
+    protocolo_socket tipo;
     t_pcb *proceso;
     t_tcb *hilo;
     bool respuesta_recibida;

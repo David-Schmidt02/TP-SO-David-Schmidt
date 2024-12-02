@@ -40,6 +40,7 @@ typedef struct {
     int pc;//borrar? esta en RegistroCPU
     int quantum;
     int memoria_necesaria;
+    t_estado estado;
     t_list *listaTCB;
     t_list *listaMUTEX;
     RegistroCPU *registro;
@@ -49,7 +50,7 @@ typedef struct {
     int pid;
     int tid;
     int prioridad;
-    RegistroCPU *registro;
+    sem_t * cant_hilos_block; // Semaforo para tratar con los hilos que bloquean a este hilo por THREAD JOIN
     t_estado estado;
     t_list* lista_espera; // Lista de hilos que están esperando a que el hilo corriendo termine
     t_list* instrucciones;  // Lista de instrucciones para el hilo

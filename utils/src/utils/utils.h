@@ -32,10 +32,10 @@ extern t_list *sch_cola_ready,*sch_cola_new,*sch_cola_new_plus,*sch_cola_block,*
 extern sem_t sem_p_ready;
 extern pthread_mutex_t m_cola_new, m_cola_ready, m_cola_new_plus, m_cola_exec;
 
-struct arg_struct {
+typedef struct arg_struct {
     char * puerto;
     char * ip;
-}typedef argumentos_thread;
+}argumentos_thread;
 
 
 typedef enum
@@ -56,22 +56,34 @@ typedef enum
     ERROR_MEMORIA,
     INFO_HILO, // agregado para cuando el kernel le manda al cpu el tid del hilo planificado a ejecutar
     OK,
+    //para comunicar kernel y memoria
+    PROCESS_CREATE_OP,
+    PROCESS_EXIT_OP,
+    THREAD_CREATE_OP,
+    THREAD_EXIT_OP, // es el mismo para THREAD_CANCEL_OP,
+    DUMP_MEMORY_OP,
+    ERROR,
+    SUCCESS,
+    //para comunicar kernel y cpu
+    FINALIZACION,
+    FIN_QUANTUM,
+    THREAD_JOIN_OP,
     INIT_BITMAP
     
 }protocolo_socket;
 
 
-typedef enum  
+/*typedef enum  
 {
     PROCESS_CREATE_OP,
     PROCESS_EXIT_OP,
     THREAD_CREATE_OP,
-    THREAD_EXIT_OP,
+    THREAD_EXIT_OP, // es el mismo para THREAD_CANCEL_OP,
     DUMP_MEMORY_OP,
     ERROR,
     SUCCESS
 }protocolo_peticion;
-
+*/
 typedef struct
 {
 	int size;

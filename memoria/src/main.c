@@ -159,8 +159,6 @@ void *conexion_cpu(void* arg_cpu)
 	handshake_send = crear_paquete(HANDSHAKE);
 	agregar_a_paquete (handshake_send, handshake_texto , strlen(handshake_texto)+1);
 	//HANDSHAKE_end
-
-
 	while(true){
 		int cod_op = recibir_operacion(socket_cliente_cpu);
 		switch (cod_op)
