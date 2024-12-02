@@ -277,6 +277,7 @@ void crear_proceso(t_pcb *pcb){
     
     t_list_iterator *iterator = list_iterator_create(pcb->listaTCB); // iterator para listaTCB
     t_tcb * tcb_aux;
+    
     while(list_iterator_has_next(iterator)){ // llena la lista de tcb con los tcb que vinieron dentro del pcb
         tcb_aux = list_iterator_next(iterator);
         list_add(memoria_usuario->lista_tcb, tcb_aux);

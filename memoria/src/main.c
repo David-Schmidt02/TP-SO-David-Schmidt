@@ -49,21 +49,23 @@ int main(int argc, char* argv[]) {
 	//espero fin conexiones
 
 }
-void inicializar_memoria(int tipo_particion, int size, t_list *particiones){
+void inicializar_memoria(particiones tipo_particion, int size, t_list *particiones){
+	memoria_usuario = malloc(sizeof(t_memoria));
+	memoria_usuario->lista_pcb = list_create();
+	memoria_usuario->lista_tcb = list_create();
+	memoria_usuario->espacio=malloc(size*sizeof(uint32_t));
+	memoria_usuario->size = size;
+
 	switch(tipo_particion){
-		case 0: // particiones dinamicas
+		case DINAMICAS: // particiones dinamicas
 			log_error(logger, "particiones dinamicas no implementadas todavia");
 			break;
 		
-		case 1: // fijas
-			memoria_usuario = malloc(sizeof(t_memoria));
-			memoria_usuario->tabla_particiones_fijas = list_create();
-			memoria_usuario->lista_pcb = list_create();
-			memoria_usuario->lista_tcb = list_create();
-			inicializar_tabla_particion_fija(particiones);
-			memoria_usuario->espacio=malloc(size*sizeof(uint32_t));
-			memoria_usuario->size = size;
+		case FIJAS: // fijas
 			memoria_usuario->tipo_particion = FIJAS;
+			memoria_usuario->tabla_particiones_fijas = list_create();
+			inicializar_tabla_particion_fija(particiones);
+			
 			break;
 	}
 }
@@ -71,7 +73,6 @@ void cargar_lista_particiones(t_list * particiones, char **particiones_array){
 	
 	char* elemento = malloc(sizeof(char*)*20);
 	elemento = *particiones_array;
-	elemento[2];
 	for(int i=0;particiones_array[i]!=NULL;i++){
 		list_add(particiones, particiones_array[i]);
 	}

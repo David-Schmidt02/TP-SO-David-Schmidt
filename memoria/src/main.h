@@ -15,15 +15,15 @@ void *conexion_cpu(void * arg_cpu);
 void *cliente_conexion_filesystem(void * arg_fs);
 void *server_multihilo_kernel(void* arg_server);
 void *peticion_kernel_NEW_PROCESS(void* arg_peticion);
-void inicializar_memoria(int tipo_particion, int size, t_list *);
-void levantar_conexiones(void);
-void cargar_lista_particiones(t_list *, char **);
+void inicializar_memoria(particiones tipo_particion, int size, t_list *); //hacer para dinamicas
+void levantar_conexiones(void); //
+void cargar_lista_particiones(t_list *, char **); //solo para fijas
 
 
-enum particiones{
+typedef enum particiones{
     FIJAS,
     DINAMICAS
-};
+}particiones;
 
 typedef struct t_memoria{
     void *espacio;
