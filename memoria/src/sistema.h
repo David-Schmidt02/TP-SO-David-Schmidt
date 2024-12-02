@@ -10,6 +10,8 @@
 
 //cpu
 void enviar_contexto(void);
+uint32_t read_memory(uint32_t direccion);
+int write_memory(uint32_t direccion, uint32_t valor);
 void recibir_contexto();
 t_paquete *obtener_contexto(int pid, int tid);
 void actualizar_contexto_ejecucion(void);

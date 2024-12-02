@@ -3,6 +3,31 @@
 extern int socket_cliente_cpu;
 extern t_memoria *memoria_usuario;
 
+
+/// @brief Read memory
+/// @param direccion 
+/// @return devuelve el contenido de la direccion, o -1 para error
+uint32_t read_memory(uint32_t direccion){
+    if(direccion < 0 || direccion > memoria_usuario->size){
+        log_error(logger, "Direccion %d invalida", direccion);
+        return -1;
+    }
+    return (uint32_t)memoria_usuario->espacio[direccion];
+}
+/// @brief Write memory
+/// @param direccion
+/// @param valor
+/// @return devuelve 0 para ok o -1 para error
+int write_memory(uint32_t direccion, uint32_t valor){
+    if(direccion < 0 || direccion > memoria_usuario->size){
+        log_error(logger, "Direccion %d invalida", direccion);
+        return -1;
+    }
+    (uint32_t)memoria_usuario->espacio[direccion] = valor;
+
+    return 0;
+}
+
 void enviar_contexto(){
     t_list *paquete_recv_list;
     t_paquete *paquete_recv;
