@@ -31,8 +31,6 @@ typedef struct{
 typedef struct
 {
     t_list *lista_io;
-    pthread_mutex_t *mutex_estado;
-    sem_t *sem_estado;
 }t_cola_IO;
 
 void *conexion_memoria(void * arg_memoria);

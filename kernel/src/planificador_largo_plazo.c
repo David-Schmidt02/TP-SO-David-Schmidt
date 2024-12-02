@@ -2,6 +2,7 @@
 #include <planificador_corto_plazo.h>
 #include <utils/utils.h>
 #include <main.h>
+#include <syscalls.h>
 
 extern t_cola_proceso* procesos_cola_ready;
 extern pthread_mutex_t * mutex_procesos_cola_ready;
@@ -16,8 +17,8 @@ extern t_list * lista_t_peticiones;
 extern pthread_mutex_t * mutex_lista_t_peticiones;
 extern sem_t * sem_lista_t_peticiones; 
 
-extern pthread_mutex_t * mutex_respuesta_desde_memoria;
-extern pthread_cond_t * cond_respuesta_desde_memoria;
+//extern pthread_mutex_t * mutex_respuesta_desde_memoria;
+//extern pthread_cond_t * cond_respuesta_desde_memoria;
 
 extern sem_t * sem_proceso_finalizado;
 
@@ -59,7 +60,6 @@ t_cola_procesos_a_crear* inicializar_cola_procesos_a_crear(){
 }
 
 void inicializar_semaforos_largo_plazo(){
-    printf("MUTEX COLA DE PROCESOS EN READY CREADO CORRECTAMENTE\n");
     mutex_procesos_cola_ready = malloc(sizeof(pthread_mutex_t));
     if (mutex_procesos_cola_ready == NULL) {
         perror("Error al asignar memoria para mutex de cola");
@@ -67,7 +67,6 @@ void inicializar_semaforos_largo_plazo(){
     }
     pthread_mutex_init(mutex_procesos_cola_ready, NULL);
 
-    printf("MUTEX COLA DE PROCESOS A CREAR CREADO CORRECTAMENTE\n");
     mutex_procesos_a_crear = malloc(sizeof(pthread_mutex_t));
     if (mutex_procesos_a_crear == NULL) {
         perror("Error al asignar memoria para mutex de cola");
@@ -75,14 +74,13 @@ void inicializar_semaforos_largo_plazo(){
     }
     pthread_mutex_init(mutex_procesos_a_crear, NULL);
 
-    printf("SEM ESTADO COLA DE PROCESOS EN READY CREADO CORRECTAMENTE\n");
     sem_estado_procesos_cola_ready = malloc(sizeof(sem_t));
     if (sem_estado_procesos_cola_ready == NULL) {
         perror("Error al asignar memoria para semáforo de cola");
         exit(EXIT_FAILURE);
     }
     sem_init(sem_estado_procesos_cola_ready, 0, 0);
-    printf("SEM ESTADO DE COLA DE PROCESOS A CREAR CREADO CORRECTAMENTE\n");
+
     sem_estado_procesos_a_crear = malloc(sizeof(sem_t));
     if (sem_estado_procesos_a_crear == NULL) {
         perror("Error al asignar memoria para semáforo de cola");
@@ -90,13 +88,15 @@ void inicializar_semaforos_largo_plazo(){
     }
     sem_init(sem_estado_procesos_a_crear, 0, 0);
 
-    printf("SEM ESTADO DE PROCESO FINALIZADO CREADO CORRECTAMENTE\n");
     sem_proceso_finalizado = malloc(sizeof(sem_t));
     if (sem_proceso_finalizado == NULL) {
         perror("Error al asignar memoria para semáforo de cola");
         exit(EXIT_FAILURE);
     }
     sem_init(sem_proceso_finalizado, 0, 0);
+
+    log_info(logger,"MUTEXS DE LAS COLAS DE PROCESOS EN READY/A CREAR CREADOS CORRECTAMENTE\n");
+    log_info(logger,"SEMÁFOROS DE ESTADO DE LAS COLAS DE PROCESOS EN READY/A CREAR/FINALIZADOS CORRECTAMENTE\n");
 }
 
 void largo_plazo_fifo()
@@ -116,6 +116,7 @@ void largo_plazo_fifo()
         peticion->hilo = NULL; // No aplica en este caso
         peticion->respuesta_recibida = false;
         encolar_peticion_memoria(peticion);
+        //recibir_respuesta_peticion_memoria();
         if (peticion->respuesta_exitosa) {
             log_info(logger,"Memoria respondió con éxito la peticion, se encola en ready el proceso %d", proceso->pid);
             proceso->estado = READY;
@@ -137,6 +138,38 @@ void largo_plazo_fifo()
     }
     
 }
+/*
+void recibir_respuesta_peticion_memoria() {
+    t_list *paquete_respuesta = recibir_paquete(conexion);
+    int tid;
+    t_paquete *aux;
+    protocolo_socket motivo;
+    aux  = list_remove(paquete_respuesta, 0);
+    tid = *((int*)aux->buffer->stream);
+    aux = list_remove(paquete_respuesta, 0);
+    motivo = (protocolo_socket)aux->buffer->stream;
+    switch (motivo) {
+    case FINALIZACION:
+        log_info(logger,"El hilo %d ha FINALIZADO correctamente\n", tid);
+        desbloquear_hilos(tid);
+        break;
+    case FIN_QUANTUM:
+        log_info(logger,"El hilo %d fue desalojado por FIN DE QUANTUM\n", tid);
+        encolar_corto_plazo_multinivel(obtener_tcb_por_tid(tid));
+        break;
+    case THREAD_JOIN_OP:
+        log_info(logger,"El hilo %d fue blockeado por THREAD JOIN\n", tid);
+        //transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
+        esperar_desbloqueo_ejecutar_hilo(tid);
+        break;
+    default:
+        log_warning(logger,"Motivo desconocido para el hilo %d\n", tid);
+        break;
+    }
+    eliminar_paquete(aux);
+    //quizas deba incluir un eliminar_lista;
+}
+*/
 
 t_pcb* desencolar_proceso_a_crear(){
     t_pcb *proceso = list_remove(procesos_a_crear->lista_procesos, 0);

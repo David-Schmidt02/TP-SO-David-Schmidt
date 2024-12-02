@@ -5,7 +5,11 @@
 #include <readline/readline.h>
 #include <main.h>
 
-extern t_cola_IO * colaIO;
+extern t_cola_IO *colaIO;
+extern pthread_mutex_t * mutex_colaIO;
+extern sem_t * sem_estado_colaIO;
+extern t_tcb * hilo_actual;
+
 /*void interfaz() {
     
     while(milisec)
@@ -31,21 +35,17 @@ extern t_cola_IO * colaIO;
     
 }*/
 
-//PLANIFICADOR IO
-//FIFO
 //PASA EL PROCESO A BLOCKED, ESPERA EL TIEMPO Y DESBLOQUEA EL PROFCESO (READY)
 void* acceder_Entrada_Salida(void * arg)
 {
     while (1)
     {
-        // Debo esperar a tener un elemento en la lista
-        sem_wait(colaIO->sem_estado);
-        // Utilizo el mutex
-        pthread_mutex_lock(colaIO->mutex_estado);
+        sem_wait(sem_estado_colaIO);
+        pthread_mutex_lock(mutex_colaIO);
         // Desencolo
         t_uso_io *peticion = list_remove(colaIO->lista_io, 0);
         // Debería encolarlo en una cola de EXEC
-        pthread_mutex_unlock(colaIO->mutex_estado);
+        pthread_mutex_unlock(mutex_colaIO);
         sleep(peticion->milisegundos);
         //Falta -> poner en ready el tid
     }

@@ -39,6 +39,8 @@ typedef struct {
     t_list *niveles_prioridad; // Lista de niveles de prioridad
 } t_colas_multinivel;
 
+
+void* planificador_corto_plazo_hilo(void* arg);
 void encolar_hilo_corto_plazo(t_tcb * hilo);
 void corto_plazo_fifo();
 void encolar_corto_plazo_fifo(t_tcb * hilo);
@@ -55,7 +57,7 @@ void encolar_corto_plazo_multinivel(t_tcb* hilo);
 bool nivel_existe(void* elemento);
 void enviar_a_cpu_dispatch(int tid, int pid);
 void enviar_a_cpu_interrupt(int tid, protocolo_socket motivo);
-void recibir_motivo_devolucion();
+void recibir_motivo_devolucion_cpu();
 void desbloquear_hilos(int tid);
 void esperar_desbloqueo_ejecutar_hilo(int tid);
 t_cola_hilo* inicializar_cola_hilo(t_estado estado);

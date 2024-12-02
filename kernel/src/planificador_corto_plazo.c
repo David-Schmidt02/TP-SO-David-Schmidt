@@ -1,7 +1,8 @@
 #include "planificador_corto_plazo.h"
 #include <syscalls.h>
 
-extern int conexion_kernel_cpu;
+extern int conexion_kernel_cpu_dispatch;
+extern int conexion_kernel_cpu_interrupt;
 extern int ultimo_tid;
 
 t_tcb* hilo_actual;  
@@ -29,6 +30,19 @@ extern int quantum;
 
 extern pthread_mutex_t * mutex_socket_cpu_dispatch;
 extern pthread_mutex_t * mutex_socket_cpu_interrupt;
+
+void* planificador_corto_plazo_hilo(void* arg) {
+    if (strcmp(algoritmo, "FIFO") == 0) {
+        corto_plazo_fifo();
+    } else if (strcmp(algoritmo, "PRIORIDADES") == 0) {
+        corto_plazo_prioridades();
+    } else if (strcmp(algoritmo, "CMN") == 0) {
+        corto_plazo_colas_multinivel();
+    } else {
+        printf("Error: Algoritmo no reconocido.\n");
+    }
+
+}
 
 void encolar_hilo_corto_plazo(t_tcb * hilo){
 
@@ -62,10 +76,12 @@ void corto_plazo_fifo()
         hilo->estado = EXEC; 
         hilo_actual = hilo;
         pthread_mutex_unlock(mutex_hilos_cola_ready);
+        pthread_mutex_lock(mutex_socket_cpu_dispatch);
         log_info(logger, "Se envía el hilo al cpu dispatch");
-        log_info(logger,"Cola de FIFO %d: Ejecutando hilo TID=%d, PID=%d\n", hilo->tid, hilo->pid);
         //enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
-        //recibir_motivo_devolucion();
+        log_info(logger,"Cola de FIFO: Ejecutando hilo TID=%d, PID=%d\n", hilo->tid, hilo->pid);
+        //recibir_motivo_devolucion_cpu();
+        pthread_mutex_unlock(mutex_socket_cpu_dispatch);
     }
 }
 
@@ -93,10 +109,12 @@ void corto_plazo_prioridades()
         hilo->estado = EXEC;  
         hilo_actual = hilo;
         pthread_mutex_unlock(mutex_hilos_cola_ready);
+        pthread_mutex_lock(mutex_socket_cpu_dispatch);
         log_info(logger, "Se envía el hilo al cpu dispatch");
-        log_info(logger,"Cola de PRIORIDADES %d: Ejecutando hilo TID=%d, PID=%d\n", hilo->tid, hilo->pid);
         //enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
-        //recibir_motivo_devolucion();
+        log_info(logger,"Cola de PRIORIDADES %d: Ejecutando hilo TID=%d, PID=%d\n", hilo->prioridad,hilo->tid, hilo->pid);
+        //recibir_motivo_devolucion_cpu();
+        pthread_mutex_unlock(mutex_socket_cpu_dispatch);
     }
 }
 
@@ -141,6 +159,8 @@ void corto_plazo_colas_multinivel() {
             // Extraemos el primer hilo en la cola de menor prioridad
             t_tcb *hilo_a_ejecutar = list_remove(cola_a_ejecutar->lista_hilos, 0);
             log_info(logger,"Cola de prioridad %d: Ejecutando hilo TID=%d, PID=%d\n", nivel_a_ejecutar->nivel_prioridad, hilo_a_ejecutar->tid, hilo_a_ejecutar->pid);
+            hilo_a_ejecutar->estado = EXEC;  
+            hilo_actual = hilo_a_ejecutar;
             ejecutar_round_robin(hilo_a_ejecutar);
             // Indicamos que hay que replanificar, ya que se ha ejecutado un hilo
             replanificar = 1;
@@ -289,10 +309,11 @@ void enviar_a_cpu_dispatch(int tid, int pid)
     t_paquete * send_handshake = crear_paquete(INFO_HILO);
     agregar_a_paquete(send_handshake, &tid, sizeof(tid)); 
     agregar_a_paquete(send_handshake, &pid, sizeof(pid)); 
-    enviar_paquete(send_handshake, conexion_kernel_cpu);
+    
+    enviar_paquete(send_handshake, conexion_kernel_cpu_dispatch); 
     eliminar_paquete(send_handshake);
     //Se espera la respuesta, primero el tid y luego el motivo
-    recibir_motivo_devolucion();
+    recibir_motivo_devolucion_cpu();
 }
 
 void enviar_a_cpu_interrupt(int tid, protocolo_socket motivo) {
@@ -302,14 +323,14 @@ void enviar_a_cpu_interrupt(int tid, protocolo_socket motivo) {
     case FIN_QUANTUM:
         send_interrupt = crear_paquete(FIN_QUANTUM);
         agregar_a_paquete(send_interrupt, &tid, sizeof(tid)); 
-        enviar_paquete(send_interrupt, conexion_kernel_cpu);
+        enviar_paquete(send_interrupt, conexion_kernel_cpu_interrupt);
         log_info(logger, "## - Interrupción por FIN DE QUANTUM del hilo [%d] enviada a CPU", tid);
         eliminar_paquete(send_interrupt);
         break;
     case THREAD_JOIN_OP:
         send_interrupt = crear_paquete(THREAD_JOIN_OP);
         agregar_a_paquete(send_interrupt, &tid, sizeof(tid)); 
-        enviar_paquete(send_interrupt, conexion_kernel_cpu);
+        enviar_paquete(send_interrupt, conexion_kernel_cpu_interrupt);
         log_info(logger, "## - Interrupción por THREAD JOIN del hilo [%d] enviada a CPU", tid);
         eliminar_paquete(send_interrupt);
         break;
@@ -319,8 +340,8 @@ void enviar_a_cpu_interrupt(int tid, protocolo_socket motivo) {
     }
 }
 
-void recibir_motivo_devolucion() {
-    t_list *paquete_respuesta = recibir_paquete(conexion_kernel_cpu);
+void recibir_motivo_devolucion_cpu() {
+    t_list *paquete_respuesta = recibir_paquete(conexion_kernel_cpu_interrupt);
     int tid;
     t_paquete *aux;
     protocolo_socket motivo;
@@ -422,21 +443,20 @@ t_cola_hilo* inicializar_cola_hilo(t_estado estado) {
 }
 
 void inicializar_semaforos_corto_plazo(){
-    printf("MUTEX DE LA COLA DE HILOS EN READY CREADO CORRECTAMENTE\n");
     mutex_hilos_cola_ready = malloc(sizeof(pthread_mutex_t));
     if (mutex_hilos_cola_ready == NULL) {
         perror("Error al asignar memoria para mutex de cola");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_init(mutex_hilos_cola_ready, NULL);
-    printf("MUTEX DE LA COLA DE HILOS EN EXIT CREADO CORRECTAMENTE\n");
+
     mutex_hilos_cola_exit = malloc(sizeof(pthread_mutex_t));
     if (mutex_hilos_cola_exit == NULL) {
         perror("Error al asignar memoria para mutex de cola");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_init(mutex_hilos_cola_exit, NULL);
-    printf("MUTEX DE LA COLA DE HILOS BLOQUEADOS CREADO CORRECTAMENTE\n");
+
     mutex_hilos_cola_bloqueados = malloc(sizeof(pthread_mutex_t));
     if (mutex_hilos_cola_bloqueados == NULL) {
         perror("Error al asignar memoria para mutex de cola");
@@ -444,7 +464,7 @@ void inicializar_semaforos_corto_plazo(){
     }
     pthread_mutex_init(mutex_hilos_cola_bloqueados, NULL);
     
-    printf("MUTEX DE LA COLA DE HILOS MULTINIVEL CREADO CORRECTAMENTE\n");
+
     mutex_colas_multinivel = malloc(sizeof(pthread_mutex_t));
     if (mutex_colas_multinivel == NULL) {
         perror("Error al asignar memoria para mutex de cola");
@@ -452,7 +472,6 @@ void inicializar_semaforos_corto_plazo(){
     }
     pthread_mutex_init(mutex_colas_multinivel, NULL);
 
-    printf("SEMÁFORO DE ESTADO DE LA COLA DE HILOS EN READY CREADO CORRECTAMENTE\n");
     sem_estado_hilos_cola_ready = malloc(sizeof(sem_t));
     if (sem_estado_hilos_cola_ready == NULL) {
         perror("Error al asignar memoria para semáforo de cola");
@@ -460,31 +479,34 @@ void inicializar_semaforos_corto_plazo(){
     }
     sem_init(sem_estado_hilos_cola_ready, 0, 0);
 
-    printf("SEMÁFORO DE ESTADO DE LA COLA DE HILOS EN EXIT CREADO CORRECTAMENTE\n");
     sem_estado_hilos_cola_exit = malloc(sizeof(sem_t));
     if (sem_estado_hilos_cola_exit == NULL) {
         perror("Error al asignar memoria para semáforo de cola");
         exit(EXIT_FAILURE);
     }
     sem_init(sem_estado_hilos_cola_exit, 0, 0);
-    printf("SEMÁFORO DE ESTADO DE LA COLA BLOQUEADOS EN EXIT CREADO CORRECTAMENTE\n");
+
     sem_estado_hilos_cola_bloqueados = malloc(sizeof(sem_t));
     if (sem_estado_hilos_cola_bloqueados == NULL) {
         perror("Error al asignar memoria para semáforo de cola");
         exit(EXIT_FAILURE);
     }
     sem_init(sem_estado_hilos_cola_bloqueados, 0, 0);
-    printf("SEMÁFORO DE ESTADO DE LA COLA DE HILOS MULTINIVEL CREADO CORRECTAMENTE\n");
+
     sem_estado_multinivel = malloc(sizeof(sem_t));
     if (sem_estado_multinivel == NULL) {
         perror("Error al asignar memoria para semáforo de cola");
         exit(EXIT_FAILURE);
     }
     sem_init(sem_estado_multinivel, 0, 0);
+
+    log_info(logger,"Mutex's y semáforos de estado para las colas de hilos en READY/EXIT/BLOCK creados\n");
+    log_info(logger,"Mutex y semáforo de estado para las colas de hilos Multinivel creados\n");
+
 }
 
 t_colas_multinivel* inicializar_colas_multinivel() {
-        printf("COLA MULTINIVEL INICIALIZADA CORRECTAMENTE CORRECTAMENTE\n");
+    log_info(logger,"COLA MULTINIVEL INICIALIZADA CORRECTAMENTE CORRECTAMENTE\n");
     t_colas_multinivel *colas_multinivel = malloc(sizeof(t_colas_multinivel));
     if (colas_multinivel == NULL) {
         perror("Error al asignar memoria para colas multinivel");
@@ -497,103 +519,3 @@ t_colas_multinivel* inicializar_colas_multinivel() {
     }
     return colas_multinivel;
 }
-
-
-/*Pruebas Version 2, CMN con un hilo
-int main() {
-    // Inicializar las colas de planificación
-    t_log * logger = log_create("kernel.log", "Kernel", 1, LOG_LEVEL_DEBUG);
-
-    printf("Iniciando estructuras, semáforos\n");
-    inicializar_semaforos_corto_plazo();
-
-
-
-    printf("PRIMEROS VALORES DE LOS SEMÁFOROS\n");
-    printf("Dirección del mutex_multinivel: %p\n", (void*)&mutex_colas_multinivel);
-    printf("Dirección del mutex_bloqueados: %p\n", (void*)&mutex_hilos_cola_bloqueados);
-    printf("Dirección del mutex_ready: %p\n", (void*)&mutex_hilos_cola_ready);
-
-    printf("Dirección del semáforo_mutinivel: %p\n", (void*)&sem_estado_multinivel);
-    printf("Dirección del semáforo_bloqueados: %p\n", (void*)&sem_estado_hilos_cola_bloqueados);
-    printf("Dirección del semáforo_ready: %p\n", (void*)&sem_estado_hilos_cola_ready);
-
-    printf("Iniciando Planificador Colas Multinivel:\n");
-    sleep(1);
-    printf("Iniciando Cola de Ready:\n");
-    hilos_cola_ready = inicializar_cola_hilo(READY);
-    sleep(1);
-    printf("Iniciando Cola de Block:\n");
-    hilos_cola_bloqueados = inicializar_cola_hilo(BLOCK);
-    sleep(1);
-    printf("Iniciando Colas Multinivel:\n");
-    colas_multinivel = inicializar_colas_multinivel();  
-    
-    printf("Creando el hilo para el Planificador Colas Multinivel:\n");
-    pthread_t hilo_planificador;
-    pthread_create(&hilo_planificador, NULL, planificador_corto_plazo_hilo, NULL);
-    sleep(1);
-
-    // Crear y encolar varios hilos de distintas prioridades
-    printf("Encolando hilos con diferentes prioridades...\n");
-
-    // Hilo 1: Prioridad baja
-    t_tcb* hilo_1 = malloc(sizeof(t_tcb));
-    hilo_1->tid = 1;
-    hilo_1->prioridad = 3;  // Prioridad baja
-    encolar_corto_plazo_multinivel(hilo_1);
-    printf("Hilo TID: %d, Prioridad: %d encolado.\n", hilo_1->tid, hilo_1->prioridad);
-    sleep(5);
-
-    // Hilo 2: Prioridad alta
-    t_tcb* hilo_2 = malloc(sizeof(t_tcb));
-    hilo_2->tid = 2;
-    hilo_2->prioridad = 0;  // Prioridad alta
-    encolar_corto_plazo_multinivel(hilo_2);
-    printf("Hilo TID: %d, Prioridad: %d encolado.\n", hilo_2->tid, hilo_2->prioridad);
-    sleep(1);
-
-    // Hilo 3: Prioridad media
-    t_tcb* hilo_3 = malloc(sizeof(t_tcb));
-    hilo_3->tid = 3;
-    hilo_3->prioridad = 1;  // Prioridad media
-    encolar_corto_plazo_multinivel(hilo_3);
-    printf("Hilo TID: %d, Prioridad: %d encolado.\n", hilo_3->tid, hilo_3->prioridad);
-    sleep(2);
-    // Hilo 4: Prioridad baja
-    t_tcb* hilo_4 = malloc(sizeof(t_tcb));
-    hilo_4->tid = 4;
-    hilo_4->prioridad = 2;  // Prioridad baja
-    encolar_corto_plazo_multinivel(hilo_4);
-    printf("Hilo TID: %d, Prioridad: %d encolado.\n", hilo_4->tid, hilo_4->prioridad);
-
-    // Hilo 5: Prioridad alta
-    t_tcb* hilo_5 = malloc(sizeof(t_tcb));
-    hilo_5->tid = 5;
-    hilo_5->prioridad = 0;  // Prioridad alta
-    encolar_corto_plazo_multinivel(hilo_5);
-    printf("Hilo TID: %d, Prioridad: %d encolado.\n", hilo_5->tid, hilo_5->prioridad);
-    sleep(2);
-    // Hilo 6: Prioridad media
-    t_tcb* hilo_6 = malloc(sizeof(t_tcb));
-    hilo_6->tid = 6;
-    hilo_6->prioridad = 1;  // Prioridad media
-    encolar_corto_plazo_multinivel(hilo_6);
-    printf("Hilo TID: %d, Prioridad: %d encolado.\n", hilo_6->tid, hilo_6->prioridad);
-    sleep(1);
-    // Hilo 7: Prioridad baja
-    t_tcb* hilo_7 = malloc(sizeof(t_tcb));
-    hilo_7->tid = 7;
-    hilo_7->prioridad = 3;  // Prioridad baja
-    encolar_corto_plazo_multinivel(hilo_7);
-    printf("Hilo TID: %d, Prioridad: %d encolado.\n", hilo_7->tid, hilo_7->prioridad);
-
-    // Esperar un poco para que el planificador procese los hilos
-    sleep(5);
-
-    // Asegurarse de que el hilo del planificador termine su ejecución
-    pthread_join(hilo_planificador, NULL);
-
-    return 0;
-}
-*/

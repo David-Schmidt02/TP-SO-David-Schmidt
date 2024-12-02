@@ -4,69 +4,74 @@
 #include <planificador_largo_plazo.h>
 #include <syscalls.h>
 
-extern t_log *logger;
+t_log *logger;
 
-// Config
+//Config
 t_config *config;
-extern char *algoritmo;
-extern int quantum;
+char * algoritmo;
+int quantum;
 //
 
-// Conexion con Memoria
-extern int conexion_kernel_memoria;
+//Conexion con Memoria
+int conexion_kernel_memoria;
 
-extern t_list *lista_t_peticiones;
-extern sem_t *sem_lista_t_peticiones;
-extern pthread_mutex_t *mutex_lista_t_peticiones;
+t_list *lista_t_peticiones;
+sem_t * sem_lista_t_peticiones;
+pthread_mutex_t *mutex_lista_t_peticiones;
 
-extern sem_t *sem_proceso_finalizado; // utilizado para reintentar crear procesos
+sem_t * sem_proceso_finalizado; // utilizado para reintentar crear procesos
 
-extern pthread_mutex_t *mutex_respuesta_desde_memoria;
-extern pthread_cond_t *cond_respuesta_desde_memoria;
+//pthread_mutex_t * mutex_respuesta_desde_memoria;
+//pthread_cond_t * cond_respuesta_desde_memoria;
 //
 
-// Conexion con CPU
-extern int conexion_kernel_cpu;
+//Conexion con CPU
+int conexion_kernel_cpu_dispatch;
+int conexion_kernel_cpu_interrupt;
 
-extern pthread_mutex_t *mutex_socket_cpu_dispatch;
-extern pthread_mutex_t *mutex_socket_cpu_interrupt;
+pthread_mutex_t *mutex_socket_cpu_dispatch;
+pthread_mutex_t *mutex_socket_cpu_interrupt;
+
+sem_t * sem_estado_cpu_dispatch;
+sem_t * sem_estado_cpu_interrupt;
 //
 
-// Colas y semáforos del planificador de largo plazo
-extern t_cola_proceso* procesos_cola_ready;
-extern pthread_mutex_t *mutex_procesos_cola_ready;
-extern sem_t *sem_estado_procesos_cola_ready;
+//Colas y semáforos del planificador de largo plazo
+t_cola_proceso* procesos_cola_ready;
+pthread_mutex_t * mutex_procesos_cola_ready;
+sem_t * sem_estado_procesos_cola_ready;
 
-extern t_cola_procesos_a_crear* procesos_a_crear;
-extern pthread_mutex_t *mutex_procesos_a_crear;
-extern sem_t *sem_estado_procesos_a_crear;
+t_cola_procesos_a_crear* procesos_a_crear;
+pthread_mutex_t * mutex_procesos_a_crear;
+sem_t * sem_estado_procesos_a_crear;
 //
 
-// Colas y semáforos del planificador de corto plazo
-extern t_cola_hilo* hilos_cola_ready;
-extern pthread_mutex_t *mutex_hilos_cola_ready;
-extern sem_t *sem_estado_hilos_cola_ready;
+//Colas y semáforos del planificador de corto plazo
+t_cola_hilo* hilos_cola_ready;
+pthread_mutex_t * mutex_hilos_cola_ready;
+sem_t * sem_estado_hilos_cola_ready;
 
-extern t_cola_hilo* hilos_cola_exit;
-extern pthread_mutex_t *mutex_hilos_cola_exit;
-extern sem_t *sem_estado_hilos_cola_exit;
+t_cola_hilo* hilos_cola_exit;
+pthread_mutex_t * mutex_hilos_cola_exit;
+sem_t * sem_estado_hilos_cola_exit;
 
-extern t_cola_hilo* hilos_cola_bloqueados;
-extern pthread_mutex_t *mutex_hilos_cola_bloqueados;
-extern sem_t *sem_estado_hilos_cola_bloqueados;
+t_cola_hilo* hilos_cola_bloqueados;
+pthread_mutex_t * mutex_hilos_cola_bloqueados;
+sem_t * sem_estado_hilos_cola_bloqueados;
 
-extern t_colas_multinivel *colas_multinivel;
-extern pthread_mutex_t *mutex_colas_multinivel;
-extern sem_t *sem_estado_multinivel;
+t_colas_multinivel *colas_multinivel;
+pthread_mutex_t * mutex_colas_multinivel;
+sem_t * sem_estado_multinivel;
 //
 
-extern t_list* lista_global_tcb; // lista para manipular los hilos
-extern t_list* lista_mutexes;
+t_list* lista_global_tcb; // lista para manipular los hilos
+t_list* lista_mutexes;
 
-extern t_cola_IO *colaIO;
 
-/*
-
+//Colas y semáforos de IO
+t_cola_IO *colaIO;
+pthread_mutex_t * mutex_colaIO;
+sem_t * sem_estado_colaIO;
 
 int main(int argc, char* argv[]) {
 	
@@ -74,9 +79,12 @@ int main(int argc, char* argv[]) {
 	inicializar_estructuras();
 
 	lista_global_tcb = list_create();
-	//hilo_actual=NULL;
-	//pthread_mutex_init(&mutex_socket_cpu_dispatch, NULL);
-    //pthread_mutex_init(&mutex_socket_cpu_interrupt, NULL);
+
+	char *archivo_pseudocodigo_proceso_inicial = argv[1];
+    int tamanio_proceso_proceso_inicial = atoi(argv[2]);
+	int prioridad_proceso_inicial = atoi(argv[3]);
+
+	PROCESS_CREATE(archivo_pseudocodigo_proceso_inicial, tamanio_proceso_proceso_inicial, prioridad_proceso_inicial);
 
     pthread_t tid_memoria;
     pthread_t tid_cpu_dispatch;
@@ -90,8 +98,16 @@ int main(int argc, char* argv[]) {
     void *ret_value;
 
     //planificador
-	//pthread_create(&tid_entradaSalida, NULL, acceder_Entrada_Salida, (void *)&arg_planificador); //PREGUNTAR TEMA PUERTO
+	pthread_create(&tid_entradaSalida, NULL, acceder_Entrada_Salida, (void *)&arg_planificador);
+	
+	log_info(logger,"Creacion del hilo para el planificador de largo plazo\n");
+    pthread_t hilo_largo_plazo;
+    pthread_create(&hilo_largo_plazo, NULL, (void *)largo_plazo_fifo, NULL);
+    sleep(1);
 
+    log_info(logger,"Creacion del hilo para el planificador de corto plazo\n");
+    pthread_t hilo_corto_plazo;
+    pthread_create(&hilo_corto_plazo, NULL, (void *)planificador_corto_plazo_hilo, NULL);
 
 
 	//ACÁ DEBO SIMULAR LOS OTROS MÓDULOS PARA EMPEZAR A HACER PRUEBAS
@@ -119,7 +135,7 @@ int main(int argc, char* argv[]) {
 	pthread_join(tid_cpu_interrupt, ret_value);
 	//espero fin conexiones
 }
-*/
+
 void *conexion_cpu_dispatch(void * arg_cpu){
 
 	argumentos_thread * args = arg_cpu;
@@ -129,19 +145,19 @@ void *conexion_cpu_dispatch(void * arg_cpu){
 	char* valor = "conexion kernel->cpu dispatch";
 	do
 	{
-		conexion_kernel_cpu = crear_conexion(args->ip, args->puerto);
+		conexion_kernel_cpu_dispatch = crear_conexion(args->ip, args->puerto);
 		sleep(1);
 
-	}while(conexion_kernel_cpu == -1);
+	}while(conexion_kernel_cpu_dispatch == -1);
 	
 	
 	send_handshake = crear_paquete(HANDSHAKE);
 	agregar_a_paquete (send_handshake, valor , strlen(valor)+1); 
 
 	while(flag){
-		enviar_paquete(send_handshake, conexion_kernel_cpu);
+		enviar_paquete(send_handshake, conexion_kernel_cpu_dispatch);
 		sleep(1);
-		op = recibir_operacion(conexion_kernel_cpu);
+		op = recibir_operacion(conexion_kernel_cpu_dispatch);
 		switch (op)
 		{
 		case HANDSHAKE:
@@ -153,14 +169,13 @@ void *conexion_cpu_dispatch(void * arg_cpu){
 		case TERMINATE:
 			flag = 0;
 			break;
-
 		default:
 			break;
 		}
 	}
 
 	eliminar_paquete(send_handshake);
-	liberar_conexion(conexion_kernel_cpu);
+	liberar_conexion(conexion_kernel_cpu_dispatch);
     return (void *)EXIT_SUCCESS;
 }
 
@@ -168,25 +183,25 @@ void *conexion_cpu_interrupt(void * arg_cpu){
 
 	argumentos_thread * args = arg_cpu;
 	t_paquete* send_handshake;
-	int conexion_kernel_cpu;
+	int conexion_kernel_cpu_interrupt;
 	protocolo_socket op;
 	char* valor = "conexion kernel->cpu interrupt";
 	int flag=1;
 	do
 	{
-		conexion_kernel_cpu = crear_conexion(args->ip, args->puerto);
+		conexion_kernel_cpu_interrupt = crear_conexion(args->ip, args->puerto);
 		sleep(1);
 
-	}while(conexion_kernel_cpu == -1);
+	}while(conexion_kernel_cpu_interrupt == -1);
 	
 	
 	send_handshake = crear_paquete(HANDSHAKE);
 	agregar_a_paquete (send_handshake, valor , strlen(valor)+1); 
 	
 	while(flag){
-		enviar_paquete(send_handshake, conexion_kernel_cpu);
+		enviar_paquete(send_handshake, conexion_kernel_cpu_interrupt);
 		sleep(1);
-		op = recibir_operacion(conexion_kernel_cpu);
+		op = recibir_operacion(conexion_kernel_cpu_interrupt);
 		switch (op)
 		{
 		case HANDSHAKE:
@@ -205,10 +220,10 @@ void *conexion_cpu_interrupt(void * arg_cpu){
 	}
 
 	eliminar_paquete(send_handshake);
-	liberar_conexion(conexion_kernel_cpu);
+	liberar_conexion(conexion_kernel_cpu_interrupt);
     return (void *)EXIT_SUCCESS;
 }
-//esta funcion no se usa en las pruebas
+
 void *administrador_peticiones_memoria(void* arg_server){
 	t_peticion *peticion;
 	t_paquete_peticion args_peticion; 
@@ -216,11 +231,12 @@ void *administrador_peticiones_memoria(void* arg_server){
 	pthread_t aux_thread;
 	
 	while(1){
+		log_info(logger, "Entraste al While del administrador de peticiones");
 		sem_wait(sem_lista_t_peticiones);
+		log_info(logger, "Entró una peticion a la lista de peticiones");
 		pthread_mutex_lock(mutex_lista_t_peticiones);
 		peticion = list_remove(lista_t_peticiones, 0);
 		pthread_mutex_unlock(mutex_lista_t_peticiones);
-		do
 		{
 			conexion_kernel_memoria = crear_conexion(args->ip, args->puerto);
 			sleep(1);
@@ -228,12 +244,13 @@ void *administrador_peticiones_memoria(void* arg_server){
 		}while(conexion_kernel_memoria == -1);
 		args_peticion.peticion = peticion;
 		args_peticion.socket = conexion_kernel_memoria; 
+		log_info(logger, "Se crea un hilo individual para la peticion");
 		pthread_create(&aux_thread, NULL, peticion_kernel, (void *)&args_peticion);
-		log_info(logger, "Nueva peticion iniciada");
+		pthread_detach(aux_thread);
 	}
     pthread_exit(EXIT_SUCCESS);
 }
-
+/*
 void *peticion_kernel(void * args){
 	t_paquete_peticion *args_peticion = args;
 	t_pcb* proceso = args_peticion->peticion->proceso;
@@ -248,6 +265,7 @@ void *peticion_kernel(void * args){
 		agregar_a_paquete(send_protocolo, proceso , sizeof(proceso));
 		enviar_paquete(send_protocolo, args_peticion->socket);
 		sleep(1);
+		log_info(logger, "Se espera la respuesta de memoria en el SWITCH OPCION PROCESS CREATE");
 		op = recibir_operacion(args_peticion->socket);
 		switch (op)
 		{
@@ -365,6 +383,78 @@ eliminar_paquete(send_protocolo);
 liberar_conexion(args_peticion->socket);
 return (void *)EXIT_SUCCESS;
 }
+*/
+void *peticion_kernel(void *args) {
+    t_paquete_peticion *args_peticion = args;
+    t_peticion *peticion = args_peticion->peticion;
+    t_pcb *proceso = peticion->proceso;
+    t_tcb *hilo = peticion->hilo;
+    t_paquete *send_protocolo;
+    protocolo_socket op;
+
+    switch (peticion->tipo) {
+        case PROCESS_CREATE_OP:
+            send_protocolo = crear_paquete(PROCESS_CREATE_OP);
+            agregar_a_paquete(send_protocolo, proceso, sizeof(t_pcb));
+			log_info(logger, "Se crea la peticion de PROCESS CREATE");
+            break;
+
+        case PROCESS_EXIT_OP:
+            send_protocolo = crear_paquete(PROCESS_EXIT_OP);
+            agregar_a_paquete(send_protocolo, proceso, sizeof(t_pcb));
+			log_info(logger, "Se crea la peticion de PROCESS EXIT");
+            break;
+
+        case THREAD_CREATE_OP:
+            send_protocolo = crear_paquete(THREAD_CREATE_OP);
+            agregar_a_paquete(send_protocolo, hilo, sizeof(t_tcb));
+			log_info(logger, "Se crea la peticion de THREAD CREATE");
+            break;
+
+        case THREAD_EXIT_OP:
+            send_protocolo = crear_paquete(THREAD_EXIT_OP);
+            agregar_a_paquete(send_protocolo, hilo, sizeof(t_tcb));
+			log_info(logger, "Se crea la peticion de THREAD EXIT");
+            break;
+
+        case DUMP_MEMORY_OP:
+            send_protocolo = crear_paquete(DUMP_MEMORY_OP);
+            agregar_a_paquete(send_protocolo, proceso, sizeof(t_pcb));
+			log_info(logger, "Se crea la peticion de DUMP MEMORY");
+            break;
+
+        default:
+            log_error(logger, "Tipo de operación desconocido: %d", peticion->tipo);
+            return NULL;
+    }
+
+    enviar_paquete(send_protocolo, args_peticion->socket);
+    log_info(logger, "Petición enviada a memoria, esperando respuesta...");
+
+    // Esperar respuesta bloqueante
+    op = recibir_operacion(args_peticion->socket);
+    switch (op) {
+        case SUCCESS:
+            log_info(logger, "'SUCCESS' recibido desde memoria para operación %d", peticion->tipo);
+            peticion->respuesta_exitosa = true;
+            break;
+
+        case ERROR:
+            log_info(logger, "'ERROR' recibido desde memoria para operación %d", peticion->tipo);
+            peticion->respuesta_exitosa = false;
+            break;
+
+        default:
+            log_warning(logger, "Código de operación desconocido recibido: %d", op);
+            peticion->respuesta_exitosa = false;
+            break;
+    }
+	log_info(logger, "Actualizo el valor de respuesta recibida a true");
+    peticion->respuesta_recibida = true; // Actualizar el estado directamente
+    eliminar_paquete(send_protocolo);
+    liberar_conexion(args_peticion->socket);
+    return NULL;
+}
 
 void encolar_peticion_memoria(t_peticion * peticion){
         // Encolar la petición
@@ -378,23 +468,15 @@ void encolar_peticion_memoria(t_peticion * peticion){
         list_add(lista_t_peticiones, peticion);
         pthread_mutex_unlock(mutex_lista_t_peticiones);
         sem_post(sem_lista_t_peticiones);
-        //pthread_mutex_unlock(mutex_procesos_a_crear);
     // Esperar respuesta de memoria
-        pthread_mutex_lock(mutex_respuesta_desde_memoria);
-        while (!peticion->respuesta_recibida) {
-			log_info(logger,"Entraste al while que espera la respuesta a la peticion de memoria %d", peticion->proceso->pid);
-            pthread_cond_wait(cond_respuesta_desde_memoria, mutex_respuesta_desde_memoria);
-			log_info(logger,"Se obtuvo la respuesta desde memoria\n");
-		}
-        //pthread_mutex_unlock(mutex_respuesta_desde_memoria);
+		log_info(logger,"Se obtuvo la respuesta desde memoria\n");
 }
 
 void inicializar_estructuras(){
 	logger = log_create("kernel.log", "Kernel", 1, LOG_LEVEL_DEBUG);
-    config = config_create("kernel/config/kernel.config");
+    config = config_create("config/kernel.config");
 	if (config == NULL) {
         perror("Error al cargar el archivo de configuración");
-        exit(EXIT_FAILURE);  // O manejar el error de forma apropiada
     }
 	algoritmo = config_get_string_value(config, "ALGORITMO_PLANIFICACION");
 	quantum = config_get_int_value(config, "QUANTUM");
@@ -414,51 +496,36 @@ void inicializar_semaforos(){
 }
 
 void inicializar_semaforos_conexion_cpu(){
-	printf("MUTEX DE LA CONEXION CON CPU DISPATCH CREADO CORRECTAMENTE\n");
 	mutex_socket_cpu_dispatch = malloc(sizeof(pthread_mutex_t));
     if (mutex_socket_cpu_dispatch == NULL) {
         perror("Error al asignar memoria para mutex de CPU dispatch");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_init(mutex_socket_cpu_dispatch, NULL);
-	printf("MUTEX DE LA CONEXION CON CPU INTERRUPT CREADO CORRECTAMENTE\n");
 	mutex_socket_cpu_interrupt = malloc(sizeof(pthread_mutex_t));
     if (mutex_socket_cpu_interrupt == NULL) {
         perror("Error al asignar memoria para mutex de CPU interrupt");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_init(mutex_socket_cpu_interrupt, NULL);
+	log_info(logger,"Mutex para la conexion con cpu interrupt y cpu dispatch creados\n");
 }
 
 void inicializar_semaforos_peticiones(){
-	printf("MUTEX DE LA LISTA DE PETICIONES CREADO CORRECTAMENTE\n");
+	
     mutex_lista_t_peticiones = malloc(sizeof(pthread_mutex_t));
     if (mutex_lista_t_peticiones == NULL) {
         perror("Error al asignar memoria para mutex de cola");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_init(mutex_lista_t_peticiones, NULL);
-    printf("SEMÁFORO DE ESTADO DE LA LISTA DE PETICIONES CREADO CORRECTAMENTE\n");
+
     sem_lista_t_peticiones = malloc(sizeof(sem_t));
     if (sem_lista_t_peticiones == NULL) {
         perror("Error al asignar memoria para semáforo de cola");
         exit(EXIT_FAILURE);
     }
-    sem_init(sem_lista_t_peticiones, 0, 0);
-	printf("MUTEX DE LA RESPUESTA DE MEMORIA CREADO CORRECTAMENTE\n");
-	mutex_respuesta_desde_memoria = malloc(sizeof(pthread_mutex_t));
-	if (mutex_respuesta_desde_memoria == NULL) {
-        perror("Error al asignar memoria para mutex de respuesta desde memoria");
-        exit(EXIT_FAILURE);
-    }
-    pthread_mutex_init(mutex_respuesta_desde_memoria, NULL);
-	printf("SEMÁFORO DE LA RESPUESTA DE MEMORIA CREADO CORRECTAMENTE\n");
-	cond_respuesta_desde_memoria = malloc(sizeof(pthread_cond_t));
-    if (cond_respuesta_desde_memoria == NULL) {
-        perror("Error al asignar memoria para variable de condición de respuesta desde memoria");
-        exit(EXIT_FAILURE);
-    }
-    pthread_cond_init(cond_respuesta_desde_memoria, NULL);
+	log_info(logger,"Mutex y semáforo de estado para la lista de peticiones creados\n");
 }
 
 void inicializar_colas_largo_plazo(){
