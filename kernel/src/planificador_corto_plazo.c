@@ -63,6 +63,7 @@ void corto_plazo_fifo()
         hilo_actual = hilo;
         pthread_mutex_unlock(mutex_hilos_cola_ready);
         log_info(logger, "Se envía el hilo al cpu dispatch");
+        log_info(logger,"Cola de FIFO %d: Ejecutando hilo TID=%d, PID=%d\n", hilo->tid, hilo->pid);
         //enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
         //recibir_motivo_devolucion();
     }
@@ -93,6 +94,7 @@ void corto_plazo_prioridades()
         hilo_actual = hilo;
         pthread_mutex_unlock(mutex_hilos_cola_ready);
         log_info(logger, "Se envía el hilo al cpu dispatch");
+        log_info(logger,"Cola de PRIORIDADES %d: Ejecutando hilo TID=%d, PID=%d\n", hilo->tid, hilo->pid);
         //enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
         //recibir_motivo_devolucion();
     }
@@ -138,7 +140,7 @@ void corto_plazo_colas_multinivel() {
         if (cola_a_ejecutar != NULL && nivel_a_ejecutar != NULL) {
             // Extraemos el primer hilo en la cola de menor prioridad
             t_tcb *hilo_a_ejecutar = list_remove(cola_a_ejecutar->lista_hilos, 0);
-            printf("Cola de prioridad %d: Ejecutando hilo TID=%d, PID=%d\n", nivel_a_ejecutar->nivel_prioridad, hilo_a_ejecutar->tid, hilo_a_ejecutar->pid);
+            log_info(logger,"Cola de prioridad %d: Ejecutando hilo TID=%d, PID=%d\n", nivel_a_ejecutar->nivel_prioridad, hilo_a_ejecutar->tid, hilo_a_ejecutar->pid);
             ejecutar_round_robin(hilo_a_ejecutar);
             // Indicamos que hay que replanificar, ya que se ha ejecutado un hilo
             replanificar = 1;
