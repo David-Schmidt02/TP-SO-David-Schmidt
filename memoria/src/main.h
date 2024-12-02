@@ -9,6 +9,11 @@
 #include "../../kernel/src/pcb.h"
 #include <sistema.h>
 
+typedef enum particiones{
+    FIJAS,
+    DINAMICAS
+}particiones;
+
 void enviar_contexto(void);
 void *conexion_kernel(void * arg_kernel);
 void *conexion_cpu(void * arg_cpu);
@@ -18,12 +23,6 @@ void *peticion_kernel_NEW_PROCESS(void* arg_peticion);
 void inicializar_memoria(particiones tipo_particion, int size, t_list *); //hacer para dinamicas
 void levantar_conexiones(void); //
 void cargar_lista_particiones(t_list *, char **); //solo para fijas
-
-
-typedef enum particiones{
-    FIJAS,
-    DINAMICAS
-}particiones;
 
 typedef struct t_memoria{
     void *espacio;

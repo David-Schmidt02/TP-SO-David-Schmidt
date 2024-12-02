@@ -15,6 +15,7 @@ int write_memory(uint32_t direccion, uint32_t valor);
 void recibir_contexto();
 t_paquete *obtener_contexto(int pid, int tid);
 void actualizar_contexto_ejecucion(void);
+void enviar_error_actualizacion();
 int buscar_pid(t_list *lista, int pid);
 int buscar_tid(t_list *lista, int tid);
 
@@ -32,7 +33,7 @@ void crear_thread(t_tcb *tcb);
 void fin_thread(int tid);
 
 int obtener_instruccion(int PC, int tid);
-
+void liberar_lista_paquetes(t_list *lista);
 
 typedef struct arg_peticion_memoria{
     int socket;

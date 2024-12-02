@@ -8,22 +8,29 @@ extern t_memoria *memoria_usuario;
 /// @param direccion 
 /// @return devuelve el contenido de la direccion, o -1 para error
 uint32_t read_memory(uint32_t direccion){
+    uint32_t * aux;
+
     if(direccion < 0 || direccion > memoria_usuario->size){
         log_error(logger, "Direccion %d invalida", direccion);
         return -1;
     }
-    return (uint32_t)memoria_usuario->espacio[direccion];
+
+    aux = memoria_usuario->espacio;
+    return aux[direccion];
 }
 /// @brief Write memory
 /// @param direccion
 /// @param valor
 /// @return devuelve 0 para ok o -1 para error
 int write_memory(uint32_t direccion, uint32_t valor){
+    uint32_t * aux;
+    
     if(direccion < 0 || direccion > memoria_usuario->size){
         log_error(logger, "Direccion %d invalida", direccion);
         return -1;
     }
-    (uint32_t)memoria_usuario->espacio[direccion] = valor;
+    aux = memoria_usuario->espacio;
+    aux[direccion] = valor;
 
     return 0;
 }
