@@ -117,22 +117,19 @@ t_paquete *obtener_contexto(int pid, int tid) {
     }
     t_pcb *pcb = list_get(memoria_usuario->lista_pcb, index_pcb);
 
-    // Buscar TCB por TID dentro del PCB
-    int index_tcb = buscar_tid(pcb->listaTCB, tid);
-    if (index_tcb == -1) {
-        log_error(logger, "No se encontró el TID %d en el proceso PID %d.", tid, pid);
-        return NULL;
-    }
-    t_tcb *tcb = list_get(pcb->listaTCB, index_tcb);
+    // // Buscar TCB por TID dentro del PCB
+    // int index_tcb = buscar_tid(pcb->listaTCB, tid);
+    // if (index_tcb == -1) {
+    //     log_error(logger, "No se encontró el TID %d en el proceso PID %d.", tid, pid);
+    //     return NULL;
+    // }
+    // t_tcb *tcb = list_get(pcb->listaTCB, index_tcb);
 
     // Preparar paquete con el contexto completo
     t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
 
     // Agregar registros del TCB
-    agregar_a_paquete(paquete_send, &tcb->registro, sizeof(tcb->registro));
-    // Agregar base y límite del PCB
-    agregar_a_paquete(paquete_send, &pcb->registro->base, sizeof(pcb->registro->base));
-    agregar_a_paquete(paquete_send, &pcb->registro->limite, sizeof(pcb->registro->limite));
+    agregar_a_paquete(paquete_send, &pcb->registro, sizeof(pcb->registro));
 
     log_info(logger, "Contexto de ejecución (PID: %d, TID: %d) preparado exitosamente.", pid, tid);
     return paquete_send;
@@ -178,16 +175,16 @@ void actualizar_contexto_ejecucion() {
     }
     t_pcb *pcb = list_get(memoria_usuario->lista_pcb, index_pcb);
 
-    int index_tcb = buscar_tid(pcb->listaTCB, tid);
-    if (index_tcb == -1) {
-        log_error(logger, "No se encontró el TID %d en el proceso PID %d para actualizar contexto.", tid, pid);
-        enviar_error_actualizacion();
-        return;
-    }
-    t_tcb *tcb = list_get(pcb->listaTCB, index_tcb);
+    // int index_tcb = buscar_tid(pcb->listaTCB, tid);
+    // if (index_tcb == -1) {
+    //     log_error(logger, "No se encontró el TID %d en el proceso PID %d para actualizar contexto.", tid, pid);
+    //     enviar_error_actualizacion();
+    //     return;
+    // }
+    // t_tcb *tcb = list_get(pcb->listaTCB, index_tcb);
 
     // Actualizar registros en el TCB
-    memcpy(&(tcb->registro), &registros_actualizados, sizeof(RegistroCPU));
+    memcpy(&(pcb->registro), &registros_actualizados, sizeof(RegistroCPU));
     log_info(logger, "Registros actualizados para PID %d, TID %d.", pid, tid);
 
     // Responder OK al cliente
@@ -318,7 +315,7 @@ void crear_proceso(t_pcb *pcb){
 void crear_thread(t_tcb *tcb){
     int index_pid;
     t_pcb *pcb_aux;
-    index_pid = buscar_tid(memoria_usuario->lista_pcb, tcb->tid);
+    index_pid = buscar_pid(memoria_usuario->lista_pcb, tcb->pid);
 
     pcb_aux = list_get(memoria_usuario->lista_pcb, index_pid);
     list_add(pcb_aux->listaTCB, tcb);

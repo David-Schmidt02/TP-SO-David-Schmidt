@@ -26,7 +26,7 @@ int agregar_a_tabla_particion_fija(t_pcb *pcb);
 void inicializar_tabla_particion_fija(t_list *particiones);
 int buscar_en_tabla_fija(int tid);
 void crear_proceso(t_pcb *pcb);
-void fin_proceso(int tid);
+void fin_proceso(int pid);
 //
 
 void crear_thread(t_tcb *tcb);
