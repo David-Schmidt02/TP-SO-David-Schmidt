@@ -37,7 +37,7 @@ typedef struct {
 
 typedef struct {
     int pid;
-    int pc;//borrar? esta en RegistroCPU
+    int pc;
     int quantum;
     int memoria_necesaria;
     t_estado estado;

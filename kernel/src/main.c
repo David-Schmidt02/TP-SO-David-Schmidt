@@ -80,7 +80,8 @@ int main(int argc, char* argv[]) {
 
 	lista_global_tcb = list_create();
 
-	char *archivo_pseudocodigo_proceso_inicial = argv[1];
+	char *ruta_archivo_pseudocodigo_proceso_inicial = argv[1];
+	FILE * archivo_pseudocodigo_proceso_inicial = fopen(ruta_archivo_pseudocodigo_proceso_inicial, "rb");
     int tamanio_proceso_proceso_inicial = atoi(argv[2]);
 	int prioridad_proceso_inicial = atoi(argv[3]);
 

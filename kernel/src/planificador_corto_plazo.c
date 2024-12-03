@@ -93,14 +93,6 @@ void encolar_corto_plazo_fifo(t_tcb * hilo){
     log_info(logger, "Se hace un post del semáforo de estado de hilos_cola_ready");
 }
 
-void encolar_corto_plazo_fifo(t_tcb * hilo){
-    pthread_mutex_lock(mutex_hilos_cola_ready);
-    list_add(hilos_cola_ready->lista_procesos, hilo);
-    pthread_mutex_unlock(mutex_hilos_cola_ready);
-    sem_post(sem_estado_hilos_cola_ready);
-    log_info(logger, "Se hace un post del semáforo de estado de hilos_cola_ready");
-}
-
 t_tcb* desencolar_hilos_fifo(){
     t_tcb *hilo = list_remove(hilos_cola_ready->lista_hilos, 0);
     return hilo;
@@ -132,22 +124,6 @@ void encolar_corto_plazo_prioridades(t_tcb * hilo){
     while (i < list_size(hilos_cola_ready->lista_hilos)) {
         t_tcb *hilo_existente = list_get(hilos_cola_ready->lista_hilos, i);
         if (hilo->prioridad < hilo_existente->prioridad) {
-            break;
-        }
-        i++;
-    }
-    list_add_in_index(hilos_cola_ready->lista_hilos, i, hilo);
-    pthread_mutex_unlock(mutex_hilos_cola_ready);
-    sem_post(sem_estado_hilos_cola_ready);
-    log_info(logger, "Se hace un post del semáforo de estado de hilos_cola_ready");
-}
-
-void encolar_corto_plazo_prioridades(t_tcb * hilo){
-    pthread_mutex_lock(mutex_hilos_cola_ready);
-    int i = 0;
-    while (i < list_size(hilos_cola_ready->lista_hilos)) {
-        t_tcb *hilo_existente = list_get(hilos_cola_ready->lista_hilos, i);
-        if (hilos_cola_ready->prioridad > hilos_cola_ready->prioridad) {
             break;
         }
         i++;
