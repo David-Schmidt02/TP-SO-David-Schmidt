@@ -262,6 +262,84 @@ int agregar_a_tabla_particion_fija(t_pcb *pcb){
     }return list_iterator_index(iterator);
     list_iterator_destroy(iterator);
 }
+int agregar_a_dinamica(t_pcb *pcb){
+    
+    t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_huecos);
+    elemento_huecos *aux_hueco, *aux_hueco_nuevo;
+    elemento_procesos *aux_proceso;
+    int index;
+
+    aux_proceso->pid = pcb->pid;
+    
+    while(list_iterator_has_next(iterator)) {
+        aux_hueco = list_iterator_next(iterator); // siguiente hueco
+        if (aux_hueco->size >= pcb->memoria_necesaria){ // entra mi proceso en el hueco?
+            
+            //seteo variables del nuevo proceso
+            aux_proceso->inicio = aux_hueco->inicio;
+            aux_proceso->size = pcb->memoria_necesaria;
+
+            //add proceso a tabla de procesos
+            index = list_add(memoria_usuario->tabla_procesos, aux_proceso);
+            
+            //creo un hueco nuevo a partir del usado
+            aux_hueco_nuevo->inicio = aux_hueco->inicio+aux_proceso->size;
+            aux_hueco_nuevo->size = aux_hueco->size-aux_proceso->size;
+
+            //reemplazo el hueco usado por el nuevo (que es mas chico)
+            aux_hueco = aux_hueco_nuevo;
+
+            //se me quemo el cerebro
+            list_iterator_destroy(iterator);
+            return index;
+        }
+    }
+    log_error(logger, "No hay huecos libres");
+    return -1;
+}
+void remover_proceso_de_tabla_dinamica(int pid){
+    int index = buscar_en_dinamica(pid);
+
+    elemento_huecos *aux_hueco, *aux_hueco_iterator;
+    elemento_procesos *aux_proceso;
+
+    aux_proceso = list_remove(memoria_usuario->tabla_procesos, index);
+    aux_hueco->inicio = aux_proceso->inicio;
+    aux_hueco->size = aux_proceso->size;
+
+    free(aux_proceso);
+
+    t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_huecos);
+
+    while(list_iterator_has_next(iterator)){
+        aux_hueco_iterator = list_iterator_next(iterator);
+        if(aux_hueco_iterator->inicio < aux_hueco->inicio){
+            list_iterator_add(iterator, aux_hueco);
+            list_iterator_destroy(iterator);
+            break;
+        }
+    }
+    consolidar_huecos();
+}
+void consolidar_huecos(){
+    t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_huecos);
+    elemento_huecos *aux_iterator, *aux_previous;
+
+    aux_previous = list_iterator_next(iterator);
+    while(list_iterator_has_next(iterator)){
+        aux_iterator = list_iterator_next(iterator);
+        if (aux_iterator->inicio == aux_previous->inicio + aux_previous->size){
+            log_info(logger, "Se unieron 2 huecos");
+            aux_previous->size += aux_iterator->size;
+
+            list_iterator_remove(iterator);
+            free(aux_iterator);
+        }else{
+            aux_previous = aux_iterator;
+        }
+    }
+    return;
+}
 /// @brief busca el TID en la tabla de particiones fijas y devuelve el index
 /// @param tid 
 /// @return index o -1 -> error
@@ -295,6 +373,28 @@ void inicializar_tabla_particion_fija(t_list *particiones){
     list_iterator_destroy(iterator_particiones);
     list_iterator_destroy(iterator_tabla);
     return;
+}
+void init_tablas_dinamicas(){
+    elemento_huecos * aux = malloc(sizeof(elemento_huecos));
+    aux->inicio = 0;
+    aux->size = memoria_usuario->size;
+
+    memoria_usuario->tabla_huecos = list_create();
+    list_add(memoria_usuario->tabla_huecos, aux);
+
+    memoria_usuario->tabla_procesos = list_create();
+
+    return;
+}
+int buscar_en_dinamica(int pid){
+    t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_procesos);
+    elemento_procesos *aux;
+    while(list_iterator_has_next(iterator)){
+        aux = list_iterator_next(iterator);
+        if(aux->pid == pid){
+            return list_iterator_index(iterator);
+        }
+    }return -1;
 }
 void crear_proceso(t_pcb *pcb){
     int index = agregar_a_tabla_particion_fija(pcb);

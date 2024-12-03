@@ -40,13 +40,13 @@ typedef struct t_memoria{
 }t_memoria;
 
 typedef struct elemento_procesos{
-    int TID;
-    int inicio;
+    int pid;
+    uint32_t inicio;
     int size;
 }elemento_procesos;
 
 typedef struct elemento_huecos{
-    int inicio;
+    uint32_t inicio;
     int size;
 }elemento_huecos;
 
