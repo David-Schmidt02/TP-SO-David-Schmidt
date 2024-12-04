@@ -73,10 +73,10 @@ EntregaFinal(){
 			cd ~/
 
 			echo "\n----------Get Pruebas------------------\n"
-			git clone https://github.com/sisoputnfrba/the-last-of-c-pruebas.git
+			git clone https://github.com/sisoputnfrba/tuki-pruebas
 	
 			echo "\n----------Get TP-----------------------\n"
-			git clone https://github.com/sisoputnfrba/tp-2024-2c-SAFED.git
+			git clone https://github.com/sisoputnfrba/tp-2023-1c-maxikiosco
 
 			echo "\n---------Install Gnome-Terminal----------\n"
 			sudo apt install gnome-terminal

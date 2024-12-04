@@ -501,7 +501,8 @@ t_list* interpretarArchivo(FILE* archivo)
         t_instruccion* instruccion = malloc(sizeof(t_instruccion));
         if (instruccion == NULL) {
             perror("Error de asignación de memoria para la instrucción");
-            list_destroy_and_destroy_elements(instrucciones, element_destroyer);
+            list_destroy(instrucciones);
+            //list_destroy_and_destroy_elements(instrucciones, element_destroyer);
             return NULL;
         }
 
@@ -537,7 +538,8 @@ t_list* interpretarArchivo(FILE* archivo)
 
 void liberarInstrucciones(t_list* instrucciones) 
 {
-    list_destroy_and_destroy_elements(instrucciones, element_destroyer);
+    list_destroy(instrucciones);
+    //list_destroy_and_destroy_elements(instrucciones, element_destroyer);
 }
 
 t_tcb* obtener_tcb_por_tid(int tid) {

@@ -81,7 +81,7 @@ void enviar_contexto_de_memoria (RegistroCPU *registro, int pid){
         char *error;
         memcpy(error, msjerror->buffer, sizeof(msjerror->buffer));
         log_error(logger, error);
-        // --- AGREGAR INTERRUPCION ACA ---
+        agregar_interrupcion(SEGMENTATION_FAULT,1);
     }
     else log_info(logger, "contexto de PID %d enviado correctamente", pid);
     return;
@@ -291,7 +291,7 @@ void checkInterrupt(RegistroCPU *cpu) {
             enviar_contexto_de_memoria(cpu, pid);
             
             // Notificar al Kernel de la interrupción crítica
-            notificar_kernel_interrupcion(pid, tid);
+            notificar_kernel_interrupcion(pid, tid, SEGMENTATION_FAULT);
 
             // Detener la ejecución del hilo
             detener_ejecucion();
@@ -303,7 +303,7 @@ void checkInterrupt(RegistroCPU *cpu) {
             enviar_contexto_de_memoria(cpu, pid);
 
             // Notificar al Kernel que la interrupción fue manejada
-            notificar_kernel_interrupcion(pid, tid);
+            notificar_kernel_interrupcion(pid, tid,INTERRUPCION);
 
         } else if (strcmp(interrupcion_actual->tipo, "FIN_QUANTUM") == 0) {
             // Manejar interrupción de Fin de Quantum
@@ -312,7 +312,7 @@ void checkInterrupt(RegistroCPU *cpu) {
             enviar_contexto_de_memoria(cpu, pid);
 
             // Notificar al Kernel del Fin de Quantum
-            notificar_kernel_interrupcion(pid, tid);
+            notificar_kernel_interrupcion(pid, tid,FIN_QUANTUM);
 
         } else if (strcmp(interrupcion_actual->tipo, "THREAD_JOIN_OP") == 0) {
             // Manejar Syscall Join
@@ -321,13 +321,13 @@ void checkInterrupt(RegistroCPU *cpu) {
             enviar_contexto_de_memoria(cpu, pid);
 
             // Notificar al Kernel que se ejecutó la Syscall Join
-            notificar_kernel_interrupcion(pid, tid);
+            notificar_kernel_interrupcion(pid, tid,THREAD_JOIN_OP);
         } else if (strcmp(interrupcion_actual->tipo, "SYS_IO") == 0) {
             log_info(logger, "Manejando interrupción: SYS_IO");
 
             enviar_contexto_de_memoria(cpu, pid);
 
-            notificar_kernel_interrupcion(pid, tid);
+            notificar_kernel_interrupcion(pid, tid,SYS_IO);
 
         liberar_interrupcion(interrupcion_actual);
     }
@@ -352,7 +352,7 @@ int cpu_genero_interrupcion(RegistroCPU *cpu) {
 
 
 int recibir_interrupcion() {
-    t_paquete *paquete_interrupcion = recibir_paquete(conexion_cpu_dispatch);
+    t_paquete *paquete_interrupcion = recibir_paquete(conexion_cpu_interrupt);
 
     if (paquete_interrupcion == NULL) {
         return 0;  // No se recibió ninguna interrupción
@@ -362,6 +362,7 @@ int recibir_interrupcion() {
 
     if (strcmp(tipo_interrupcion, "FIN_QUANTUM") == 0) {
         log_info(logger, "Interrupción recibida: FIN_QUANTUM");
+
         agregar_interrupcion("FIN_QUANTUM", 3);  
         eliminar_paquete(paquete_interrupcion);
         return 1;
@@ -413,21 +414,21 @@ void enviar_contexto_de_memoria(RegistroCPU *registro, int pid) {
     eliminar_paquete(paquete_respuesta);  // Limpiar paquete de respuesta
 }
 
-void notificar_kernel_interrupcion(int pid, int tid) {
-    t_paquete *paquete_notify = crear_paquete(INTERRUPCION);
+void notificar_kernel_interrupcion(int pid, int tid, protocolo_socket cod_op) {
+    t_paquete *paquete_notify = crear_paquete(cod_op);
 
     // Enviamos el PID y TID para notificar al Kernel que el proceso fue interrumpido
     agregar_a_paquete(paquete_notify, &pid, sizeof(int));  
     agregar_a_paquete(paquete_notify, &tid, sizeof(int));  
 
     // Enviamos la notificación al Kernel
-    enviar_paquete(paquete_notify, conexion_cpu_dispatch);  
+    enviar_paquete(paquete_notify, conexion_cpu_interrupt);  
     eliminar_paquete(paquete_notify);  // Eliminamos el paquete tras enviarlo
 
     log_info(logger, "Notificación enviada al Kernel por la interrupción del PID %d, TID %d", pid, tid);
 
     // Esperamos una confirmación de que el Kernel recibió la interrupción
-    t_paquete *paquete_respuesta = recibir_paquete(conexion_cpu_dispatch);
+    t_paquete *paquete_respuesta = recibir_paquete(conexion_cpu_interrupt);
     if (paquete_respuesta != NULL && strcmp(paquete_respuesta->buffer, "OK") == 0) {
         log_info(logger, "Kernel reconoció la interrupción para PID %d, TID %d", pid, tid);
     } else 

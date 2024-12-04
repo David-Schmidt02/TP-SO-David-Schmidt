@@ -138,38 +138,6 @@ void largo_plazo_fifo()
     }
     
 }
-/*
-void recibir_respuesta_peticion_memoria() {
-    t_list *paquete_respuesta = recibir_paquete(conexion);
-    int tid;
-    t_paquete *aux;
-    protocolo_socket motivo;
-    aux  = list_remove(paquete_respuesta, 0);
-    tid = *((int*)aux->buffer->stream);
-    aux = list_remove(paquete_respuesta, 0);
-    motivo = (protocolo_socket)aux->buffer->stream;
-    switch (motivo) {
-    case FINALIZACION:
-        log_info(logger,"El hilo %d ha FINALIZADO correctamente\n", tid);
-        desbloquear_hilos(tid);
-        break;
-    case FIN_QUANTUM:
-        log_info(logger,"El hilo %d fue desalojado por FIN DE QUANTUM\n", tid);
-        encolar_corto_plazo_multinivel(obtener_tcb_por_tid(tid));
-        break;
-    case THREAD_JOIN_OP:
-        log_info(logger,"El hilo %d fue blockeado por THREAD JOIN\n", tid);
-        //transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
-        esperar_desbloqueo_ejecutar_hilo(tid);
-        break;
-    default:
-        log_warning(logger,"Motivo desconocido para el hilo %d\n", tid);
-        break;
-    }
-    eliminar_paquete(aux);
-    //quizas deba incluir un eliminar_lista;
-}
-*/
 
 t_pcb* desencolar_proceso_a_crear(){
     t_pcb *proceso = list_remove(procesos_a_crear->lista_procesos, 0);
