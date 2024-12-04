@@ -70,9 +70,29 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 					list_iterate(handshake_recv, (void*) iterator);
 					enviar_paquete(handshake_send, socket_cliente_kernel);
 					break;
-				case INSTRUCCIONES:	
-					
+				case INSTRUCCIONES: {
+					log_info(logger, "Instrucción recibida del Kernel");
+
+					// Recibir el TID, PID y la instrucción
+					t_list *paquete = recibir_paquete(socket_cliente_kernel);
+					int tid = *(int *)list_remove(paquete, 0);
+					int pid = *(int *)list_remove(paquete, 0);
+					char *instruccion = (char *)list_remove(paquete, 0);
+					list_destroy_and_destroy_elements(paquete, free);
+
+					// Decodificar y ejecutar la instrucción
+					decode(&cpu, instruccion);
+
+					// Enviar el contexto actualizado al Kernel
+					enviar_contexto_de_memoria(&cpu, pid);
+
+					// Notificar si hubo interrupciones generadas
+					if (cpu_genero_interrupcion(&cpu)) {
+						log_warning(logger, "Notificando interrupción generada al Kernel");
+						notificar_kernel_interrupcion(pid, tid);
+					}
 					break;
+				}
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
 					return (void *)EXIT_FAILURE;
@@ -114,6 +134,20 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 					log_info(logger, "me llego: kernel interrupt\n");
 					list_iterate(handshake_recv, (void*) iterator);
 					enviar_paquete(handshake_send, socket_cliente_kernel);
+					break;
+				case FIN_QUANTUM:
+					log_info(logger, "Se recibió interrupción FIN_QUANTUM");
+					manejar_fin_quantum(socket_cliente_kernel);
+					break;
+
+				case THREAD_JOIN_OP:
+					log_info(logger, "Se recibió interrupción THREAD_JOIN_OP");
+					manejar_thread_join_op(socket_cliente_kernel);
+					break;
+
+				case IO_SYSCALL:
+					log_info(logger, "Se recibió syscall de tipo IO");
+					manejar_syscall_io(socket_cliente_kernel);
 					break;
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
