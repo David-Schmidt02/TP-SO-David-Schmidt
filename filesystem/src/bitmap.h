@@ -9,7 +9,7 @@
 #include <commons/log.h>
 #include <utils/utils.h>
 
-void inicializar_bitmap(const char* mount_dir,uint32_t block_count);
+void inicializar_bitmap(char* mount_dir,uint32_t block_count);
 int reservar_bloques();
 bool espacio_disponible(int cantidad);
 void liberar_bloque(uint32_t bloque);

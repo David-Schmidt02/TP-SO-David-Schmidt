@@ -7,7 +7,7 @@ t_buffer *buffer;
 
 extern t_config *config;
 extern t_log *logger;
-void inicializar_bitmap(const char* mount_dir,uint32_t block_count) {
+void inicializar_bitmap(char* mount_dir,uint32_t block_count) {
     // Obtener BLOCK_COUNT del archivo de configuración 
     if (block_count == 0) {
         log_error(logger, "No se encontró el valor BLOCK_COUNT en el archivo de configuración.");
@@ -41,7 +41,6 @@ void inicializar_bitmap(const char* mount_dir,uint32_t block_count) {
             log_error(logger, "Error al crear el archivo bitmap.dat");
             exit(EXIT_FAILURE);
         }
-        rewind(archivo_bitmap);
         size_t elementos_escritos = fwrite(buffer, sizeof(uint8_t), tamanio_bitmap, archivo_bitmap);
         if (elementos_escritos != tamanio_bitmap) {
             log_error(logger, "Error al escribir en el archivo bitmap.dat. Bytes esperados: %zu, Bytes escritos: %zu.", tamanio_bitmap, elementos_escritos);
