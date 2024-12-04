@@ -300,7 +300,6 @@ void checkInterrupt(RegistroCPU *cpu) {
             // Manejar interrupción no crítica enviada por el Kernel
             log_info(logger, "Manejando interrupción: INTERRUPCION");
 
-            // Guardar contexto en Memoria
             enviar_contexto_de_memoria(cpu, pid);
 
             // Notificar al Kernel que la interrupción fue manejada
@@ -310,7 +309,6 @@ void checkInterrupt(RegistroCPU *cpu) {
             // Manejar interrupción de Fin de Quantum
             log_info(logger, "Manejando interrupción: FIN_QUANTUM");
 
-            // Guardar contexto en Memoria
             enviar_contexto_de_memoria(cpu, pid);
 
             // Notificar al Kernel del Fin de Quantum
@@ -320,12 +318,17 @@ void checkInterrupt(RegistroCPU *cpu) {
             // Manejar Syscall Join
             log_info(logger, "Manejando interrupción: THREAD_JOIN_OP");
 
-            // Guardar contexto en Memoria
             enviar_contexto_de_memoria(cpu, pid);
 
             // Notificar al Kernel que se ejecutó la Syscall Join
             notificar_kernel_interrupcion(pid, tid);
-        }
+        } else if (strcmp(interrupcion_actual->tipo, "SYS_IO") == 0) {
+            log_info(logger, "Manejando interrupción: SYS_IO");
+
+            enviar_contexto_de_memoria(cpu, pid);
+
+            notificar_kernel_interrupcion(pid, tid);
+
         liberar_interrupcion(interrupcion_actual);
     }
 }
@@ -338,9 +341,9 @@ int cpu_genero_interrupcion(RegistroCPU *cpu) {
     }
 
     // Verificar si se ejecutó una instrucción no válida
-    if (!es_instruccion_valida(cpu->instruccion_actual)) {
-        log_error(logger, "Instrucción no válida detectada: %s", cpu->instruccion_actual);
-        return 1; // Retorna 1 indicando interrupción crítica
+    if (cpu->base == 0 || cpu->limit == 0) { // CPU sin inicializar correctamente
+        log_error(logger, "Error crítico: Contexto de CPU no inicializado correctamente (base: %d, límite: %d)", cpu->base, cpu->limit);
+        return 1; // Indica interrupción crítica
     }
 
     // Si no se detectaron interrupciones críticas, retorna 0
@@ -349,19 +352,45 @@ int cpu_genero_interrupcion(RegistroCPU *cpu) {
 
 
 int recibir_interrupcion() {
-    // Kernel envía una señal de interrupción a la CPU
     t_paquete *paquete_interrupcion = recibir_paquete(conexion_cpu_dispatch);
 
-    // Revisar si el paquete contiene una interrupción
-    if (paquete_interrupcion != NULL && strcmp(paquete_interrupcion->buffer, "INTERRUPCION") == 0) {
-        log_info(logger, "Interrupción recibida del Kernel");
+    if (paquete_interrupcion == NULL) {
+        return 0;  // No se recibió ninguna interrupción
+    }
+
+    char *tipo_interrupcion = paquete_interrupcion->buffer;
+
+    if (strcmp(tipo_interrupcion, "FIN_QUANTUM") == 0) {
+        log_info(logger, "Interrupción recibida: FIN_QUANTUM");
+        agregar_interrupcion("FIN_QUANTUM", 3);  
         eliminar_paquete(paquete_interrupcion);
-        return 1;  // Se detecta interrupción
-    } else {
-        eliminar_paquete(paquete_interrupcion);  // Limpiar el paquete
-        return 0;  // No hay interrupción
+        return 1;
+    } 
+    else if (strcmp(tipo_interrupcion, "THREAD_JOIN_OP") == 0) {
+        log_info(logger, "Interrupción recibida: THREAD_JOIN_OP");
+        agregar_interrupcion("THREAD_JOIN_OP", 2);  
+        eliminar_paquete(paquete_interrupcion);
+        return 1;
+    }
+    else if (strcmp(tipo_interrupcion, "SYS_IO") == 0) {
+        log_info(logger, "Interrupción recibida: SYS_IO");
+        agregar_interrupcion("SYS_IO", 4);  
+        eliminar_paquete(paquete_interrupcion);
+        return 1;
+    } 
+    else if (strcmp(tipo_interrupcion, "INTERRUPCION") == 0) {
+        log_info(logger, "Interrupción recibida: INTERRUPCION_KERNEL");
+        agregar_interrupcion("INTERRUPCION", 4);  
+        eliminar_paquete(paquete_interrupcion);
+        return 1;
+    } 
+    else {
+        log_warning(logger, "Interrupción desconocida: %s", tipo_interrupcion);
+        eliminar_paquete(paquete_interrupcion);
+        return 0;
     }
 }
+
 
 void enviar_contexto_de_memoria(RegistroCPU *registro, int pid) {
     t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
