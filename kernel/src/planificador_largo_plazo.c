@@ -12,10 +12,10 @@ extern t_cola_procesos_a_crear* procesos_a_crear;
 extern pthread_mutex_t * mutex_procesos_a_crear;
 extern sem_t * sem_estado_procesos_a_crear;
 
-//Tengo que inicializarlos
 extern t_list * lista_t_peticiones;
 extern pthread_mutex_t * mutex_lista_t_peticiones;
 extern sem_t * sem_lista_t_peticiones; 
+extern sem_t * sem_estado_respuesta_desde_memoria;
 
 //extern pthread_mutex_t * mutex_respuesta_desde_memoria;
 //extern pthread_cond_t * cond_respuesta_desde_memoria;
@@ -26,7 +26,6 @@ extern char* algoritmo;
 
 t_cola_proceso* inicializar_cola_procesos_ready(){
 
-    printf("COLA DE PROCESOS READY CREADA CORRECTAMENTE\n");
     procesos_cola_ready = malloc(sizeof(t_cola_procesos_a_crear));
     if (procesos_cola_ready == NULL) {
         perror("Error al asignar memoria para cola de NEW");
@@ -43,7 +42,6 @@ t_cola_proceso* inicializar_cola_procesos_ready(){
 }
 
 t_cola_procesos_a_crear* inicializar_cola_procesos_a_crear(){
-    printf("COLA DE PROCESOS A CREAR CREADA CORRECTAMENTE\n");
     procesos_a_crear = malloc(sizeof(t_cola_procesos_a_crear));
     if (procesos_a_crear == NULL) {
         perror("Error al asignar memoria para cola de NEW");
@@ -95,6 +93,7 @@ void inicializar_semaforos_largo_plazo(){
     }
     sem_init(sem_proceso_finalizado, 0, 0);
 
+    log_info(logger,"COLAS DE PROCESOS EN READY/A CREAR CREADAS CORRECTAMENTE\n");
     log_info(logger,"MUTEXS DE LAS COLAS DE PROCESOS EN READY/A CREAR CREADOS CORRECTAMENTE\n");
     log_info(logger,"SEMÁFOROS DE ESTADO DE LAS COLAS DE PROCESOS EN READY/A CREAR/FINALIZADOS CORRECTAMENTE\n");
 }
@@ -114,9 +113,8 @@ void largo_plazo_fifo()
         peticion->tipo = PROCESS_CREATE_OP;
         peticion->proceso = proceso;
         peticion->hilo = NULL; // No aplica en este caso
-        peticion->respuesta_recibida = false;
         encolar_peticion_memoria(peticion);
-        //recibir_respuesta_peticion_memoria();
+        sem_wait(sem_estado_respuesta_desde_memoria);
         if (peticion->respuesta_exitosa) {
             log_info(logger,"Memoria respondió con éxito la peticion, se encola en ready el proceso %d", proceso->pid);
             proceso->estado = READY;
@@ -126,50 +124,19 @@ void largo_plazo_fifo()
             pthread_mutex_unlock(mutex_procesos_a_crear);
         } else {
             log_info(logger, "Memoria no tiene espacio suficiente, reintentando cuando un proceso se termine...");
-            //Se tiene que reencolar el proceso porque ya fue removido y hacerlo en el tope de la cola
-            pthread_mutex_lock(mutex_procesos_a_crear);
-            list_add_in_index(procesos_a_crear->lista_procesos, 0, proceso);
-            pthread_mutex_unlock(mutex_procesos_a_crear);
-            sem_post(sem_estado_procesos_a_crear);
-            // Esperar a que un proceso finalice para volver a intentar la peticion
-            sem_wait(sem_proceso_finalizado);
+            //probar como funciona
+            while(!peticion->respuesta_exitosa){
+                sem_wait(sem_proceso_finalizado);
+                pthread_mutex_lock(mutex_procesos_a_crear);
+                list_add_in_index(procesos_a_crear->lista_procesos, 0, proceso);
+                pthread_mutex_unlock(mutex_procesos_a_crear);
+                sem_post(sem_estado_procesos_a_crear);
+            }
         }
         free(peticion);
     }
     
 }
-/*
-void recibir_respuesta_peticion_memoria() {
-    t_list *paquete_respuesta = recibir_paquete(conexion);
-    int tid;
-    t_paquete *aux;
-    protocolo_socket motivo;
-    aux  = list_remove(paquete_respuesta, 0);
-    tid = *((int*)aux->buffer->stream);
-    aux = list_remove(paquete_respuesta, 0);
-    motivo = (protocolo_socket)aux->buffer->stream;
-    switch (motivo) {
-    case FINALIZACION:
-        log_info(logger,"El hilo %d ha FINALIZADO correctamente\n", tid);
-        desbloquear_hilos(tid);
-        break;
-    case FIN_QUANTUM:
-        log_info(logger,"El hilo %d fue desalojado por FIN DE QUANTUM\n", tid);
-        encolar_corto_plazo_multinivel(obtener_tcb_por_tid(tid));
-        break;
-    case THREAD_JOIN_OP:
-        log_info(logger,"El hilo %d fue blockeado por THREAD JOIN\n", tid);
-        //transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
-        esperar_desbloqueo_ejecutar_hilo(tid);
-        break;
-    default:
-        log_warning(logger,"Motivo desconocido para el hilo %d\n", tid);
-        break;
-    }
-    eliminar_paquete(aux);
-    //quizas deba incluir un eliminar_lista;
-}
-*/
 
 t_pcb* desencolar_proceso_a_crear(){
     t_pcb *proceso = list_remove(procesos_a_crear->lista_procesos, 0);
@@ -192,7 +159,7 @@ void encolar_hilo_principal_corto_plazo(t_pcb * proceso){
     peticion->tipo = THREAD_CREATE_OP;
     peticion->proceso = NULL;
     peticion->hilo = hilo;
-    peticion->respuesta_recibida = false;
+    sem_wait(sem_estado_respuesta_desde_memoria);
     encolar_peticion_memoria(peticion);
     if (strcmp(algoritmo, "FIFO") == 0) {
         log_info(logger, "Se encola el hilo según el algoritmo de FIFO");

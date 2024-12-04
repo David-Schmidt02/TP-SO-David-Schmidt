@@ -74,7 +74,6 @@ void corto_plazo_fifo()
         pthread_mutex_lock(mutex_hilos_cola_ready);
         t_tcb *hilo = desencolar_hilos_fifo();
         hilo->estado = EXEC; 
-        hilo_actual = hilo;
         pthread_mutex_unlock(mutex_hilos_cola_ready);
         pthread_mutex_lock(mutex_socket_cpu_dispatch);
         log_info(logger, "Se envía el hilo al cpu dispatch");
@@ -107,7 +106,6 @@ void corto_plazo_prioridades()
         list_sort(hilos_cola_ready->lista_hilos, (void *)comparar_prioridades); 
         t_tcb *hilo = desencolar_hilos_prioridades();
         hilo->estado = EXEC;  
-        hilo_actual = hilo;
         pthread_mutex_unlock(mutex_hilos_cola_ready);
         pthread_mutex_lock(mutex_socket_cpu_dispatch);
         log_info(logger, "Se envía el hilo al cpu dispatch");
@@ -160,7 +158,6 @@ void corto_plazo_colas_multinivel() {
             t_tcb *hilo_a_ejecutar = list_remove(cola_a_ejecutar->lista_hilos, 0);
             log_info(logger,"Cola de prioridad %d: Ejecutando hilo TID=%d, PID=%d\n", nivel_a_ejecutar->nivel_prioridad, hilo_a_ejecutar->tid, hilo_a_ejecutar->pid);
             hilo_a_ejecutar->estado = EXEC;  
-            hilo_actual = hilo_a_ejecutar;
             ejecutar_round_robin(hilo_a_ejecutar);
             // Indicamos que hay que replanificar, ya que se ha ejecutado un hilo
             replanificar = 1;
@@ -207,11 +204,10 @@ void ejecutar_round_robin(t_tcb * hilo_a_ejecutar) {
     pthread_mutex_unlock(mutex_socket_cpu_dispatch);
 
     // Lanzamos un nuevo hilo que cuente el quantum y envíe una interrupción si se agota
-    //pthread_t thread_contador_quantum;
-    //pthread_create(&thread_contador_quantum, NULL, (void *)contar_quantum, (void *)hilo_a_ejecutar);
-
+    pthread_t thread_contador_quantum;
+    pthread_create(&thread_contador_quantum, NULL, (void *)contar_quantum, (void *)hilo_a_ejecutar);
     //recibir_motivo_devolucion(); 
-    //pthread_join(thread_contador_quantum, NULL); // Esperamos que el hilo del quantum termine
+    pthread_join(thread_contador_quantum, NULL); // Esperamos que el hilo del quantum termine
 }
 
 // Función para contar el quantum y enviar una interrupción si se agota
@@ -309,7 +305,7 @@ void enviar_a_cpu_dispatch(int tid, int pid)
     t_paquete * send_handshake = crear_paquete(INFO_HILO);
     agregar_a_paquete(send_handshake, &tid, sizeof(tid)); 
     agregar_a_paquete(send_handshake, &pid, sizeof(pid)); 
-    
+    hilo_actual = obtener_tcb_por_tid(tid);
     enviar_paquete(send_handshake, conexion_kernel_cpu_dispatch); 
     eliminar_paquete(send_handshake);
     //Se espera la respuesta, primero el tid y luego el motivo
@@ -362,6 +358,10 @@ void recibir_motivo_devolucion_cpu() {
         log_info(logger,"El hilo %d fue blockeado por THREAD JOIN\n", tid);
         //transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
         esperar_desbloqueo_ejecutar_hilo(tid);
+        break;
+    case SEGMENTATION_FAULT:
+        log_info(logger,"El hilo %d es finalizado por SEGMENTATION FAULT\n", tid);
+        PROCESS_EXIT();
         break;
     default:
         log_warning(logger,"Motivo desconocido para el hilo %d\n", tid);

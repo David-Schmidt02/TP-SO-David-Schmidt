@@ -18,10 +18,11 @@ int conexion_kernel_memoria;
 t_list *lista_t_peticiones;
 sem_t * sem_lista_t_peticiones;
 pthread_mutex_t *mutex_lista_t_peticiones;
+sem_t * sem_estado_respuesta_desde_memoria;
 
 sem_t * sem_proceso_finalizado; // utilizado para reintentar crear procesos
 
-//pthread_mutex_t * mutex_respuesta_desde_memoria;
+pthread_mutex_t * mutex_respuesta_desde_memoria;
 //pthread_cond_t * cond_respuesta_desde_memoria;
 //
 
@@ -404,6 +405,7 @@ void *peticion_kernel(void *args) {
             send_protocolo = crear_paquete(PROCESS_EXIT_OP);
             agregar_a_paquete(send_protocolo, proceso, sizeof(t_pcb));
 			log_info(logger, "Se crea la peticion de PROCESS EXIT");
+			sem_post(sem_proceso_finalizado);
             break;
 
         case THREAD_CREATE_OP:
@@ -414,6 +416,12 @@ void *peticion_kernel(void *args) {
 
         case THREAD_EXIT_OP:
             send_protocolo = crear_paquete(THREAD_EXIT_OP);
+            agregar_a_paquete(send_protocolo, hilo, sizeof(t_tcb));
+			log_info(logger, "Se crea la peticion de THREAD EXIT");
+            break;
+
+		case THREAD_CANCEL_OP:
+            send_protocolo = crear_paquete(THREAD_CANCEL_OP);
             agregar_a_paquete(send_protocolo, hilo, sizeof(t_tcb));
 			log_info(logger, "Se crea la peticion de THREAD EXIT");
             break;
@@ -432,7 +440,7 @@ void *peticion_kernel(void *args) {
     enviar_paquete(send_protocolo, args_peticion->socket);
     log_info(logger, "Petición enviada a memoria, esperando respuesta...");
 
-    // Esperar respuesta bloqueante
+    // Esperar respuesta bloqueante -> esta es la respuesta esperada desde memoria
     op = recibir_operacion(args_peticion->socket);
     switch (op) {
         case SUCCESS:
@@ -445,13 +453,18 @@ void *peticion_kernel(void *args) {
             peticion->respuesta_exitosa = false;
             break;
 
+		case OK:
+            log_info(logger, "'OK' recibido desde memoria para operación %d", peticion->tipo);
+            peticion->respuesta_exitosa = true;
+            break;	
+
         default:
             log_warning(logger, "Código de operación desconocido recibido: %d", op);
             peticion->respuesta_exitosa = false;
             break;
     }
+	sem_post(sem_estado_respuesta_desde_memoria);
 	log_info(logger, "Actualizo el valor de respuesta recibida a true");
-    peticion->respuesta_recibida = true; // Actualizar el estado directamente
     eliminar_paquete(send_protocolo);
     liberar_conexion(args_peticion->socket);
     return NULL;
@@ -469,7 +482,6 @@ void encolar_peticion_memoria(t_peticion * peticion){
         list_add(lista_t_peticiones, peticion);
         pthread_mutex_unlock(mutex_lista_t_peticiones);
         sem_post(sem_lista_t_peticiones);
-    // Esperar respuesta de memoria
 		log_info(logger,"Se obtuvo la respuesta desde memoria\n");
 }
 
@@ -527,7 +539,15 @@ void inicializar_semaforos_peticiones(){
         exit(EXIT_FAILURE);
     }
 	log_info(logger,"Mutex y semáforo de estado para la lista de peticiones creados\n");
+
+	sem_estado_respuesta_desde_memoria = malloc(sizeof(sem_t));
+    if (sem_estado_respuesta_desde_memoria == NULL) {
+        perror("Error al asignar memoria para semáforo de cola");
+        exit(EXIT_FAILURE);
+    }
+	log_info(sem_estado_respuesta_desde_memoria,"Mutex y semáforo de estado para la lista de peticiones creados\n");
 }
+
 
 void inicializar_colas_largo_plazo(){
 	procesos_cola_ready = inicializar_cola_procesos_ready();
