@@ -117,22 +117,19 @@ t_paquete *obtener_contexto(int pid, int tid) {
     }
     t_pcb *pcb = list_get(memoria_usuario->lista_pcb, index_pcb);
 
-    // Buscar TCB por TID dentro del PCB
-    int index_tcb = buscar_tid(pcb->listaTCB, tid);
-    if (index_tcb == -1) {
-        log_error(logger, "No se encontró el TID %d en el proceso PID %d.", tid, pid);
-        return NULL;
-    }
-    t_tcb *tcb = list_get(pcb->listaTCB, index_tcb);
+    // // Buscar TCB por TID dentro del PCB
+    // int index_tcb = buscar_tid(pcb->listaTCB, tid);
+    // if (index_tcb == -1) {
+    //     log_error(logger, "No se encontró el TID %d en el proceso PID %d.", tid, pid);
+    //     return NULL;
+    // }
+    // t_tcb *tcb = list_get(pcb->listaTCB, index_tcb);
 
     // Preparar paquete con el contexto completo
     t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
 
     // Agregar registros del TCB
-    agregar_a_paquete(paquete_send, &tcb->registro, sizeof(tcb->registro));
-    // Agregar base y límite del PCB
-    agregar_a_paquete(paquete_send, &pcb->registro->base, sizeof(pcb->registro->base));
-    agregar_a_paquete(paquete_send, &pcb->registro->limite, sizeof(pcb->registro->limite));
+    agregar_a_paquete(paquete_send, &pcb->registro, sizeof(pcb->registro));
 
     log_info(logger, "Contexto de ejecución (PID: %d, TID: %d) preparado exitosamente.", pid, tid);
     return paquete_send;
@@ -178,16 +175,16 @@ void actualizar_contexto_ejecucion() {
     }
     t_pcb *pcb = list_get(memoria_usuario->lista_pcb, index_pcb);
 
-    int index_tcb = buscar_tid(pcb->listaTCB, tid);
-    if (index_tcb == -1) {
-        log_error(logger, "No se encontró el TID %d en el proceso PID %d para actualizar contexto.", tid, pid);
-        enviar_error_actualizacion();
-        return;
-    }
-    t_tcb *tcb = list_get(pcb->listaTCB, index_tcb);
+    // int index_tcb = buscar_tid(pcb->listaTCB, tid);
+    // if (index_tcb == -1) {
+    //     log_error(logger, "No se encontró el TID %d en el proceso PID %d para actualizar contexto.", tid, pid);
+    //     enviar_error_actualizacion();
+    //     return;
+    // }
+    // t_tcb *tcb = list_get(pcb->listaTCB, index_tcb);
 
     // Actualizar registros en el TCB
-    memcpy(&(tcb->registro), &registros_actualizados, sizeof(RegistroCPU));
+    memcpy(&(pcb->registro), &registros_actualizados, sizeof(RegistroCPU));
     log_info(logger, "Registros actualizados para PID %d, TID %d.", pid, tid);
 
     // Responder OK al cliente
@@ -265,6 +262,84 @@ int agregar_a_tabla_particion_fija(t_pcb *pcb){
     }return list_iterator_index(iterator);
     list_iterator_destroy(iterator);
 }
+int agregar_a_dinamica(t_pcb *pcb){
+    
+    t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_huecos);
+    elemento_huecos *aux_hueco, *aux_hueco_nuevo;
+    elemento_procesos *aux_proceso;
+    int index;
+
+    aux_proceso->pid = pcb->pid;
+    
+    while(list_iterator_has_next(iterator)) {
+        aux_hueco = list_iterator_next(iterator); // siguiente hueco
+        if (aux_hueco->size >= pcb->memoria_necesaria){ // entra mi proceso en el hueco?
+            
+            //seteo variables del nuevo proceso
+            aux_proceso->inicio = aux_hueco->inicio;
+            aux_proceso->size = pcb->memoria_necesaria;
+
+            //add proceso a tabla de procesos
+            index = list_add(memoria_usuario->tabla_procesos, aux_proceso);
+            
+            //creo un hueco nuevo a partir del usado
+            aux_hueco_nuevo->inicio = aux_hueco->inicio+aux_proceso->size;
+            aux_hueco_nuevo->size = aux_hueco->size-aux_proceso->size;
+
+            //reemplazo el hueco usado por el nuevo (que es mas chico)
+            aux_hueco = aux_hueco_nuevo;
+
+            //se me quemo el cerebro
+            list_iterator_destroy(iterator);
+            return index;
+        }
+    }
+    log_error(logger, "No hay huecos libres");
+    return -1;
+}
+void remover_proceso_de_tabla_dinamica(int pid){
+    int index = buscar_en_dinamica(pid);
+
+    elemento_huecos *aux_hueco, *aux_hueco_iterator;
+    elemento_procesos *aux_proceso;
+
+    aux_proceso = list_remove(memoria_usuario->tabla_procesos, index);
+    aux_hueco->inicio = aux_proceso->inicio;
+    aux_hueco->size = aux_proceso->size;
+
+    free(aux_proceso);
+
+    t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_huecos);
+
+    while(list_iterator_has_next(iterator)){
+        aux_hueco_iterator = list_iterator_next(iterator);
+        if(aux_hueco_iterator->inicio < aux_hueco->inicio){
+            list_iterator_add(iterator, aux_hueco);
+            list_iterator_destroy(iterator);
+            break;
+        }
+    }
+    consolidar_huecos();
+}
+void consolidar_huecos(){
+    t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_huecos);
+    elemento_huecos *aux_iterator, *aux_previous;
+
+    aux_previous = list_iterator_next(iterator);
+    while(list_iterator_has_next(iterator)){
+        aux_iterator = list_iterator_next(iterator);
+        if (aux_iterator->inicio == aux_previous->inicio + aux_previous->size){
+            log_info(logger, "Se unieron 2 huecos");
+            aux_previous->size += aux_iterator->size;
+
+            list_iterator_remove(iterator);
+            free(aux_iterator);
+        }else{
+            aux_previous = aux_iterator;
+        }
+    }
+    return;
+}
 /// @brief busca el TID en la tabla de particiones fijas y devuelve el index
 /// @param tid 
 /// @return index o -1 -> error
@@ -299,6 +374,28 @@ void inicializar_tabla_particion_fija(t_list *particiones){
     list_iterator_destroy(iterator_tabla);
     return;
 }
+void init_tablas_dinamicas(){
+    elemento_huecos * aux = malloc(sizeof(elemento_huecos));
+    aux->inicio = 0;
+    aux->size = memoria_usuario->size;
+
+    memoria_usuario->tabla_huecos = list_create();
+    list_add(memoria_usuario->tabla_huecos, aux);
+
+    memoria_usuario->tabla_procesos = list_create();
+
+    return;
+}
+int buscar_en_dinamica(int pid){
+    t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_procesos);
+    elemento_procesos *aux;
+    while(list_iterator_has_next(iterator)){
+        aux = list_iterator_next(iterator);
+        if(aux->pid == pid){
+            return list_iterator_index(iterator);
+        }
+    }return -1;
+}
 void crear_proceso(t_pcb *pcb){
     int index = agregar_a_tabla_particion_fija(pcb);
     elemento_particiones_fijas *aux = list_get(memoria_usuario->tabla_particiones_fijas, index);
@@ -318,7 +415,7 @@ void crear_proceso(t_pcb *pcb){
 void crear_thread(t_tcb *tcb){
     int index_pid;
     t_pcb *pcb_aux;
-    index_pid = buscar_tid(memoria_usuario->lista_pcb, tcb->tid);
+    index_pid = buscar_pid(memoria_usuario->lista_pcb, tcb->pid);
 
     pcb_aux = list_get(memoria_usuario->lista_pcb, index_pid);
     list_add(pcb_aux->listaTCB, tcb);

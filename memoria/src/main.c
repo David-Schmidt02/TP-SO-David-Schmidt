@@ -97,8 +97,23 @@ void *server_multihilo_kernel(void* arg_server){
 		cod_op = recibir_operacion(socket_cliente_kernel);
 		switch (cod_op)
 		{
-			case OBTENER_INSTRUCCION:
+			case PROCESS_CREATE_OP:
 				pthread_create(&aux_thread, NULL, peticion_kernel_NEW_PROCESS, (void *)&socket_cliente_kernel);
+				list_add(lista_t_peticiones, &aux_thread);
+				log_info(logger, "nueva peticion");
+				break;
+			case THREAD_CREATE_OP:
+				pthread_create(&aux_thread, NULL, peticion_kernel_NEW_THREAD, (void *)&socket_cliente_kernel);
+				list_add(lista_t_peticiones, &aux_thread);
+				log_info(logger, "nueva peticion");
+				break;
+			case PROCESS_EXIT_OP:
+				pthread_create(&aux_thread, NULL, peticion_kernel_END_PROCESS, (void *)&socket_cliente_kernel);
+				list_add(lista_t_peticiones, &aux_thread);
+				log_info(logger, "nueva peticion");
+				break;
+			case THREAD_EXIT_OP:
+				pthread_create(&aux_thread, NULL, peticion_kernel_END_THREAD, (void *)&socket_cliente_kernel);
 				list_add(lista_t_peticiones, &aux_thread);
 				log_info(logger, "nueva peticion");
 				break;
@@ -144,12 +159,83 @@ void *peticion_kernel_NEW_PROCESS(void* arg_peticion){
 	close(socket); //cerrar socket
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
+void *peticion_kernel_NEW_THREAD(void* arg_peticion){
+	int socket = (int)arg_peticion;
+	t_tcb *tcb;
+	int pid;
+	//atender peticion
+	t_list * paquete_list;
+	t_paquete * paquete_recv;
+	t_paquete * paquete_send;
+
+	paquete_list = recibir_paquete(socket);
+	tcb = list_remove(paquete_list, 0);
+	pid = (int)list_remove(paquete_list, 0);
+	crear_thread(tcb);
+	
+	//notificar resultado a kernel
+	paquete_send = crear_paquete(OK);
+	enviar_paquete(paquete_send, socket);
+
+	eliminar_paquete(paquete_send);
+	eliminar_paquete(paquete_recv);
+	list_destroy(paquete_list);
+	close(socket); //cerrar socket
+	return(void*)EXIT_SUCCESS; //finalizar hilo
+}
+void *peticion_kernel_END_PROCESS(void* arg_peticion){
+	int socket = (int)arg_peticion;
+	int pid;
+	//atender peticion
+	t_list * paquete_list;
+	t_paquete * paquete_recv;
+	t_paquete * paquete_send;
+
+	paquete_list = recibir_paquete(socket);
+	pid = (int)list_remove(paquete_list, 0);
+	fin_proceso(pid);
+	
+	//notificar resultado a kernel
+	paquete_send = crear_paquete(OK);
+	enviar_paquete(paquete_send, socket);
+
+	eliminar_paquete(paquete_send);
+	eliminar_paquete(paquete_recv);
+	list_destroy(paquete_list);
+	close(socket); //cerrar socket
+	return(void*)EXIT_SUCCESS; //finalizar hilo
+}
+void *peticion_kernel_END_THREAD(void* arg_peticion){
+	int socket = (int)arg_peticion;
+	int tid;
+	//atender peticion
+	t_list * paquete_list;
+	t_paquete * paquete_recv;
+	t_paquete * paquete_send;
+
+	paquete_list = recibir_paquete(socket);
+	tid = (int)list_remove(paquete_list, 0);
+	fin_thread(tid);
+	
+	//notificar resultado a kernel
+	paquete_send = crear_paquete(OK);
+	enviar_paquete(paquete_send, socket);
+
+	eliminar_paquete(paquete_send);
+	eliminar_paquete(paquete_recv);
+	list_destroy(paquete_list);
+	close(socket); //cerrar socket
+	return(void*)EXIT_SUCCESS; //finalizar hilo
+}
 void *conexion_cpu(void* arg_cpu)
 {
 	argumentos_thread *args = arg_cpu; 
 	t_paquete *handshake_send;
 	t_list *paquete_recv;
 	char * handshake_texto = "conexion con memoria";
+	
+	t_config *config = config_create("config/memoria.config");
+	int delay = config_get_int_value(config, "RETARDO_RESPUESTA");
 	
 	int server = iniciar_servidor(args->puerto);
 	log_info(logger, "Servidor listo para recibir al cliente CPU");
@@ -159,8 +245,14 @@ void *conexion_cpu(void* arg_cpu)
 	handshake_send = crear_paquete(HANDSHAKE);
 	agregar_a_paquete (handshake_send, handshake_texto , strlen(handshake_texto)+1);
 	//HANDSHAKE_end
+
+	uint32_t direccion;
+	uint32_t valor;
+	int PC;
+	int tid;
 	while(true){
 		int cod_op = recibir_operacion(socket_cliente_cpu);
+		sleep(delay); // retardo en peticion / cpu
 		switch (cod_op)
 		{
 			case HANDSHAKE:
@@ -168,9 +260,52 @@ void *conexion_cpu(void* arg_cpu)
 				log_info(logger, "me llego:cpu");
 				list_iterate(paquete_recv, (void*) iterator);
 				enviar_paquete(handshake_send, socket_cliente_cpu);
+				list_destroy(paquete_recv);
 				break;
 			case CONTEXTO_RECEIVE:
 				enviar_contexto();
+				break;
+			case CONTEXTO_SEND:
+				recibir_contexto();
+				break;
+			case OBTENER_INSTRUCCION:
+				paquete_recv = recibir_paquete(socket_cliente_cpu);
+				PC = (int)list_remove(paquete_recv, 0);
+				tid = (int)list_remove(paquete_recv, 0);
+				obtener_instruccion(PC, tid);
+				break;
+			case READ_MEM:
+				paquete_recv = recibir_paquete(socket_cliente_cpu);
+				direccion = (uint32_t)list_remove(paquete_recv, 0);
+				valor = (uint32_t)read_memory(direccion);
+				if(valor != -1){
+					t_paquete *paquete_send = crear_paquete(OK);
+					agregar_a_paquete(paquete_send, &valor, sizeof(uint32_t));
+					enviar_paquete(paquete_send, socket_cliente_cpu);
+					eliminar_paquete(paquete_send);
+				}else {
+					t_paquete *paquete_send = crear_paquete(ERROR_MEMORIA);
+					log_error(logger, "Error escribiendo en memoria");
+					enviar_paquete(paquete_send, socket_cliente_cpu);
+					eliminar_paquete(paquete_send);
+				}
+				break;
+			case WRITE_MEM:
+				paquete_recv = recibir_paquete(socket_cliente_cpu);
+				direccion = (uint32_t)list_remove(paquete_recv, 0);
+				valor = (uint32_t)list_remove(paquete_recv, 0);
+				if(valor != -1){
+					write_memory(direccion, valor);
+					t_paquete *paquete_send = crear_paquete(OK);
+					agregar_a_paquete(paquete_send, &valor, sizeof(uint32_t));
+					enviar_paquete(paquete_send, socket_cliente_cpu);
+					eliminar_paquete(paquete_send);
+				}else {
+					t_paquete *paquete_send = crear_paquete(ERROR_MEMORIA);
+					log_error(logger, "Error escribiendo en memoria");
+					enviar_paquete(paquete_send, socket_cliente_cpu);
+					eliminar_paquete(paquete_send);
+				}
 				break;
 			case -1:
 				log_error(logger, "el cliente se desconecto. Terminando servidor");
@@ -179,7 +314,7 @@ void *conexion_cpu(void* arg_cpu)
 			default:
 				log_warning(logger,"Operacion desconocida. No quieras meter la pata");
 				break;
-		}
+		}eliminar_paquete(handshake_send);
 	}
 		
 	close(server);
