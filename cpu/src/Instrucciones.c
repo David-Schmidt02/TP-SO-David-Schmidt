@@ -3,34 +3,28 @@
 extern t_log *logger;
 extern int conexion_cpu_memoria;
 extern int conexion_cpu_dispatch;
+extern int conexion_cpu_interrupt;
 extern int pid;
 extern int tid;
 RegistroCPU cpu;
 t_paquete *send_handshake;
 t_paquete *paquete_respuesta;
 t_list* lista_interrupciones;
-
-uint32_t* registro_aux(RegistroCPU *cpu, char* reg) {
-    if (strcmp(reg, "AX") == 0)
-        return &(cpu->AX);
-    else if (strcmp(reg, "BX") == 0)
-        return &(cpu->BX);
-    else if (strcmp(reg, "CX") == 0)
-        return &(cpu->CX);
-    else if (strcmp(reg, "DX") == 0)
-        return &(cpu->DX);
-    else if (strcmp(reg, "EX") == 0)
-        return &(cpu->EX);
-    else if (strcmp(reg, "FX") == 0)
-        return &(cpu->FX);
-    else if (strcmp(reg, "GX") == 0)
-        return &(cpu->GX);
-    else if (strcmp(reg, "HX") == 0)
-        return &(cpu->HX);
-    return NULL; // En caso de que el registro no sea válido
-    
+void inicializar_cpu_contexto(RegistroCPU *cpu) {
+    cpu->AX = 0;
+    cpu->BX = 0;
+    cpu->CX = 0;
+    cpu->DX = 0;
+    cpu->EX = 0;
+    cpu->FX = 0;
+    cpu->GX = 0;
+    cpu->HX = 0;
+    cpu->PC = 0;  
+    cpu->base = 0;
+    cpu->limit = 0;
+    memset(cpu->instruccion_actual, 0, sizeof(cpu->instruccion_actual));
+    log_info(logger, "Contexto de CPU inicializado");
 }
-
 
 // Función para obtener el contexto de ejecución de la memoria
 void obtener_contexto_de_memoria (RegistroCPU *registro, int pid) {
@@ -51,7 +45,7 @@ void obtener_contexto_de_memoria (RegistroCPU *registro, int pid) {
         char *error;
         memcpy(error, msjerror->buffer, sizeof(msjerror->buffer));
         log_error(logger, error);
-        // --- AGREGAR INTERRUPCION ACA ---
+        agregar_interrupcion(SEGMENTATION_FAULT,1);
     }
     paquete_respuesta = recibir_paquete(conexion_cpu_memoria); // Recibir el contexto de ejecución
     if (paquete_respuesta != NULL) 
@@ -254,6 +248,26 @@ void execute(RegistroCPU *cpu, int instruccion, char *texto) {
     cpu->PC++; // Incrementar el contador de programa
 }
 
+uint32_t* registro_aux(RegistroCPU *cpu, char* reg) {
+    if (strcmp(reg, "AX") == 0)
+        return &(cpu->AX);
+    else if (strcmp(reg, "BX") == 0)
+        return &(cpu->BX);
+    else if (strcmp(reg, "CX") == 0)
+        return &(cpu->CX);
+    else if (strcmp(reg, "DX") == 0)
+        return &(cpu->DX);
+    else if (strcmp(reg, "EX") == 0)
+        return &(cpu->EX);
+    else if (strcmp(reg, "FX") == 0)
+        return &(cpu->FX);
+    else if (strcmp(reg, "GX") == 0)
+        return &(cpu->GX);
+    else if (strcmp(reg, "HX") == 0)
+        return &(cpu->HX);
+    return NULL; // En caso de que el registro no sea válido
+    
+}
 void checkInterrupt(RegistroCPU *cpu) { 
     int tipo_interrupcion = recibir_interrupcion();
     switch (tipo_interrupcion) {
@@ -284,51 +298,14 @@ void checkInterrupt(RegistroCPU *cpu) {
     
     if (interrupcion_actual != NULL) {
         if (strcmp(interrupcion_actual->tipo, "SEGMENTATION_FAULT") == 0) {
-            // Manejar Segmentation Fault (interrupción crítica)
-            log_info(logger, "Manejando interrupción: SEGMENTATION_FAULT");
-            
-            // Guardar el contexto de ejecución en Memoria
-            enviar_contexto_de_memoria(cpu, pid);
-            
-            // Notificar al Kernel de la interrupción crítica
-            notificar_kernel_interrupcion(pid, tid, SEGMENTATION_FAULT);
-
-            // Detener la ejecución del hilo
-            detener_ejecucion();
-
-        }  else if (strcmp(interrupcion_actual->tipo, "INTERRUPCION") == 0) {
-            // Manejar interrupción no crítica enviada por el Kernel
-            log_info(logger, "Manejando interrupción: INTERRUPCION");
-
-            enviar_contexto_de_memoria(cpu, pid);
-
-            // Notificar al Kernel que la interrupción fue manejada
-            notificar_kernel_interrupcion(pid, tid,INTERRUPCION);
-
-        } else if (strcmp(interrupcion_actual->tipo, "FIN_QUANTUM") == 0) {
-            // Manejar interrupción de Fin de Quantum
-            log_info(logger, "Manejando interrupción: FIN_QUANTUM");
-
-            enviar_contexto_de_memoria(cpu, pid);
-
-            // Notificar al Kernel del Fin de Quantum
-            notificar_kernel_interrupcion(pid, tid,FIN_QUANTUM);
-
+            manejar_segmentation_fault(cpu);
         } else if (strcmp(interrupcion_actual->tipo, "THREAD_JOIN_OP") == 0) {
-            // Manejar Syscall Join
-            log_info(logger, "Manejando interrupción: THREAD_JOIN_OP");
-
-            enviar_contexto_de_memoria(cpu, pid);
-
-            // Notificar al Kernel que se ejecutó la Syscall Join
-            notificar_kernel_interrupcion(pid, tid,THREAD_JOIN_OP);
-        } else if (strcmp(interrupcion_actual->tipo, "SYS_IO") == 0) {
-            log_info(logger, "Manejando interrupción: SYS_IO");
-
-            enviar_contexto_de_memoria(cpu, pid);
-
-            notificar_kernel_interrupcion(pid, tid,SYS_IO);
-
+            manejar_thread_join(cpu);
+        } else if (strcmp(interrupcion_actual->tipo, "FIN_QUANTUM") == 0) {
+            manejar_fin_quantum(cpu);
+        } else if (strcmp(interrupcion_actual->tipo, "IO_SYSCALL") == 0) {
+            manejar_io_syscall(cpu);
+        }
         liberar_interrupcion(interrupcion_actual);
     }
 }
@@ -363,7 +340,7 @@ int recibir_interrupcion() {
     if (strcmp(tipo_interrupcion, "FIN_QUANTUM") == 0) {
         log_info(logger, "Interrupción recibida: FIN_QUANTUM");
 
-        agregar_interrupcion("FIN_QUANTUM", 3);  
+        agregar_interrupcion("FIN_QUANTUM", 4);  
         eliminar_paquete(paquete_interrupcion);
         return 1;
     } 
@@ -375,16 +352,16 @@ int recibir_interrupcion() {
     }
     else if (strcmp(tipo_interrupcion, "SYS_IO") == 0) {
         log_info(logger, "Interrupción recibida: SYS_IO");
-        agregar_interrupcion("SYS_IO", 4);  
+        agregar_interrupcion("SYS_IO", 2);  
         eliminar_paquete(paquete_interrupcion);
         return 1;
     } 
-    else if (strcmp(tipo_interrupcion, "INTERRUPCION") == 0) {
+    /*else if (strcmp(tipo_interrupcion, "INTERRUPCION") == 0) {
         log_info(logger, "Interrupción recibida: INTERRUPCION_KERNEL");
         agregar_interrupcion("INTERRUPCION", 4);  
         eliminar_paquete(paquete_interrupcion);
         return 1;
-    } 
+    }*/ 
     else {
         log_warning(logger, "Interrupción desconocida: %s", tipo_interrupcion);
         eliminar_paquete(paquete_interrupcion);
@@ -476,3 +453,56 @@ void liberar_interrupcion(t_interrupcion* interrupcion) {
         free(interrupcion);  // Liberamos la estructura
     }
 }
+
+void manejar_segmentation_fault(RegistroCPU *cpu) {
+    log_info(logger, "## Manejo de Segmentation Fault");
+
+    // Guardar contexto en Memoria
+    enviar_contexto_de_memoria(cpu, pid);
+
+    // Notificar al Kernel del error crítico
+    notificar_kernel_interrupcion(pid, tid,SEGMENTATION_FAULT);
+
+    // Detener ejecución del hilo actual
+    detener_ejecucion();
+}
+
+void manejar_fin_quantum(RegistroCPU *cpu) {
+    log_info(logger, "## Manejo de Fin de Quantum");
+
+    // Guardar contexto en Memoria
+    enviar_contexto_de_memoria(cpu, pid);
+
+    // Notificar al Kernel del fin del Quantum
+    notificar_kernel_interrupcion(pid, tid,FIN_QUANTUM);
+}
+
+void manejar_thread_join(RegistroCPU *cpu) {
+    log_info(logger, "## Manejo de Thread Join");
+
+    // Guardar contexto en Memoria
+    enviar_contexto_de_memoria(cpu, pid);
+
+    // Notificar al Kernel que se ejecutó la Syscall Join
+    notificar_kernel_interrupcion(pid, tid,THREAD_JOIN_OP);
+}
+
+manejar_io_syscall(RegistroCPU *cpu){
+    log_info(logger, "## Manejo de syscall io");
+
+    // Guardar contexto en Memoria
+    enviar_contexto_de_memoria(cpu, pid);
+
+    // Notificar al Kernel que se ejecutó la io syscall
+    notificar_kernel_interrupcion(pid, tid,IO_SYSCALL);
+}
+/*void manejar_interrupcion_kernel(RegistroCPU *cpu) {
+    log_info(logger, "## Manejo de interrupción genérica enviada por el Kernel");
+
+    // Guardar contexto en Memoria
+    enviar_contexto_de_memoria(cpu, pid);
+
+    // Notificar al Kernel que la interrupción fue manejada
+    notificar_kernel_interrupcion(pid, tid,INTERRUPCION);
+}
+*/

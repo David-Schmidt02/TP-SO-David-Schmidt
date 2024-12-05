@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <instrucciones.h>
 #include <commons/log.h>
 #include <utils/utils.h>
+#include "../../kernel/src/pcb.h"
 typedef enum  
 {
     SET,

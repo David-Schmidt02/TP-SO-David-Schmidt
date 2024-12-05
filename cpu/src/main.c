@@ -1,10 +1,11 @@
 #include <main.h>
 
 t_log *logger;
-RegistroCPU cpu;
+RegistroCPU *cpu;
 int conexion_cpu_memoria;
 int pid;
 int tid;
+t_pcb *pcb;
 
 int main(int argc, char* argv[]) {
 
@@ -19,7 +20,7 @@ int main(int argc, char* argv[]) {
     logger = log_create("cpu.log", "cpu", 1, LOG_LEVEL_DEBUG);
     t_config *config = config_create("config/cpu.config");
 
-    void *ret_value;
+    void *ret_value = NULL;
 
     //conexiones
 	arg_memoria.puerto = config_get_string_value(config, "PUERTO_MEMORIA");
@@ -33,7 +34,7 @@ int main(int argc, char* argv[]) {
 	pthread_create(&tid_kernelD, NULL, conexion_kernel_dispatch, (void *)&arg_kernelD);
 	pthread_create(&tid_memoria, NULL, cliente_conexion_memoria, (void *)&arg_memoria);
 	//conexiones
-
+	inicializar_cpu_contexto(cpu);
 	fetch(pcb);
     //espero fin conexiones
 	
@@ -50,7 +51,7 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 {
 	argumentos_thread * args = arg_kernelD; 
 	t_paquete *handshake_send;
-	t_paquete *handshake_recv;
+	t_list *handshake_recv;
 	char * handshake_texto = "handshake";
 	
 	int server = iniciar_servidor(args->puerto);
@@ -65,15 +66,14 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 
 		while(true){
 			int cod_op = recibir_operacion(socket_cliente_kernel);
-			switch (cod_op)
-			{
+			switch (cod_op){
 				case HANDSHAKE:
 					handshake_recv = recibir_paquete(socket_cliente_kernel);
 					log_info(logger, "me llego: kernel dispatch\n");
 					list_iterate(handshake_recv, (void*) iterator);
 					enviar_paquete(handshake_send, socket_cliente_kernel);
 					break;
-				}
+				
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
 					return (void *)EXIT_FAILURE;
@@ -81,8 +81,8 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 				default:
 					log_warning(logger,"Operacion desconocida. No quieras meter la pata");
 					break;
+				}
 			}
-		}
 		
 	close(server);
 	close(socket_cliente_kernel);
@@ -166,44 +166,44 @@ void *cliente_conexion_memoria(void * arg_memoria){
 		enviar_paquete(send_handshake, conexion_cpu_memoria);
 		sleep(1);
 		op = recibir_operacion(conexion_cpu_memoria);
-		switch (op)
-		{
-		case HANDSHAKE:
-			log_info(logger, "recibi handshake de memoria");
-			break;
-		case INSTRUCCIONES: {
-					log_info(logger, "Instrucción recibida de memoria");
+		switch (op){
+			case HANDSHAKE:
+				log_info(logger, "recibi handshake de memoria");
+				break;
+			case INSTRUCCIONES: {
+						log_info(logger, "Instrucción recibida de memoria");
 
-					// Recibir el TID, PID y la instrucción
-					t_list *paquete = recibir_paquete(socket_cliente_kernel);
-					int tid = *(int *)list_remove(paquete, 0);
-					int pid = *(int *)list_remove(paquete, 0);
-					char *instruccion = (char *)list_remove(paquete, 0);
-					list_destroy_and_destroy_elements(paquete, free);
+						// Recibir el TID, PID y la instrucción
+						t_list *paquete = recibir_paquete(conexion_cpu_memoria);
+						int tid = *(int *)list_remove(paquete, 0);
+						int pid = *(int *)list_remove(paquete, 0);
+						char *instruccion = (char *)list_remove(paquete, 0);
+						list_destroy_and_destroy_elements(paquete, free);
 
-					// Decodificar y ejecutar la instrucción
-					decode(&cpu, instruccion);
+						// Decodificar y ejecutar la instrucción
+						decode(&cpu, instruccion);
 
-					// Enviar el contexto actualizado al Kernel
-					enviar_contexto_de_memoria(&cpu, pid);
+						// Enviar el contexto actualizado a memoria
+						enviar_contexto_de_memoria(&cpu, pid);
 
-					// Notificar si hubo interrupciones generadas
-					if (cpu_genero_interrupcion(&cpu)) {
-						log_warning(logger, "Notificando interrupción generada memoria");
-						notificar_kernel_interrupcion(pid, tid);
-					}
-					break;
-		case TERMINATE:
-			flag = 0;
-			break;
+						// Notificar si hubo interrupciones generadas
+						if (cpu_genero_interrupcion(&cpu)) {//basiamente pregunta si hubo segmentation fault
+							log_warning(logger, "Notificando interrupción generada memoria");
+							notificar_kernel_interrupcion(pid, tid); //ponele que sea cod_op mem dump. Solo le mandaria el contexto de ejecion nomas. 
+						}
+						break;
+			case TERMINATE:
+				flag = 0;
+				break;
 
-		default:
-			break;
+			default:
+				break;
+			}
 		}
-	}
 
-	eliminar_paquete(send_handshake);
-	liberar_conexion(conexion_cpu_memoria);
-    return (void *)EXIT_SUCCESS;
+		eliminar_paquete(send_handshake);
+		liberar_conexion(conexion_cpu_memoria);
+		return (void *)EXIT_SUCCESS;
+	}
 }
 
