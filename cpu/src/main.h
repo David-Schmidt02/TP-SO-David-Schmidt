@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <instrucciones.h>
 #include <commons/log.h>
 #include <utils/utils.h>
+#include <instrucciones.h>
 #include "../../kernel/src/pcb.h"
 typedef enum  
 {
@@ -13,6 +13,7 @@ typedef enum
     JNZ,
     LOG
 }t_operaciones;  
+
 
 void *conexion_kernel_dispatch(void * arg_kernelD);
 void *conexion_kernel_interrupt(void* arg_kernelI);

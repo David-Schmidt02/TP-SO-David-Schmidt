@@ -6,10 +6,17 @@ extern int conexion_cpu_dispatch;
 extern int conexion_cpu_interrupt;
 extern int pid;
 extern int tid;
+extern int tid_actual;
 RegistroCPU *cpu;
 t_paquete *send_handshake;
 t_paquete *paquete_respuesta;
-t_list* lista_interrupciones;
+
+//hay que inicializar
+extern t_list* lista_interrupciones;
+extern sem_t * sem_lista_interrupciones;
+extern pthread_mutex_t *mutex_lista_interrupciones;
+//
+
 void inicializar_cpu_contexto(RegistroCPU *cpu) {
     cpu->AX = 0;
     cpu->BX = 0;
@@ -23,6 +30,25 @@ void inicializar_cpu_contexto(RegistroCPU *cpu) {
     cpu->base = 0;
     cpu->limite = 0;
     log_info(logger, "Contexto de CPU inicializado");
+}
+
+void inicializar_lista_interrupciones(){
+    lista_interrupciones = list_create();
+    mutex_lista_interrupciones = malloc(sizeof(pthread_mutex_t));
+    if (mutex_lista_interrupciones == NULL) {
+        perror("Error al asignar memoria para mutex de cola");
+        exit(EXIT_FAILURE);
+    }
+    pthread_mutex_init(mutex_lista_interrupciones, NULL);
+
+    sem_lista_interrupciones = malloc(sizeof(sem_t));
+    if (sem_lista_interrupciones == NULL) {
+        perror("Error al asignar memoria para semáforo de cola");
+        exit(EXIT_FAILURE);
+    }
+    sem_init(sem_lista_interrupciones, 0, 0);
+
+    log_info(logger,"Mutex y semáforo de estado para la lista de interrupciones creados\n");
 }
 
 // Función para obtener el contexto de ejecución de la memoria
@@ -114,8 +140,7 @@ void fetch(t_pcb *pcb) {
 }
 
 // Función para traducir direcciones lógicas a físicas
-void traducir_direccion(RegistroCPU *cpu, uint32_t dir_logica, uint32_t *dir_fisica) 
-{
+void traducir_direccion(RegistroCPU *cpu, uint32_t dir_logica, uint32_t *dir_fisica) {
     *dir_fisica = cpu->base + dir_logica; // Traducción a dirección física
     if (*dir_fisica >= cpu->base + cpu->limite) { // Validación de segmento
         log_info(logger,"Error: Segmentation Fault (Acceso fuera de límites)\n");
@@ -255,44 +280,52 @@ uint32_t* registro_aux(RegistroCPU *cpu, char* reg) {
     
 }
 void checkInterrupt(RegistroCPU *cpu) { 
-    int tipo_interrupcion = recibir_interrupcion();
-    switch (tipo_interrupcion) {
-        case FIN_QUANTUM:
-            log_info(logger, "## Interrupción FIN_QUANTUM recibida desde Kernel");
-            agregar_interrupcion(FIN_QUANTUM, 3);  // Prioridad baja
-            break;
+    while (1){
+        sem_wait(sem_lista_interrupciones);
+        int tipo_interrupcion = recibir_interrupcion();
+        switch (tipo_interrupcion) {
+            case FIN_QUANTUM:
+                log_info(logger, "## Interrupción FIN_QUANTUM recibida desde Kernel");
+                manejar_fin_quantum(cpu);
+                //agregar_interrupcion(FIN_QUANTUM, 3);  // Prioridad baja
+                break;
+    //el checkInterrupt se corre cuando ? -> interrupcion -> tipo 
+            case THREAD_JOIN_OP:
+                log_info(logger, "## Interrupción THREAD_JOIN_OP recibida desde Kernel");
+                manejar_thread_join(cpu);
+                //agregar_interrupcion(THREAD_JOIN_OP, 2);  // Prioridad media
+                break;
 
-        case THREAD_JOIN_OP:
-            log_info(logger, "## Interrupción THREAD_JOIN_OP recibida desde Kernel");
-            agregar_interrupcion(THREAD_JOIN_OP, 2);  // Prioridad media
-            break;
+            case INTERRUPCION:
+                log_info(logger, "## Interrupción genérica desde Kernel");
 
-        case INTERRUPCION:
-            log_info(logger, "## Interrupción genérica desde Kernel");
-            agregar_interrupcion(INTERRUPCION, 4);  // Prioridad baja-media
-            break;
-    }
-
-    // Verificar si la CPU generó alguna interrupción (ej: Segmentation Fault)
-    if (cpu_genero_interrupcion()) {  // esta función determina si la CPU generó una interrupción crítica
-        log_info(logger, "## Llega interrupción de la CPU");
-        agregar_interrupcion(SEGMENTATION_FAULT, 1);  // Interrupción crítica de la CPU, prioridad alta
-    }
-
-    // Obtener la interrupción de mayor prioridad
-    t_interrupcion* interrupcion_actual = obtener_interrupcion_mayor_prioridad();
-    
-    if (interrupcion_actual != NULL) {
-        if (strcmp(interrupcion_actual->tipo, SEGMENTATION_FAULT) == 0) {
-            manejar_segmentation_fault(cpu);
-        } else if (strcmp(interrupcion_actual->tipo, THREAD_JOIN_OP) == 0) {
-            manejar_thread_join(cpu);
-        } else if (strcmp(interrupcion_actual->tipo, FIN_QUANTUM) == 0) {
-            manejar_fin_quantum(cpu);
-        } else if (strcmp(interrupcion_actual->tipo, IO_SYSCALL) == 0) {
-            manejar_io_syscall(cpu);
+                //agregar_interrupcion(INTERRUPCION, 4);  // Prioridad baja-media
+                break;
         }
-        liberar_interrupcion(interrupcion_actual);
+
+        // Verificar si la CPU generó alguna interrupción (ej: Segmentation Fault)
+        if (cpu_genero_interrupcion()) {  // esta función determina si la CPU generó una interrupción crítica
+            log_info(logger, "## Llega interrupción de la CPU");
+
+            //agregar_interrupcion(SEGMENTATION_FAULT, 1);  // Interrupción crítica de la CPU, prioridad alta
+        }
+
+        // Obtener la interrupción de mayor prioridad
+        t_interrupcion* interrupcion_actual = obtener_interrupcion_mayor_prioridad();
+        /*
+        if (interrupcion_actual != NULL) {
+            if (strcmp(interrupcion_actual->tipo, SEGMENTATION_FAULT) == 0) {
+                manejar_segmentation_fault(cpu);
+            } else if (strcmp(interrupcion_actual->tipo, THREAD_JOIN_OP) == 0) {
+                manejar_thread_join(cpu);
+            } else if (strcmp(interrupcion_actual->tipo, FIN_QUANTUM) == 0) {
+                manejar_fin_quantum(cpu);
+            } else if (strcmp(interrupcion_actual->tipo, IO_SYSCALL) == 0) {
+                manejar_io_syscall(cpu);
+            }
+            liberar_interrupcion(interrupcion_actual);
+        }
+        */
     }
 }
 
@@ -313,8 +346,9 @@ int cpu_genero_interrupcion(RegistroCPU *cpu) {
     return 0;
 }
 
-
+//no debería usarse
 int recibir_interrupcion() {
+    //sem_wait(sem_estado_lista_interrupciones);
     t_paquete *paquete_interrupcion = recibir_paquete(conexion_cpu_interrupt);
 
     if (paquete_interrupcion == NULL) {
@@ -322,6 +356,7 @@ int recibir_interrupcion() {
     }
 
     char *tipo_interrupcion = paquete_interrupcion->buffer;
+    //Modificar esta comparacion de recibir interrupcion por un switch
 
     if (strcmp(tipo_interrupcion, FIN_QUANTUM) == 0) {
         log_info(logger, "Interrupción recibida: FIN_QUANTUM");
@@ -400,15 +435,97 @@ void notificar_kernel_interrupcion(int pid, int tid, protocolo_socket cod_op) {
     eliminar_paquete(paquete_respuesta);  // Limpiar el paquete de respuesta
 }
 
-void agregar_interrupcion(protocolo_socket tipo, int prioridad) { // Las interrupciones se pueden generar tanto por la CPU como por el Kernel. Las añadimos a la lista de interrupciones con su respectiva prioridad.
-    t_interrupcion* nueva_interrupcion = malloc(sizeof(t_interrupcion));
-    
-    nueva_interrupcion->tipo = strdup(tipo); // si no uso el strdup, tanto "nueva_interrupcion->tipo" como "tipo" apuntarian al mismo lugar, por lo que si se modifica uno se modifica el otro; 
-    nueva_interrupcion->prioridad = prioridad; // aca no importa porque es entero xd
-    
-    // Insertamos la interrupción en la lista
-    list_add(lista_interrupciones, nueva_interrupcion);
-    log_info(logger, "Interrupción agregada: %s con prioridad %d", tipo, prioridad);
+/*
+
+void *peticion_kernel(void *args) {
+    t_paquete_peticion *args_peticion = args;
+    t_peticion *peticion = args_peticion->peticion;
+    t_pcb *proceso = peticion->proceso;
+    t_tcb *hilo = peticion->hilo;
+    t_paquete *send_protocolo;
+    protocolo_socket op;
+
+    switch (peticion->tipo) {
+        case PROCESS_CREATE_OP:
+            send_protocolo = crear_paquete(PROCESS_CREATE_OP);
+            agregar_a_paquete(send_protocolo, proceso, sizeof(t_pcb));
+			log_info(logger, "Se crea la peticion de PROCESS CREATE");
+            break;
+
+        case PROCESS_EXIT_OP:
+            send_protocolo = crear_paquete(PROCESS_EXIT_OP);
+            agregar_a_paquete(send_protocolo, proceso, sizeof(t_pcb));
+			log_info(logger, "Se crea la peticion de PROCESS EXIT");
+            break;
+
+        case THREAD_CREATE_OP:
+            send_protocolo = crear_paquete(THREAD_CREATE_OP);
+            agregar_a_paquete(send_protocolo, hilo, sizeof(t_tcb));
+			log_info(logger, "Se crea la peticion de THREAD CREATE");
+            break;
+
+        case THREAD_EXIT_OP:
+            send_protocolo = crear_paquete(THREAD_EXIT_OP);
+            agregar_a_paquete(send_protocolo, hilo, sizeof(t_tcb));
+			log_info(logger, "Se crea la peticion de THREAD EXIT");
+            break;
+
+        case DUMP_MEMORY_OP:
+            send_protocolo = crear_paquete(DUMP_MEMORY_OP);
+            agregar_a_paquete(send_protocolo, proceso, sizeof(t_pcb));
+			log_info(logger, "Se crea la peticion de DUMP MEMORY");
+            break;
+
+        default:
+            log_error(logger, "Tipo de operación desconocido: %d", peticion->tipo);
+            return NULL;
+    }
+
+    enviar_paquete(send_protocolo, args_peticion->socket);
+    log_info(logger, "Petición enviada a memoria, esperando respuesta...");
+
+    // Esperar respuesta bloqueante
+    op = recibir_operacion(args_peticion->socket);
+    switch (op) {
+        case SUCCESS:
+            log_info(logger, "'SUCCESS' recibido desde memoria para operación %d", peticion->tipo);
+            peticion->respuesta_exitosa = true;
+            break;
+
+        case ERROR:
+            log_info(logger, "'ERROR' recibido desde memoria para operación %d", peticion->tipo);
+            peticion->respuesta_exitosa = false;
+            break;
+
+        default:
+            log_warning(logger, "Código de operación desconocido recibido: %d", op);
+            peticion->respuesta_exitosa = false;
+            break;
+    }
+	log_info(logger, "Actualizo el valor de respuesta recibida a true");
+    peticion->respuesta_recibida = true; // Actualizar el estado directamente
+    eliminar_paquete(send_protocolo);
+    liberar_conexion(args_peticion->socket);
+    return NULL;
+}
+*/
+
+void agregar_interrupcion(protocolo_socket tipo, int prioridad, int tid) { // Las interrupciones se pueden generar tanto por la CPU como por el Kernel. Las añadimos a la lista de interrupciones con su respectiva prioridad.
+    if (tid_actual != tid){
+        log_info(logger, "El tid de la interrupcion no es el mismo del hilo actual");
+    }
+    else{
+        t_interrupcion* nueva_interrupcion = malloc(sizeof(t_interrupcion));
+        protocolo_socket aux = tipo;
+        nueva_interrupcion->tipo = aux; // si no uso el strdup, tanto "nueva_interrupcion->tipo" como "tipo" apuntarian al mismo lugar, por lo que si se modifica uno se modifica el otro; 
+        nueva_interrupcion->prioridad = prioridad; // aca no importa porque es entero xd
+        
+        // Insertamos la interrupción en la lista
+        list_add(lista_interrupciones, nueva_interrupcion);
+        sem_post(sem_lista_interrupciones);
+        log_info(logger, "Interrupción agregada: %s con prioridad %d", tipo, prioridad);
+    }
+
 }
 
 t_interrupcion* obtener_interrupcion_mayor_prioridad() {
@@ -462,6 +579,8 @@ void manejar_fin_quantum(RegistroCPU *cpu) {
 
     // Notificar al Kernel del fin del Quantum
     notificar_kernel_interrupcion(pid, tid,FIN_QUANTUM);
+    
+    detener_ejecucion();
 }
 
 void manejar_thread_join(RegistroCPU *cpu) {

@@ -7,6 +7,14 @@ int pid;
 int tid;
 t_pcb *pcb;
 
+int tid_actual;
+
+//hay que inicializar
+t_list* lista_interrupciones;
+sem_t * sem_lista_interrupciones;
+pthread_mutex_t *mutex_lista_interrupciones;
+//hay que inicializar
+
 int main(int argc, char* argv[]) {
 
     pthread_t tid_kernelI;
@@ -35,6 +43,7 @@ int main(int argc, char* argv[]) {
 	pthread_create(&tid_memoria, NULL, cliente_conexion_memoria, (void *)&arg_memoria);
 	//conexiones
 	inicializar_cpu_contexto(cpu);
+	inicializar_lista_interrupciones();
 	fetch(pcb);
     //espero fin conexiones
 	
@@ -73,7 +82,12 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 					list_iterate(handshake_recv, (void*) iterator);
 					enviar_paquete(handshake_send, socket_cliente_kernel);
 					break;
-				
+				// hilo_actual = hilo;
+				case INFO_HILO:
+					t_list *paquete = recibir_paquete(socket_cliente_kernel);
+					int tid = *(int *)list_remove(paquete, 0);
+					list_destroy_and_destroy_elements(paquete, free);
+					tid_actual = tid;
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
 					return (void *)EXIT_FAILURE;
@@ -93,7 +107,7 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 {
 	argumentos_thread * args = arg_kernelI; 
 	t_paquete *handshake_send;
-	t_paquete *handshake_recv;
+	t_list *handshake_recv;
 	char * handshake_texto = "handshake";
 	
 	int server = iniciar_servidor(args->puerto);
@@ -117,8 +131,12 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 					enviar_paquete(handshake_send, socket_cliente_kernel);
 					break;
 				case FIN_QUANTUM:
+					t_list *paquete = recibir_paquete(conexion_cpu_memoria);
+					int tid = *(int *)list_remove(paquete, 0);
+					list_destroy_and_destroy_elements(paquete, free);
+					agregar_interrupcion(FIN_QUANTUM, 3, tid)
 					log_info(logger, "Se recibió interrupción FIN_QUANTUM");
-					manejar_fin_quantum(socket_cliente_kernel);
+					//manejar_fin_quantum(socket_cliente_kernel);
 					break;
 
 				case THREAD_JOIN_OP:
@@ -187,7 +205,7 @@ void *cliente_conexion_memoria(void * arg_memoria){
 						enviar_contexto_de_memoria(&cpu, pid);
 
 						// Notificar si hubo interrupciones generadas
-						if (cpu_genero_interrupcion(&cpu)) {//basiamente pregunta si hubo segmentation fault
+						if (cpu_genero_interrupcion(&cpu)) {//basicamente pregunta si hubo segmentation fault
 							log_warning(logger, "Notificando interrupción generada memoria");
 							notificar_kernel_interrupcion(pid, tid); //ponele que sea cod_op mem dump. Solo le mandaria el contexto de ejecion nomas. 
 						}

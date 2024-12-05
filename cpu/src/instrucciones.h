@@ -27,3 +27,6 @@ void notificar_kernel_interrupcion(int pid, int tid);
 void agregar_interrupcion(protocolo_socket tipo, int prioridad);
 t_interrupcion* obtener_interrupcion_mayor_prioridad();
 void liberar_interrupcion(t_interrupcion* interrupcion);
+
+void inicializar_cpu_contexto(RegistroCPU * cpu);
+void inicializar_lista_interrupciones();
