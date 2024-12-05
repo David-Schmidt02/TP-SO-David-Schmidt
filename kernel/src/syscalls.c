@@ -407,7 +407,11 @@ void THREAD_EXIT() {// No recibe ningún parámetro, trabaja con hilo_actual
 void IO(float milisec, int tcb_id)
 {
     pthread_mutex_lock(mutex_colaIO);
-    list_add(colaIO->lista_io, )
+    t_uso_io *peticion;
+    peticion->milisegundos = milisec;
+    peticion->tid = tcb_id;
+    list_add(colaIO->lista_io, peticion);
+    pthread_mutex_unlock(mutex_colaIO);
  //log_info(logger, "## (%d:%d) finalizó IO y pasa a READY", hilo_actual->pid, hilo_actual->tid);   
 }
 
