@@ -18,10 +18,11 @@ int conexion_kernel_memoria;
 t_list *lista_t_peticiones;
 sem_t * sem_lista_t_peticiones;
 pthread_mutex_t *mutex_lista_t_peticiones;
+sem_t * sem_estado_respuesta_desde_memoria;
 
 sem_t * sem_proceso_finalizado; // utilizado para reintentar crear procesos
 
-//pthread_mutex_t * mutex_respuesta_desde_memoria;
+pthread_mutex_t * mutex_respuesta_desde_memoria;
 //pthread_cond_t * cond_respuesta_desde_memoria;
 //
 
@@ -75,13 +76,25 @@ sem_t * sem_estado_colaIO;
 
 int main(int argc, char* argv[]) {
 	
+	if (argc < 4) {
+    fprintf(stderr, "Uso: %s <ruta_archivo_pseudocodigo> <tamanio_proceso> <prioridad_proceso>\n", argv[0]);
+    return EXIT_FAILURE;
+	}
+
     lista_mutexes = list_create(); //esta lista de mutex es una lista a parte de la que tenemos en el tcb
 	inicializar_estructuras();
 
 	lista_global_tcb = list_create();
 
-	char *ruta_archivo_pseudocodigo_proceso_inicial;
+	char *ruta_archivo_pseudocodigo_proceso_inicial = argv[1];
+
 	FILE * archivo_pseudocodigo_proceso_inicial = fopen(ruta_archivo_pseudocodigo_proceso_inicial, "r");
+	
+	if (!archivo_pseudocodigo_proceso_inicial) {
+		perror("Error al abrir el archivo");
+		return EXIT_FAILURE;
+	}
+
     int tamanio_proceso_proceso_inicial = atoi(argv[2]);
 	int prioridad_proceso_inicial = atoi(argv[3]);
 
@@ -110,10 +123,6 @@ int main(int argc, char* argv[]) {
     pthread_t hilo_corto_plazo;
     pthread_create(&hilo_corto_plazo, NULL, (void *)planificador_corto_plazo_hilo, NULL);
 
-
-	//ACÁ DEBO SIMULAR LOS OTROS MÓDULOS PARA EMPEZAR A HACER PRUEBAS
-
-
     //conexiones
 	arg_memoria.puerto = config_get_string_value(config, "PUERTO_MEMORIA");
     arg_memoria.ip = config_get_string_value(config, "IP_MEMORIA");
@@ -125,7 +134,6 @@ int main(int argc, char* argv[]) {
     arg_cpu_interrupt.ip = config_get_string_value(config, "IP_CPU");
 
     //conexiones
-	lista_t_peticiones = list_create();
 	pthread_create(&tid_memoria, NULL, administrador_peticiones_memoria, (void *)&arg_memoria);
     pthread_create(&tid_cpu_dispatch, NULL, conexion_cpu_dispatch, (void *)&arg_cpu_dispatch);
     pthread_create(&tid_cpu_interrupt, NULL, conexion_cpu_interrupt, (void *)&arg_cpu_interrupt);
@@ -146,6 +154,7 @@ void *conexion_cpu_dispatch(void * arg_cpu){
 	char* valor = "conexion kernel->cpu dispatch";
 	do
 	{
+		log_info(logger, "Se intenta la conexion con CPU DISPAAAAAAAATCH");
 		conexion_kernel_cpu_dispatch = crear_conexion(args->ip, args->puerto);
 		sleep(1);
 
@@ -190,6 +199,7 @@ void *conexion_cpu_interrupt(void * arg_cpu){
 	int flag=1;
 	do
 	{
+		log_info(logger, "Se intenta la conexion CPU INTERRUUUUUUUUUPT");
 		conexion_kernel_cpu_interrupt = crear_conexion(args->ip, args->puerto);
 		sleep(1);
 
@@ -239,6 +249,7 @@ void *administrador_peticiones_memoria(void* arg_server){
 		peticion = list_remove(lista_t_peticiones, 0);
 		pthread_mutex_unlock(mutex_lista_t_peticiones);
 		{
+			log_info(logger, "Se intenta la conexion con memoria por una peticioooooooooon");
 			conexion_kernel_memoria = crear_conexion(args->ip, args->puerto);
 			sleep(1);
 
@@ -251,140 +262,7 @@ void *administrador_peticiones_memoria(void* arg_server){
 	}
     pthread_exit(EXIT_SUCCESS);
 }
-/*
-void *peticion_kernel(void * args){
-	t_paquete_peticion *args_peticion = args;
-	t_pcb* proceso = args_peticion->peticion->proceso;
-	t_tcb* hilo = args_peticion->peticion->hilo;
-	t_paquete* send_protocolo;
-	protocolo_socket op;
 
-	switch (args_peticion->peticion->tipo)//
-	{
-	case PROCESS_CREATE_OP:
-		send_protocolo = crear_paquete(PROCESS_CREATE_OP);
-		agregar_a_paquete(send_protocolo, proceso , sizeof(proceso));
-		enviar_paquete(send_protocolo, args_peticion->socket);
-		sleep(1);
-		log_info(logger, "Se espera la respuesta de memoria en el SWITCH OPCION PROCESS CREATE");
-		op = recibir_operacion(args_peticion->socket);
-		switch (op)
-		{
-			case SUCCESS:
-				log_info(logger, "'SUCCESS' recibido desde Memoria, inicializando proceso");
-				args_peticion->peticion->respuesta_exitosa = true;
-				break;
-			case ERROR:
-				log_info(logger, "'ERROR' recibido desde Memoria, no se inicializa el proceso");
-				args_peticion->peticion->respuesta_exitosa = false;
-				break;
-			default:
-				break;
-			}
-		pthread_mutex_lock(mutex_respuesta_desde_memoria);
-        args_peticion->peticion->respuesta_recibida = true;
-        pthread_cond_signal(cond_respuesta_desde_memoria);
-        pthread_mutex_unlock(mutex_respuesta_desde_memoria);
-        break;
-	case PROCESS_EXIT_OP:
-		send_protocolo = crear_paquete(PROCESS_EXIT_OP);
-		agregar_a_paquete(send_protocolo, proceso , sizeof(proceso)); 
-		enviar_paquete(send_protocolo, args_peticion->socket);
-		sleep(1);
-		op = recibir_operacion(args_peticion->socket);
-		switch (op)
-		{
-			case SUCCESS:
-				args_peticion->peticion->respuesta_exitosa = true;
-				break;
-			case ERROR:
-				args_peticion->peticion->respuesta_exitosa = false;
-				break;
-			default:
-				break;
-			}
-		pthread_mutex_lock(mutex_respuesta_desde_memoria);
-        args_peticion->peticion->respuesta_recibida = true;
-        pthread_cond_signal(cond_respuesta_desde_memoria);
-        pthread_mutex_unlock(mutex_respuesta_desde_memoria);
-		break;
-	case THREAD_CREATE_OP:
-		send_protocolo = crear_paquete(THREAD_CREATE_OP);
-		agregar_a_paquete(send_protocolo, hilo , sizeof(hilo)); 
-		enviar_paquete(send_protocolo, args_peticion->socket);
-		sleep(1);
-		op = recibir_operacion(args_peticion->socket);
-		switch (op)
-		{
-			case SUCCESS:
-				args_peticion->peticion->respuesta_exitosa = true;
-				break;
-			case ERROR:
-				args_peticion->peticion->respuesta_exitosa = false;
-				break;
-			default:
-				break;
-			}
-		pthread_mutex_lock(mutex_respuesta_desde_memoria);
-        args_peticion->peticion->respuesta_recibida = true;
-        pthread_cond_signal(cond_respuesta_desde_memoria);
-        pthread_mutex_unlock(mutex_respuesta_desde_memoria);
-		break;
-	case THREAD_EXIT_OP: // mismo para THREAD_CANCEL_OP
-		send_protocolo = crear_paquete(THREAD_EXIT_OP);
-		agregar_a_paquete(send_protocolo, hilo , sizeof(hilo)); 
-		enviar_paquete(send_protocolo, args_peticion->socket);
-		sleep(1);
-		op = recibir_operacion(args_peticion->socket);
-		switch (op)
-		{
-			case SUCCESS:
-				args_peticion->peticion->respuesta_exitosa = true;
-				break;
-			case ERROR:
-				args_peticion->peticion->respuesta_exitosa = false;
-				break;
-			default:
-				break;
-			}
-		pthread_mutex_lock(mutex_respuesta_desde_memoria);
-        args_peticion->peticion->respuesta_recibida = true;
-        pthread_cond_signal(cond_respuesta_desde_memoria);
-        pthread_mutex_unlock(mutex_respuesta_desde_memoria);
-		break;
-	case DUMP_MEMORY_OP:
-		send_protocolo = crear_paquete(DUMP_MEMORY_OP);
-		agregar_a_paquete(send_protocolo, proceso , sizeof(proceso));//
-		enviar_paquete(send_protocolo, args_peticion->socket);
-		sleep(1);
-		op = recibir_operacion(args_peticion->socket);
-		switch (op)
-		{
-			case SUCCESS:
-				log_info(logger, "'SUCCESS' recibido desde Memoria, DUMP del proceso solicitado");
-				args_peticion->peticion->respuesta_exitosa = true;
-				break;
-			case ERROR:
-				log_info(logger, "'ERROR' recibido desde Memoria, no se inicializa el proceso");
-				args_peticion->peticion->respuesta_exitosa = false;
-				break;
-			default:
-				break;
-			}
-		pthread_mutex_lock(mutex_respuesta_desde_memoria);
-        args_peticion->peticion->respuesta_recibida = true;
-        pthread_cond_signal(cond_respuesta_desde_memoria);
-        pthread_mutex_unlock(mutex_respuesta_desde_memoria);
-		break;
-	default:
-		break;
-	}
-
-eliminar_paquete(send_protocolo);
-liberar_conexion(args_peticion->socket);
-return (void *)EXIT_SUCCESS;
-}
-*/
 void *peticion_kernel(void *args) {
     t_paquete_peticion *args_peticion = args;
     t_peticion *peticion = args_peticion->peticion;
@@ -404,6 +282,7 @@ void *peticion_kernel(void *args) {
             send_protocolo = crear_paquete(PROCESS_EXIT_OP);
             agregar_a_paquete(send_protocolo, proceso, sizeof(t_pcb));
 			log_info(logger, "Se crea la peticion de PROCESS EXIT");
+			sem_post(sem_proceso_finalizado);
             break;
 
         case THREAD_CREATE_OP:
@@ -414,6 +293,12 @@ void *peticion_kernel(void *args) {
 
         case THREAD_EXIT_OP:
             send_protocolo = crear_paquete(THREAD_EXIT_OP);
+            agregar_a_paquete(send_protocolo, hilo, sizeof(t_tcb));
+			log_info(logger, "Se crea la peticion de THREAD EXIT");
+            break;
+
+		case THREAD_CANCEL_OP:
+            send_protocolo = crear_paquete(THREAD_CANCEL_OP);
             agregar_a_paquete(send_protocolo, hilo, sizeof(t_tcb));
 			log_info(logger, "Se crea la peticion de THREAD EXIT");
             break;
@@ -432,7 +317,7 @@ void *peticion_kernel(void *args) {
     enviar_paquete(send_protocolo, args_peticion->socket);
     log_info(logger, "Petición enviada a memoria, esperando respuesta...");
 
-    // Esperar respuesta bloqueante
+    // Esperar respuesta bloqueante -> esta es la respuesta esperada desde memoria
     op = recibir_operacion(args_peticion->socket);
     switch (op) {
         case SUCCESS:
@@ -445,13 +330,18 @@ void *peticion_kernel(void *args) {
             peticion->respuesta_exitosa = false;
             break;
 
+		case OK:
+            log_info(logger, "'OK' recibido desde memoria para operación %d", peticion->tipo);
+            peticion->respuesta_exitosa = true;
+            break;	
+
         default:
             log_warning(logger, "Código de operación desconocido recibido: %d", op);
             peticion->respuesta_exitosa = false;
             break;
     }
+	sem_post(sem_estado_respuesta_desde_memoria);
 	log_info(logger, "Actualizo el valor de respuesta recibida a true");
-    peticion->respuesta_recibida = true; // Actualizar el estado directamente
     eliminar_paquete(send_protocolo);
     liberar_conexion(args_peticion->socket);
     return NULL;
@@ -469,8 +359,6 @@ void encolar_peticion_memoria(t_peticion * peticion){
         list_add(lista_t_peticiones, peticion);
         pthread_mutex_unlock(mutex_lista_t_peticiones);
         sem_post(sem_lista_t_peticiones);
-    // Esperar respuesta de memoria
-		log_info(logger,"Se obtuvo la respuesta desde memoria\n");
 }
 
 void inicializar_estructuras(){
@@ -487,9 +375,31 @@ void inicializar_estructuras(){
 	inicializar_semaforos();
 	inicializar_colas_largo_plazo();
 	inicializar_colas_corto_plazo();
+
+	colaIO = malloc(sizeof(t_cola_IO));
+    if (procesos_cola_ready == NULL) {
+        perror("Error al asignar memoria para cola de IO");
+        exit(EXIT_FAILURE);
+    }
+	colaIO->lista_io = list_create();
 }
 
 void inicializar_semaforos(){
+	mutex_colaIO = malloc(sizeof(pthread_mutex_t));
+    if (mutex_colaIO == NULL) {
+        perror("Error al asignar memoria para mutex de cola IO");
+        exit(EXIT_FAILURE);
+    }
+	pthread_mutex_init(mutex_colaIO, NULL);
+
+	sem_estado_colaIO = malloc(sizeof(sem_t));
+    if (sem_estado_colaIO == NULL) {
+        perror("Error al asignar memoria para semáforo de cola IO");
+        exit(EXIT_FAILURE);
+    }
+	sem_init(sem_estado_colaIO, 0, 0);
+	log_info(logger,"Mutex y semáforo de estado para la lista de peticiones creados\n");
+
 	inicializar_semaforos_conexion_cpu();
 	inicializar_semaforos_corto_plazo(); 
 	inicializar_semaforos_largo_plazo(); 
@@ -503,6 +413,7 @@ void inicializar_semaforos_conexion_cpu(){
         exit(EXIT_FAILURE);
     }
     pthread_mutex_init(mutex_socket_cpu_dispatch, NULL);
+
 	mutex_socket_cpu_interrupt = malloc(sizeof(pthread_mutex_t));
     if (mutex_socket_cpu_interrupt == NULL) {
         perror("Error al asignar memoria para mutex de CPU interrupt");
@@ -527,6 +438,15 @@ void inicializar_semaforos_peticiones(){
         exit(EXIT_FAILURE);
     }
 	log_info(logger,"Mutex y semáforo de estado para la lista de peticiones creados\n");
+	sem_init(sem_lista_t_peticiones, 0, 0);
+
+	sem_estado_respuesta_desde_memoria = malloc(sizeof(sem_t));
+    if (sem_estado_respuesta_desde_memoria == NULL) {
+        perror("Error al asignar memoria para semáforo de cola");
+        exit(EXIT_FAILURE);
+    }
+	log_info(logger,"Mutex y semáforo de estado para la lista de peticiones creados\n");
+	sem_init(sem_estado_respuesta_desde_memoria, 0, 0);
 }
 
 void inicializar_colas_largo_plazo(){
@@ -538,6 +458,8 @@ void inicializar_colas_corto_plazo(){
 	hilos_cola_ready = inicializar_cola_hilo(READY);
 	hilos_cola_bloqueados = inicializar_cola_hilo(BLOCK);
 	hilos_cola_exit = inicializar_cola_hilo(EXIT);
+	log_info(logger,"Cola de hilos en Ready/Block/Exit inicializadas \n");
 	colas_multinivel = inicializar_colas_multinivel();
+
 }
 

@@ -44,6 +44,12 @@ extern t_list* lista_procesos; // Lista global de procesos
 extern int ultimo_tid;
 //
 
+extern sem_t * sem_estado_respuesta_desde_memoria;
+
+extern t_cola_IO *colaIO;
+extern pthread_mutex_t * mutex_colaIO;
+extern sem_t * sem_estado_colaIO;
+
 t_pcb* obtener_pcb_por_tid(int tid) {
     for (int i = 0; i < list_size(procesos_cola_ready->lista_procesos); i++) {
         t_pcb* pcb = list_get(procesos_cola_ready->lista_procesos, i);
@@ -69,6 +75,7 @@ t_pcb* obtener_pcb_por_pid(int pid) {
 //PROCESOS
 
 void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadTID) {
+    
     int pid = generar_pid_unico();
     int pc = 0;
 
@@ -89,7 +96,13 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     list_add(nuevo_pcb->listaTCB, tcb_principal);
     
     t_list* lista_instrucciones = interpretarArchivo(archivo_instrucciones);
-
+    
+    if (lista_instrucciones == NULL) {
+    log_error(logger, "Error al interpretar el archivo de instrucciones.");
+    return; // O maneja el error de otra forma
+}
+    tcb_principal->instrucciones = lista_instrucciones;
+    
     pthread_mutex_lock(mutex_procesos_a_crear);
     list_add(procesos_a_crear->lista_procesos, nuevo_pcb);
     sem_post(sem_estado_procesos_a_crear);
@@ -170,6 +183,7 @@ void PROCESS_EXIT() {
 
     // Notificar a la memoria que el proceso ha finalizado
     notificar_memoria_fin_proceso(pcb_encontrado->pid);
+    usleep(1);
 
     // Eliminar el PCB de la lista de procesos
     pthread_mutex_lock(mutex_procesos_cola_ready);
@@ -189,8 +203,8 @@ void notificar_memoria_fin_proceso(int pid) {
         peticion->tipo = PROCESS_EXIT_OP;
         peticion->proceso = obtener_pcb_por_pid(pid); 
         peticion->hilo = NULL; // No aplica en este caso  
-        peticion->respuesta_recibida = false;
         encolar_peticion_memoria(peticion);
+        sem_wait(sem_estado_respuesta_desde_memoria);
     if (peticion->respuesta_exitosa) {
         log_info(logger, "Finalización del proceso con PID %d confirmada por la Memoria.", pid);
     } else {
@@ -303,12 +317,28 @@ void THREAD_CANCEL(int tid_hilo_a_cancelar) { // Esta sys recibe el tid solament
 
     hilo_a_cancelar->estado = EXIT;
     log_info(logger, "Hilo TID %d movido a EXIT.", tid_hilo_a_cancelar);
+    t_pcb * proceso = obtener_pcb_por_tid(tid_hilo_a_cancelar);
+    for (int i = 0; i < list_size(proceso->listaTCB); i++) {
+        t_tcb *hilo = list_get(hilos_cola_ready->lista_hilos, i);
+        if (hilo->pid == tid_hilo_a_cancelar) {
+            list_remove(proceso->listaTCB, i);
+            i--;
+            break;
+        }
+    }
 
-    // Log obligatorio: Finalización del hilo
     log_info(logger, "## (%d) Finaliza el hilo", hilo_a_cancelar->tid);
 
-    notificar_memoria_fin_hilo(hilo_a_cancelar);
+    // Elimina el hilo de la cola correspondiente y lo encola en la cola de EXIT
+    if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
+            eliminar_hilo_de_cola_fifo_prioridades(hilo_a_cancelar);
+        } else if (strcmp(algoritmo, "CMN") == 0) {
+            eliminar_hilo_de_cola_multinivel(hilo_a_cancelar);
+        } else {
+            printf("Error: Algoritmo no reconocido.\n");
+        }
 
+    notificar_memoria_fin_hilo(hilo_a_cancelar);
     eliminar_tcb(hilo_a_cancelar);
 }
 
@@ -317,8 +347,8 @@ void notificar_memoria_creacion_hilo(t_tcb* hilo) {
         peticion->tipo = THREAD_CREATE_OP;
         peticion->proceso = NULL; // No aplica en este caso
         peticion->hilo = hilo; 
-        peticion->respuesta_recibida = false;
         encolar_peticion_memoria(peticion);
+        wait(sem_estado_respuesta_desde_memoria);
     if (peticion->respuesta_exitosa) {
         log_info(logger, "Información sobre la creacion del hilo con TID %d enviada a Memoria.", hilo->tid);
     } else {
@@ -328,11 +358,11 @@ void notificar_memoria_creacion_hilo(t_tcb* hilo) {
 
 void notificar_memoria_fin_hilo(t_tcb* hilo) {
     t_peticion *peticion = malloc(sizeof(t_peticion));
-        peticion->tipo = THREAD_EXIT_OP;
-        peticion->proceso = NULL; // No aplica en este caso
-        peticion->hilo = hilo; 
-        peticion->respuesta_recibida = false;
-        encolar_peticion_memoria(peticion);
+    peticion->tipo = THREAD_EXIT_OP;
+    peticion->proceso = NULL; // No aplica en este caso
+    peticion->hilo = hilo; 
+    encolar_peticion_memoria(peticion);
+    wait(sem_estado_respuesta_desde_memoria);
     if (peticion->respuesta_exitosa) {
         log_info(logger, "Finalización del hilo con TID %d confirmada por la Memoria.", hilo->tid);
     } else {
@@ -374,16 +404,31 @@ void THREAD_EXIT() {// No recibe ningún parámetro, trabaja con hilo_actual
         }
 
     log_info(logger, "Hilo TID %d finalizado.", hilo_a_salir->tid);
-    log_info(logger, "## (%d:%d) Finaliza el hilo", pcb_hilo_a_salir->pid, hilo_a_salir->tid);
 
     notificar_memoria_fin_hilo(hilo_a_salir);
     eliminar_tcb(hilo_a_salir);
 }
 
-void IO(float milisec, int tcb_id)
-{
- //log_info(logger, "## (%d:%d) finalizó IO y pasa a READY", hilo_actual->pid, hilo_actual->tid);   
+void IO(float milisec, int tcb_id) {
+    pthread_mutex_lock(mutex_colaIO);
+    
+    // Crear la petición y asignar memoria
+    t_uso_io *peticion = malloc(sizeof(t_uso_io));
+    if (peticion == NULL) {
+        log_error(logger, "Error al asignar memoria para la petición de IO.");
+        pthread_mutex_unlock(mutex_colaIO);
+        return;
+    }
+
+    peticion->milisegundos = milisec;
+    peticion->tid = tcb_id;
+
+    list_add(colaIO->lista_io, peticion);
+
+    pthread_mutex_unlock(mutex_colaIO);
+    sem_post(sem_estado_colaIO);
 }
+
 
 void MUTEX_CREATE(char* nombre_mutex,t_pcb *pcb) {
     
@@ -468,6 +513,13 @@ void DUMP_MEMORY(int pid) {
     log_info(logger, "=== DUMP DE MEMORIA ===");
 
     log_info(logger, "Envio un mensaje a memoria que vacie el proceso con el pid %d",pid);
+
+    t_peticion *peticion = malloc(sizeof(t_peticion));
+    peticion->tipo = DUMP_MEMORY_OP;
+    peticion->proceso = obtener_pcb_por_pid(pid);
+    peticion->hilo = NULL; 
+    encolar_peticion_memoria(peticion);
+    wait(sem_estado_respuesta_desde_memoria);
     log_info(logger, "Espero respuesta de memoria");
 
     log_info(logger, "FIN DEL DUMP DE MEMORIA");
@@ -494,6 +546,7 @@ t_list* interpretarArchivo(FILE* archivo)
         perror("Error de asignación de memoria");
         return NULL;
     }
+    
 
     while (fgets(linea, sizeof(linea), archivo) != NULL) {
         linea[strcspn(linea, "\n")] = 0; 
@@ -501,8 +554,7 @@ t_list* interpretarArchivo(FILE* archivo)
         t_instruccion* instruccion = malloc(sizeof(t_instruccion));
         if (instruccion == NULL) {
             perror("Error de asignación de memoria para la instrucción");
-            list_destroy(instrucciones);
-            //list_destroy_and_destroy_elements(instrucciones, element_destroyer);
+            list_destroy_and_destroy_elements(instrucciones, element_destroyer);
             return NULL;
         }
 
@@ -536,11 +588,12 @@ t_list* interpretarArchivo(FILE* archivo)
     return instrucciones;
 }
 
-void liberarInstrucciones(t_list* instrucciones) 
-{
-    list_destroy(instrucciones);
-    //list_destroy_and_destroy_elements(instrucciones, element_destroyer);
+void liberarInstrucciones(t_list* instrucciones) {
+    if (instrucciones != NULL) {
+        list_destroy_and_destroy_elements(instrucciones, element_destroyer);
+    }
 }
+
 
 t_tcb* obtener_tcb_por_tid(int tid) {
     for (int i = 0; i < list_size(lista_global_tcb); i++) {

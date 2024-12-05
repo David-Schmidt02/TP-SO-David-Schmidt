@@ -36,17 +36,26 @@ extern t_tcb * hilo_actual;
 }*/
 
 //PASA EL PROCESO A BLOCKED, ESPERA EL TIEMPO Y DESBLOQUEA EL PROFCESO (READY)
-void* acceder_Entrada_Salida(void * arg)
-{
-    while (1)
-    {
+void* acceder_Entrada_Salida(void *arg) {
+    while (1) {
         sem_wait(sem_estado_colaIO);
+
         pthread_mutex_lock(mutex_colaIO);
-        // Desencolo
+
+        // Verificar si la cola está vacía
+        if (list_is_empty(colaIO->lista_io)) {
+            log_error(logger, "Se intentó acceder a una cola vacía en IO.");
+            pthread_mutex_unlock(mutex_colaIO);
+            continue;
+        }
+
         t_uso_io *peticion = list_remove(colaIO->lista_io, 0);
-        // Debería encolarlo en una cola de EXEC
+
         pthread_mutex_unlock(mutex_colaIO);
-        sleep(peticion->milisegundos);
-        //Falta -> poner en ready el tid
+
+        if (peticion != NULL) {
+            sleep(peticion->milisegundos / 1000);
+            free(peticion);
+        }
     }
 }

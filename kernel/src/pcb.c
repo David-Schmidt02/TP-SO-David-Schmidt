@@ -34,6 +34,7 @@ t_tcb* crear_tcb(int pid,int tid, int prioridad)
     tcb->pid = pid;
     tcb->prioridad = prioridad;
     cambiar_estado(tcb,NEW);
+    tcb->instrucciones = list_create();
     tcb->lista_espera = list_create();  // Inicializa la lista de hilos en espera
     tcb->cant_hilos_block = malloc(sizeof(sem_t));
     if (tcb->cant_hilos_block == NULL) {

@@ -46,7 +46,7 @@ typedef enum
     INSTRUCCIONES,
     TERMINATE,
     INTERRUPCION,
-    SEGMENTATION_FAULT, //Se podría usar en CPU el enum motivo del planificador_corto_plazo.h
+    SEGMENTATION_FAULT,// Se podría usar en CPU el enum motivo del planificador_corto_plazo.h
     PCB_CPU,
     FIN_PRO,
     PETICION_KERNEL,
@@ -62,6 +62,7 @@ typedef enum
     PROCESS_CREATE_OP,
     PROCESS_EXIT_OP,
     THREAD_CREATE_OP,
+    THREAD_CANCEL_OP,
     THREAD_EXIT_OP, // es el mismo para THREAD_CANCEL_OP,
     DUMP_MEMORY_OP,
     ERROR,
