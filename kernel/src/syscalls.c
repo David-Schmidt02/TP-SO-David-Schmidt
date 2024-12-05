@@ -75,6 +75,7 @@ t_pcb* obtener_pcb_por_pid(int pid) {
 //PROCESOS
 
 void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadTID) {
+    
     int pid = generar_pid_unico();
     int pc = 0;
 
@@ -96,6 +97,10 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     
     t_list* lista_instrucciones = interpretarArchivo(archivo_instrucciones);
     
+    if (lista_instrucciones == NULL) {
+    log_error(logger, "Error al interpretar el archivo de instrucciones.");
+    return; // O maneja el error de otra forma
+}
     tcb_principal->instrucciones = lista_instrucciones;
     
     pthread_mutex_lock(mutex_procesos_a_crear);
@@ -404,15 +409,24 @@ void THREAD_EXIT() {// No recibe ningún parámetro, trabaja con hilo_actual
     eliminar_tcb(hilo_a_salir);
 }
 
-void IO(float milisec, int tcb_id)
-{
+void IO(float milisec, int tcb_id) {
     pthread_mutex_lock(mutex_colaIO);
-    t_uso_io *peticion;
+    
+    // Crear la petición y asignar memoria
+    t_uso_io *peticion = malloc(sizeof(t_uso_io));
+    if (peticion == NULL) {
+        log_error(logger, "Error al asignar memoria para la petición de IO.");
+        pthread_mutex_unlock(mutex_colaIO);
+        return;
+    }
+
     peticion->milisegundos = milisec;
     peticion->tid = tcb_id;
+
     list_add(colaIO->lista_io, peticion);
+
     pthread_mutex_unlock(mutex_colaIO);
- //log_info(logger, "## (%d:%d) finalizó IO y pasa a READY", hilo_actual->pid, hilo_actual->tid);   
+    sem_post(sem_estado_colaIO);
 }
 
 
@@ -532,6 +546,7 @@ t_list* interpretarArchivo(FILE* archivo)
         perror("Error de asignación de memoria");
         return NULL;
     }
+    
 
     while (fgets(linea, sizeof(linea), archivo) != NULL) {
         linea[strcspn(linea, "\n")] = 0; 
@@ -539,8 +554,7 @@ t_list* interpretarArchivo(FILE* archivo)
         t_instruccion* instruccion = malloc(sizeof(t_instruccion));
         if (instruccion == NULL) {
             perror("Error de asignación de memoria para la instrucción");
-            list_destroy(instrucciones);
-            //list_destroy_and_destroy_elements(instrucciones, element_destroyer);
+            list_destroy_and_destroy_elements(instrucciones, element_destroyer);
             return NULL;
         }
 
@@ -574,11 +588,12 @@ t_list* interpretarArchivo(FILE* archivo)
     return instrucciones;
 }
 
-void liberarInstrucciones(t_list* instrucciones) 
-{
-    list_destroy(instrucciones);
-    //list_destroy_and_destroy_elements(instrucciones, element_destroyer);
+void liberarInstrucciones(t_list* instrucciones) {
+    if (instrucciones != NULL) {
+        list_destroy_and_destroy_elements(instrucciones, element_destroyer);
+    }
 }
+
 
 t_tcb* obtener_tcb_por_tid(int tid) {
     for (int i = 0; i < list_size(lista_global_tcb); i++) {

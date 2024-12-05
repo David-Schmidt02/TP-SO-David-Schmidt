@@ -426,7 +426,7 @@ t_cola_hilo* inicializar_cola_hilo(t_estado estado) {
             valor = "DESCONOCIDO";  // En caso de que el valor no sea válido
             break;
     }
-    printf("COLA DE %s HILOS INICIALIZADA CORRECTAMENTE\n", valor);
+
     t_cola_hilo *cola = malloc(sizeof(t_cola_hilo));
     if (cola == NULL) {
         perror("Error al asignar memoria para cola de hilos");
@@ -506,7 +506,7 @@ void inicializar_semaforos_corto_plazo(){
 }
 
 t_colas_multinivel* inicializar_colas_multinivel() {
-    log_info(logger,"COLA MULTINIVEL INICIALIZADA CORRECTAMENTE CORRECTAMENTE\n");
+    log_info(logger,"Cola Multinivel creada\n");
     t_colas_multinivel *colas_multinivel = malloc(sizeof(t_colas_multinivel));
     if (colas_multinivel == NULL) {
         perror("Error al asignar memoria para colas multinivel");
