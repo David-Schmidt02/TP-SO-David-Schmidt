@@ -39,8 +39,6 @@ void inicializar_bloques(uint32_t block_count, int block_size, char* mount_dir) 
 
     fclose(archivo);
     free(path_bloques);
-    fclose(archivo);
-    free(path_bloques);
     log_info(logger, "Bloques inicializado correctamente.");
 
     

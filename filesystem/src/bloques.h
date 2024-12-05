@@ -1,7 +1,6 @@
 #ifndef BLOCKS_H
 #define BLOCKS_H
 
-#include <utils.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -15,6 +14,7 @@
 #include <commons/bitarray.h>
 #include <commons/log.h>
 #include <commons/config.h>
+#include <utils/utils.h>
 #include <bitmap.h>
 
 extern t_config *config;

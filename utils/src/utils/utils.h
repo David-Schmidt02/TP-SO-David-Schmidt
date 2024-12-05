@@ -53,6 +53,8 @@ typedef enum
     CONTEXTO_SEND,
     CONTEXTO_RECEIVE,
     OBTENER_INSTRUCCION,
+    READ_MEM,
+    WRITE_MEM,
     ERROR_MEMORIA,
     INFO_HILO, // agregado para cuando el kernel le manda al cpu el tid del hilo planificado a ejecutar
     OK,
@@ -69,7 +71,8 @@ typedef enum
     FINALIZACION,
     FIN_QUANTUM,
     THREAD_JOIN_OP,
-    INIT_BITMAP
+    INIT_BITMAP,
+    IO_SYSCALL
     
 }protocolo_socket;
 

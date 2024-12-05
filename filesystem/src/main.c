@@ -24,6 +24,8 @@ int main() {
     retardo_acceso = config_get_int_value(config, "RETARDO_ACCESO_BLOQUE");
 	char* mount_dir = config_get_string_value(config, "MOUNT_DIR");
 	// Inicializar estructuras
+	
+	mount_dir = crear_directorio(mount_dir);
 	inicializar_bitmap(mount_dir,block_count);
 	inicializar_bloques(block_count,block_size,mount_dir);
 	
@@ -96,4 +98,35 @@ void *conexion_memoria(void* arg_memoria)
 	close(socket_cliente_memoria);
 	config_destroy(config);
     return (void *)EXIT_SUCCESS;
+}
+
+char* crear_directorio(char* base_path) {
+    if (!base_path) {
+        fprintf(stderr, "Error: La ruta base es NULL.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Calcular la longitud de la nueva ruta con "/mount_dir"
+    size_t path_length = strlen(base_path) + strlen("/mount_dir") + 1;
+    char* mount_dir = malloc(path_length);
+    if (!mount_dir) {
+        fprintf(stderr, "Error: No se pudo asignar memoria para la ruta del directorio.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Construir la ruta completa
+    snprintf(mount_dir, path_length, "%s/mount_dir", base_path);
+
+    // Intentar crear el directorio
+    if (mkdir(mount_dir, 0700) == 0) {
+        printf("Directorio '%s' creado correctamente.\n", mount_dir);
+    } else if (errno == EEXIST) {
+        printf("El directorio '%s' ya existe.\n", mount_dir);
+    } else {
+        perror("Error al crear el directorio");
+        free(mount_dir); // Liberar memoria en caso de error
+        exit(EXIT_FAILURE);
+    }
+
+    return mount_dir;
 }

@@ -22,12 +22,19 @@ int buscar_tid(t_list *lista, int tid);
 void error_contexto(char *error);
 
 //falta dinamica de:
-int agregar_a_tabla_particion_fija(t_pcb *pcb);
-void inicializar_tabla_particion_fija(t_list *particiones);
-int buscar_en_tabla_fija(int tid);
 void crear_proceso(t_pcb *pcb);
-void fin_proceso(int tid);
+void fin_proceso(int pid);
 //
+
+void inicializar_tabla_particion_fija(t_list *particiones);
+void init_tablas_dinamicas();
+int buscar_en_tabla_fija(int tid);
+int buscar_en_dinamica(int pid);
+int agregar_a_tabla_particion_fija(t_pcb *pcb);
+int agregar_a_dinamica(t_pcb *pcb);
+
+void remover_proceso_de_tabla_dinamica(int pid);
+void consolidar_huecos();
 
 void crear_thread(t_tcb *tcb);
 void fin_thread(int tid);

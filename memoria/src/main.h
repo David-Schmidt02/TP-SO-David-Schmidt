@@ -8,6 +8,7 @@
 #include <utils/utils.h>
 #include "../../kernel/src/pcb.h"
 #include <sistema.h>
+#include <time.h>
 
 typedef enum particiones{
     FIJAS,
@@ -20,7 +21,10 @@ void *conexion_cpu(void * arg_cpu);
 void *cliente_conexion_filesystem(void * arg_fs);
 void *server_multihilo_kernel(void* arg_server);
 void *peticion_kernel_NEW_PROCESS(void* arg_peticion);
-void inicializar_memoria(particiones tipo_particion, int size, t_list *); //hacer para dinamicas
+void *peticion_kernel_NEW_THREAD(void *arg_peticion);
+void *peticion_kernel_END_PROCESS(void *arg_peticion);
+void *peticion_kernel_END_THREAD(void *arg_peticion);
+void inicializar_memoria(particiones tipo_particion, int size, t_list *); // hacer para dinamicas
 void levantar_conexiones(void); //
 void cargar_lista_particiones(t_list *, char **); //solo para fijas
 
@@ -36,13 +40,13 @@ typedef struct t_memoria{
 }t_memoria;
 
 typedef struct elemento_procesos{
-    int TID;
-    int inicio;
+    int pid;
+    uint32_t inicio;
     int size;
 }elemento_procesos;
 
 typedef struct elemento_huecos{
-    int inicio;
+    uint32_t inicio;
     int size;
 }elemento_huecos;
 
