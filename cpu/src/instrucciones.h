@@ -5,7 +5,7 @@
 #include <utils/utils.h>
 #include "../../kernel/src/pcb.h"
 typedef struct {
-    char* tipo;       // Tipo de interrupción (por ejemplo, "SEGMENTATION_FAULT", "INTERRUPCION(en este caso solo kernel)")
+    protocolo_socket tipo;       // Tipo de interrupción (por ejemplo, "SEGMENTATION_FAULT", "INTERRUPCION(en este caso solo kernel)")
     int prioridad;    // Prioridad de la interrupción (1 = alta, 2 = media, etc.)
 } t_interrupcion;
 
@@ -24,6 +24,6 @@ void checkInterrupt(RegistroCPU *cpu);
 int recibir_interrupcion();
 void enviar_contexto_de_memoria(RegistroCPU *registro, int pid);
 void notificar_kernel_interrupcion(int pid, int tid);
-void agregar_interrupcion(char* tipo, int prioridad);
+void agregar_interrupcion(protocolo_socket tipo, int prioridad);
 t_interrupcion* obtener_interrupcion_mayor_prioridad();
 void liberar_interrupcion(t_interrupcion* interrupcion);

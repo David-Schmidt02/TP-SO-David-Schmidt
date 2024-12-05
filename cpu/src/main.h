@@ -11,8 +11,6 @@ typedef enum
     SUB,
     SUM,
     JNZ,
-    READ_MEM,
-    WRITE_MEM,
     LOG
 }t_operaciones;  
 
