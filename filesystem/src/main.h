@@ -9,6 +9,8 @@
 #include <bloques.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
+#include <sys/time.h>
 
 void *bloques = NULL;
 int block_size = 4; 
@@ -16,6 +18,6 @@ int block_size = 4;
 void *conexion_memoria(void * arg_memoria);
 int main();
 void levantar_conexiones();
-char* crear_directorio(char* mount_dir);
+char* crear_directorio(char* base_path, char* ruta_a_agregar);
 
 #endif

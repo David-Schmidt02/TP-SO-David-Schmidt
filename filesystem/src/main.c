@@ -25,9 +25,12 @@ int main() {
 	char* mount_dir = config_get_string_value(config, "MOUNT_DIR");
 	// Inicializar estructuras
 	
-	mount_dir = crear_directorio(mount_dir);
+	mount_dir = crear_directorio(mount_dir,"/mount_dir");
 	inicializar_bitmap(mount_dir,block_count);
 	inicializar_bloques(block_count,block_size,mount_dir);
+	char* dir_files = mount_dir;
+	dir_files = crear_directorio(dir_files,"/files");
+	crear_archivo_metadata(block_count,block_size,dir_files);
 	
     //conexiones
 	pthread_create(&tid_memoria, NULL, conexion_memoria, (void *)&arg_memoria);
@@ -100,14 +103,14 @@ void *conexion_memoria(void* arg_memoria)
     return (void *)EXIT_SUCCESS;
 }
 
-char* crear_directorio(char* base_path) {
+char* crear_directorio(char* base_path, char* ruta_a_agregar) {
     if (!base_path) {
         fprintf(stderr, "Error: La ruta base es NULL.\n");
         exit(EXIT_FAILURE);
     }
 
     // Calcular la longitud de la nueva ruta con "/mount_dir"
-    size_t path_length = strlen(base_path) + strlen("/mount_dir") + 1;
+    size_t path_length = strlen(base_path) + strlen(ruta_a_agregar) + 1;
     char* mount_dir = malloc(path_length);
     if (!mount_dir) {
         fprintf(stderr, "Error: No se pudo asignar memoria para la ruta del directorio.\n");
@@ -115,7 +118,7 @@ char* crear_directorio(char* base_path) {
     }
 
     // Construir la ruta completa
-    snprintf(mount_dir, path_length, "%s/mount_dir", base_path);
+    snprintf(mount_dir, path_length, "%s%s", base_path,ruta_a_agregar);
 
     // Intentar crear el directorio
     if (mkdir(mount_dir, 0700) == 0) {

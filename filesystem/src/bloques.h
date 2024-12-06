@@ -17,6 +17,7 @@
 #include <utils/utils.h>
 #include <bitmap.h>
 
+
 extern t_config *config;
 extern t_log *logger;
 
@@ -26,5 +27,5 @@ extern int block_size;
 void inicializar_bloques(uint32_t block_count, int block_size, char* mount_dir);
 void escribir_bloque(int bloque, void *contenido, size_t tamanio);
 void *leer_bloque(int bloque);
-
+void crear_archivo_metadata(uint32_t block_count,  int block_size, char* dir_files);
 #endif

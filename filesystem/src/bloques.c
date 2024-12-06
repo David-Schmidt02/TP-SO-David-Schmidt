@@ -2,6 +2,8 @@
 extern t_config* config;
 extern t_log* logger;
 extern int retardo_acceso;
+static FILE* metadata_file;
+int index_block=0;
 
 void inicializar_bloques(uint32_t block_count, int block_size, char* mount_dir) {
     if (mount_dir == NULL) {
@@ -76,4 +78,66 @@ void *leer_bloque(int bloque) {
     log_info(logger, "Bloque %d leído correctamente. Dirección: %p, Tamaño: %d bytes", bloque, direccion_bloque, block_size);
 
     return direccion_bloque;
+}
+
+
+void crear_archivo_metadata(uint32_t block_count,  int block_size, char* dir_files) {
+    if (block_count == 0) {
+        log_error(logger, "No se encontró el valor BLOCK_COUNT en el archivo de configuración.");
+        exit(EXIT_FAILURE);
+    }
+    struct timeval tiempo_actual;
+    gettimeofday(&tiempo_actual, NULL);
+    struct tm *tiempo_local = localtime(&tiempo_actual.tv_sec);
+    char nombre_archivo[30];
+    snprintf(nombre_archivo, sizeof(nombre_archivo), 
+             "%d-%d-%02d:%02d:%02d:%03ld.dmp", 
+             tiempo_local->tm_mday,
+             tiempo_local->tm_mon + 1,
+             tiempo_local->tm_hour,
+             tiempo_local->tm_min,
+             tiempo_local->tm_sec,
+             tiempo_actual.tv_usec / 1000);
+
+    size_t path_length = strlen(dir_files) + strlen(nombre_archivo) + 2;
+    char *path_metadata = malloc(path_length);
+    if (path_metadata == NULL) {
+        log_error(logger, "Error: No se pudo asignar memoria para path_metadata.\n");
+        exit(EXIT_FAILURE);
+    }
+    snprintf(path_metadata, path_length, "%s/%s", dir_files, nombre_archivo);
+    if (!metadata_file) {
+        metadata_file = fopen(path_metadata, "wb+");
+        if (!metadata_file) {
+            log_error(logger, "Error al crear el archivo metadata");
+            free(path_metadata);
+            exit(EXIT_FAILURE);
+        }
+        index_block++;
+        size_t buffer_size = snprintf(NULL, 0, "SIZE=%u\nINDEX_BLOCK=%d\n", block_size, index_block) + 1;
+        char *buffer = malloc(buffer_size);
+        if (buffer == NULL) {
+            log_error(logger, "Error al asignar memoria para el buffer.");
+            fclose(metadata_file);
+            free(path_metadata);
+            exit(EXIT_FAILURE);
+        }
+        snprintf(buffer, buffer_size, "SIZE=%d\nINDEX_BLOCK=%d\n", block_size, index_block);
+        if (fwrite(buffer, sizeof(char), strlen(buffer), metadata_file) != strlen(buffer)) {
+            log_error(logger, "Error al escribir en el archivo metadata.");
+            fclose(metadata_file);
+            free(path_metadata);
+            exit(EXIT_FAILURE);
+        }
+
+        fclose(metadata_file);
+        log_info(logger, "Archivo metadata creado con éxito: %s", path_metadata);
+    } else {
+        log_info(logger, "Archivo metadata ya existe: %s", path_metadata);
+        fclose(metadata_file);
+    }
+    log_info(logger, "Creación Archivo: “## Archivo Creado: <%s> - Tamaño: <%d>", nombre_archivo, block_size);
+    free(path_metadata);
+
+
 }
