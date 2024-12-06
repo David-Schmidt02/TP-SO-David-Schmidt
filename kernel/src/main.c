@@ -12,6 +12,9 @@ char * algoritmo;
 int quantum;
 //
 
+t_tcb* hilo_actual;  
+t_pcb* proceso_actual;
+
 //Conexion con Memoria
 int conexion_kernel_memoria;
 
@@ -302,7 +305,8 @@ void *peticion_kernel(void *args) {
 
         case DUMP_MEMORY_OP:
             send_protocolo = crear_paquete(DUMP_MEMORY_OP);
-            agregar_a_paquete(send_protocolo, proceso, sizeof(t_pcb));
+			agregar_a_paquete(send_protocolo, proceso_actual->pid, sizeof(int));
+            agregar_a_paquete(send_protocolo, hilo_actual->tid, sizeof(int));
 			log_info(logger, "Se crea la peticion de DUMP MEMORY");
             break;
 

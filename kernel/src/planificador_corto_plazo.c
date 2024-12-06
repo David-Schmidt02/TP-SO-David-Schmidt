@@ -5,8 +5,8 @@ extern int conexion_kernel_cpu_dispatch;
 extern int conexion_kernel_cpu_interrupt;
 extern int ultimo_tid;
 
-t_tcb* hilo_actual;  
-t_pcb* proceso_actual;
+extern t_tcb* hilo_actual;  
+extern t_pcb* proceso_actual;
 
 extern t_cola_hilo* hilos_cola_ready;
 extern pthread_mutex_t * mutex_hilos_cola_ready;

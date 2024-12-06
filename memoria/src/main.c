@@ -129,6 +129,11 @@ void *server_multihilo_kernel(void* arg_server){
 				list_add(lista_t_peticiones, &aux_thread);
 				log_info(logger, "nueva peticion");
 				break;
+			case DUMP_MEMORY_OP:
+				//pthread_create(&aux_thread, NULL, peticion_kernel_END_THREAD, (void *)&socket_cliente_kernel);
+				//list_add(lista_t_peticiones, &aux_thread);
+				log_info(logger, "nueva peticion");
+				break;
 			case TERMINATE:
 				log_error(logger, "TERMINATE recibido de KERNEL");
 				flag=0;
@@ -241,6 +246,33 @@ void *peticion_kernel_END_THREAD(void* arg_peticion){
 	close(socket); //cerrar socket
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
+
+void *peticion_kernel_DUMP_MEMORY(void* arg_peticion){
+	int socket = (int)arg_peticion;
+	int tid;
+	int pid;
+	//atender peticion
+	t_list * paquete_list;
+	t_paquete * paquete_recv;
+	t_paquete * paquete_send;
+
+	paquete_list = recibir_paquete(socket);
+	pid = (intptr_t)list_remove(paquete_list, 0);
+	tid = (intptr_t)list_remove(paquete_list, 0);
+	
+	//mandar a filesystem dump_memory
+
+	//notificar resultado a kernel
+	paquete_send = crear_paquete(OK);
+	enviar_paquete(paquete_send, socket);
+
+	eliminar_paquete(paquete_send);
+	eliminar_paquete(paquete_recv);
+	list_destroy(paquete_list);
+	close(socket); //cerrar socket
+	return(void*)EXIT_SUCCESS; //finalizar hilo
+}
+
 void *conexion_cpu(void* arg_cpu)
 {
 	argumentos_thread *args = arg_cpu; 
