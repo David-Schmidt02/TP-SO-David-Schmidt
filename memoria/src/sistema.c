@@ -2,6 +2,11 @@
 
 extern int socket_cliente_cpu;
 extern t_memoria *memoria_usuario;
+extern pthread_mutex_t * mutex_pcb;
+extern pthread_mutex_t * mutex_tcb;
+extern pthread_mutex_t * mutex_part_fijas;
+extern pthread_mutex_t * mutex_huecos;
+extern pthread_mutex_t * mutex_procesos_din;
 
 // Funcion auxiliar para buscar y validar el proceso (PCB) y el hilo (TCB) asociados al PID y TID
 // t_pcb **pcb_out y t_tcb **tcb_out: Son punteros de salida. Al encontrar el PCB y el TCB, la función los almacena en estas variables para que la función que llama a obtener_pcb_y_tcb pueda utilizarlos.
@@ -21,7 +26,7 @@ bool obtener_pcb_y_tcb(int pid, int tid, t_pcb *pcb_out, t_tcb *tcb_out) {
         return false;
     }
     tcb_out = list_get((pcb_out)->listaTCB, index_tcb);
-
+    
     return true;
 } // TODO: verificar manejo de list_get con Santi
 
@@ -52,6 +57,8 @@ void enviar_contexto(int pid, int tid) {
     t_tcb *tcb;
 
     // Busco el PCB y TCB
+    pthread_mutex_lock(mutex_tcb);
+    pthread_mutex_lock(mutex_pcb);
     if (!obtener_pcb_y_tcb(pid, tid, pcb, tcb)) {
         log_error(logger, "No se pudo obtener el contexto para PID %d, TID %d.", pid, tid);
         return; // Si no se encuentran, se registra el error y se termina
@@ -65,6 +72,9 @@ void enviar_contexto(int pid, int tid) {
 
     // Agrego el registro entero del PCB
     agregar_a_paquete(paquete, &pcb->registro, sizeof(pcb->registro));
+
+    pthread_mutex_unlock(mutex_tcb);
+    pthread_mutex_unlock(mutex_pcb);
 
     // Envio el paquete al cliente (CPU)
     enviar_paquete(paquete, socket_cliente_cpu);
@@ -107,71 +117,6 @@ int write_memory(uint32_t direccion, uint32_t valor){
     return 0;
 }
 
-void recibir_contexto(){
-
-    t_list *paquete_recv_list;
-    t_paquete *paquete_recv;
-    t_paquete *paquete_send;
-    RegistroCPU *registro;
-    int pid;
-    int index_pcb;
-    t_pcb *aux_pcb;
-
-    paquete_recv_list = recibir_paquete(socket_cliente_cpu);
-    paquete_recv = list_remove(paquete_recv_list, 0);
-    memcpy(registro, paquete_recv->buffer->stream, sizeof(RegistroCPU));
-    paquete_recv = list_remove(paquete_recv_list, 0);
-    memcpy(&pid, paquete_recv->buffer->stream, sizeof(int));
-    
-    index_pcb = buscar_pid(memoria_usuario->lista_pcb, pid);
-    if(index_pcb==-1){
-        error_contexto("No se encontro el PID en memoria");
-    }
-    aux_pcb = list_get(memoria_usuario->lista_pcb, index_pcb);
-    aux_pcb->registro = registro;
-
-    paquete_send = crear_paquete(CONTEXTO_SEND);
-    char *msj = malloc(100);
-    strcpy(msj, "contexto recibido");
-    agregar_a_paquete(paquete_send, msj, sizeof(msj));
-    //log_info(logger, msj);
-    log_info(logger, "%s", msj);
-}
-
-void obtener_contexto(int pid, int tid) {
-    
-    if (pid <= 0 || tid < 0) {
-        log_error(logger, "PID o TID inválidos al solicitar contexto (PID: %d, TID: %d)", pid, tid);
-        return;
-    }
-
-    // Buscar PCB por PID
-    int index_pcb = buscar_pid(memoria_usuario->lista_pcb, pid);
-    if (index_pcb == -1) {
-        log_error(logger, "PID %d no encontrado en memoria.", pid);
-        return;
-    }
-    t_pcb *pcb_out = list_get(memoria_usuario->lista_pcb, index_pcb);
-
-    // // Buscar TCB por TID dentro del PCB
-    // int index_tcb = buscar_tid(pcb->listaTCB, tid);
-    // if (index_tcb == -1) {
-    //     log_error(logger, "No se encontró el TID %d en el proceso PID %d.", tid, pid);
-    //     return NULL;
-    // }
-    // t_tcb *tcb = list_get(pcb->listaTCB, index_tcb);
-
-    // Preparar paquete con el contexto completo
-    t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
-
-    // Agregar registros del TCB
-    agregar_a_paquete(paquete_send, &pcb_out->registro, sizeof(pcb_out->registro));
-    enviar_paquete(paquete_send, socket_cliente_cpu);
-    eliminar_paquete(paquete_send);
-
-    log_info(logger, "Contexto de ejecución (PID: %d, TID: %d) preparado exitosamente.", pid, tid);
-}
-
 void actualizar_contexto_ejecucion() {
     t_list *paquete_recv_list;
     t_pcb *pcb;
@@ -209,6 +154,7 @@ void actualizar_contexto_ejecucion() {
     list_destroy(paquete_recv_list);
 
     // Validar PID y TID
+    pthread_mutex_lock(mutex_pcb);
     int index_pcb = buscar_pid(memoria_usuario->lista_pcb, pid);
     if (index_pcb == -1) {
         log_error(logger, "No se encontró el PID %d en memoria para actualizar contexto.", pid);
@@ -228,6 +174,7 @@ void actualizar_contexto_ejecucion() {
     // Actualizar registros en el TCB
     memcpy(&(pcb->registro), &registros_actualizados, sizeof(RegistroCPU));
     log_info(logger, "Registros actualizados para PID %d, TID %d.", pid, tid);
+    pthread_mutex_unlock(mutex_pcb);
 
     // Respondemos a la CPU con un paquete de confirmación
     t_paquete *paquete_ok = crear_paquete(OK_MEMORIA);
@@ -257,6 +204,7 @@ int buscar_pid(t_list *lista, int pid){
     t_pcb *elemento;
     t_list_iterator * iterator = list_iterator_create(lista);
 
+    pthread_mutex_lock(mutex_pcb);
     while(list_iterator_has_next(iterator)){
         elemento = list_iterator_next(iterator);
         if(elemento->pid == pid){
@@ -264,6 +212,7 @@ int buscar_pid(t_list *lista, int pid){
         }
     }
     list_iterator_destroy(iterator);
+    pthread_mutex_unlock(mutex_pcb);
     return -1;
 }
 //retorna index de tid en la lista de threads
@@ -271,6 +220,7 @@ int buscar_tid(t_list *lista, int tid){
     t_tcb *elemento;
     t_list_iterator * iterator = list_iterator_create(lista);
 
+    pthread_mutex_lock(mutex_tcb);
     while(list_iterator_has_next(iterator)){
         elemento = list_iterator_next(iterator);
         if(elemento->tid == tid){
@@ -278,6 +228,7 @@ int buscar_tid(t_list *lista, int tid){
         }
     }
     list_iterator_destroy(iterator);
+    pthread_mutex_unlock(mutex_tcb);
     return -1;
 }
 void error_contexto(char * error){
@@ -296,14 +247,15 @@ int agregar_a_tabla_particion_fija(t_pcb *pcb){
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_particiones_fijas);
     elemento_particiones_fijas *aux;
     
-
+    pthread_mutex_lock(mutex_part_fijas);
     while(list_iterator_has_next(iterator)) {
         aux = list_iterator_next(iterator);
         if (aux->libre_ocupado==0){
             aux->libre_ocupado = pcb->pid; //no liberar aux, sino se pierde el elemento xd
             break;
         }
-    }return list_iterator_index(iterator);
+    }pthread_mutex_unlock(mutex_part_fijas);
+    return list_iterator_index(iterator);
     list_iterator_destroy(iterator);
 }
 int agregar_a_dinamica(t_pcb *pcb){
@@ -315,6 +267,7 @@ int agregar_a_dinamica(t_pcb *pcb){
 
     aux_proceso->pid = pcb->pid;
     
+    pthread_mutex_lock(mutex_procesos_din);
     while(list_iterator_has_next(iterator)) {
         aux_hueco = list_iterator_next(iterator); // siguiente hueco
         if (aux_hueco->size >= pcb->memoria_necesaria){ // entra mi proceso en el hueco?
@@ -335,9 +288,10 @@ int agregar_a_dinamica(t_pcb *pcb){
 
             //se me quemo el cerebro
             list_iterator_destroy(iterator);
+            pthread_mutex_unlock(mutex_procesos_din);
             return index;
         }
-    }
+    }pthread_mutex_unlock(mutex_procesos_din);
     log_error(logger, "No hay huecos libres");
     return -1;
 }
@@ -347,14 +301,19 @@ void remover_proceso_de_tabla_dinamica(int pid){
     elemento_huecos *aux_hueco, *aux_hueco_iterator;
     elemento_procesos *aux_proceso;
 
+    pthread_mutex_lock(mutex_procesos_din);
+
     aux_proceso = list_remove(memoria_usuario->tabla_procesos, index);
     aux_hueco->inicio = aux_proceso->inicio;
     aux_hueco->size = aux_proceso->size;
 
     free(aux_proceso);
 
+    pthread_mutex_unlock(mutex_procesos_din);
+
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_huecos);
 
+    pthread_mutex_lock(mutex_huecos);
     while(list_iterator_has_next(iterator)){
         aux_hueco_iterator = list_iterator_next(iterator);
         if(aux_hueco_iterator->inicio < aux_hueco->inicio){
@@ -363,12 +322,14 @@ void remover_proceso_de_tabla_dinamica(int pid){
             break;
         }
     }
+    pthread_mutex_unlock(mutex_huecos);
     consolidar_huecos();
 }
 void consolidar_huecos(){
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_huecos);
     elemento_huecos *aux_iterator, *aux_previous;
 
+    pthread_mutex_lock(mutex_huecos);
     aux_previous = list_iterator_next(iterator);
     while(list_iterator_has_next(iterator)){
         aux_iterator = list_iterator_next(iterator);
@@ -382,6 +343,7 @@ void consolidar_huecos(){
             aux_previous = aux_iterator;
         }
     }
+    pthread_mutex_unlock(mutex_huecos);
     return;
 }
 /// @brief busca el TID en la tabla de particiones fijas y devuelve el index
@@ -390,12 +352,16 @@ void consolidar_huecos(){
 int buscar_en_tabla_fija(int pid){
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_particiones_fijas);
     elemento_particiones_fijas *aux;
+
+    pthread_mutex_lock(mutex_part_fijas);
     while(list_iterator_has_next(iterator)){
         aux = list_iterator_next(iterator);
         if(aux->libre_ocupado == pid){
             return list_iterator_index(iterator);
         }
-    }return -1;
+    }
+    pthread_mutex_unlock(mutex_part_fijas);
+    return -1;
 }
 void inicializar_tabla_particion_fija(t_list *particiones){
     elemento_particiones_fijas * aux = malloc(sizeof(elemento_particiones_fijas));
@@ -433,12 +399,16 @@ void init_tablas_dinamicas(){
 int buscar_en_dinamica(int pid){
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_procesos);
     elemento_procesos *aux;
+
+    pthread_mutex_lock(mutex_procesos_din);
     while(list_iterator_has_next(iterator)){
         aux = list_iterator_next(iterator);
         if(aux->pid == pid){
             return list_iterator_index(iterator);
         }
-    }return -1;
+    }
+    pthread_mutex_unlock(mutex_procesos_din);
+    return -1;
 }
 
 void crear_proceso(t_pcb *pcb) {
@@ -450,6 +420,7 @@ void crear_proceso(t_pcb *pcb) {
             pcb->registro->limite = aux_fija->size;
             
             // Agrego el PCB a la lista global
+            pthread_mutex_lock(mutex_pcb);
             list_add(memoria_usuario->lista_pcb, pcb);
             
             // Agrego TCBs de este PCB a la lista global
@@ -460,6 +431,7 @@ void crear_proceso(t_pcb *pcb) {
                 list_add(memoria_usuario->lista_tcb, tcb_aux_fija);
             }
             list_iterator_destroy(iterator_fija);
+            pthread_mutex_unlock(mutex_pcb);
             break;
         
         case DINAMICAS:
@@ -470,6 +442,7 @@ void crear_proceso(t_pcb *pcb) {
             }
 
             // Agrego PCB a la lista global
+            pthread_mutex_lock(mutex_pcb);
             list_add(memoria_usuario->lista_pcb, pcb);
 
             // Agrego TCBs de este PCB a la lista global
@@ -480,6 +453,7 @@ void crear_proceso(t_pcb *pcb) {
                 list_add(memoria_usuario->lista_tcb, tcb_aux_dinamica);
             }
             list_iterator_destroy(iterator_dinamica);
+            pthread_mutex_unlock(mutex_pcb);
             break;
         
         default:
@@ -493,9 +467,14 @@ void crear_thread(t_tcb *tcb){
     t_pcb *pcb_aux;
     index_pid = buscar_pid(memoria_usuario->lista_pcb, tcb->pid);
 
+    pthread_mutex_lock(mutex_pcb);
+    pthread_mutex_lock(mutex_tcb);
     pcb_aux = list_get(memoria_usuario->lista_pcb, index_pid);
     list_add(pcb_aux->listaTCB, tcb);
     list_add(memoria_usuario->lista_tcb, tcb);
+
+    pthread_mutex_unlock(mutex_pcb);
+    pthread_mutex_unlock(mutex_tcb);
 
 }
 
@@ -508,11 +487,14 @@ void fin_proceso(int pid) {
         case FIJAS:
             elemento_particiones_fijas *aux;
             index_pid = buscar_en_tabla_fija(pid);
+            pthread_mutex_lock(mutex_part_fijas);
             if(index_pid!=(-1)){
                 aux = list_get(memoria_usuario->tabla_particiones_fijas, index_pid);
                 aux->libre_ocupado = 0;
             }
+            pthread_mutex_unlock(mutex_part_fijas);
             index_pid = buscar_pid(memoria_usuario->lista_pcb, pid);
+            pthread_mutex_lock(mutex_pcb);
             pcb_aux = list_get(memoria_usuario->lista_pcb, index_pid);
             
             t_list_iterator *iterator = list_iterator_create(pcb_aux->listaTCB);
@@ -521,10 +503,11 @@ void fin_proceso(int pid) {
                 index_tid = buscar_tid(memoria_usuario->lista_tcb, tcb_aux->tid);
                 tcb_aux = list_remove(memoria_usuario->lista_tcb, index_tid);
             }
-            //mutex?
             pcb_aux = list_remove(memoria_usuario->lista_pcb, index_pid);
-            //mutex?
             list_iterator_destroy(iterator);
+            free(tcb_aux);
+            free(pcb_aux);
+            pthread_mutex_unlock(mutex_pcb);
             break;
             
         case DINAMICAS:
@@ -533,12 +516,16 @@ void fin_proceso(int pid) {
             //remover pcb de lista_pcb
             int index_pcb;
             index_pcb = buscar_pid(memoria_usuario->lista_pcb, pid);
+            
+            pthread_mutex_lock(mutex_pcb);
             t_pcb * pcb = list_remove(memoria_usuario->lista_pcb, index_pcb); // saco el pid de la tabla_pcb
             free(pcb);
+            pthread_mutex_unlock(mutex_pcb);
             //
             //remover tcb's de lista_tcb
             t_list_iterator *iterator_tcb = list_iterator_create(memoria_usuario->lista_tcb);
             t_tcb *aux_tcb;
+            pthread_mutex_lock(mutex_tcb);
             while(list_iterator_has_next(iterator_tcb)){
                 aux_tcb = list_iterator_next(iterator_tcb);
                 if(aux_tcb->pid == pid){
@@ -546,7 +533,7 @@ void fin_proceso(int pid) {
                     free(aux_tcb);
                 }
             }
-            //
+            pthread_mutex_unlock(mutex_tcb);
             list_iterator_destroy(iterator_tcb);
             break;
         
@@ -554,9 +541,6 @@ void fin_proceso(int pid) {
             log_error(logger, "Tipo de memoria no reconocido.");
             break;
     }
-
-    free(tcb_aux);
-    free(pcb_aux);
 }
 
 void fin_thread(int tid){
@@ -566,6 +550,7 @@ void fin_thread(int tid){
     t_pcb *pcb_aux;
     index_tid = buscar_tid(memoria_usuario->lista_tcb, tid);
 
+    pthread_mutex_lock(mutex_tcb);
     tcb_aux = list_get(memoria_usuario->lista_tcb, index_tid);
     pid = tcb_aux->pid;
 
@@ -582,6 +567,7 @@ void fin_thread(int tid){
     }
     list_remove(memoria_usuario->lista_tcb, index_tid);
     free(tcb_aux);
+    pthread_mutex_unlock(mutex_tcb);
 }
 int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu. Si falla, retorna -1
 	if(PC<0){
@@ -596,10 +582,12 @@ int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu.
     int pid;
 
     index_tid = buscar_tid(memoria_usuario->lista_tcb, tid); //consigo tcb
+    
+    pthread_mutex_lock(mutex_tcb);
     tcb_aux = list_get(memoria_usuario->lista_tcb, index_tid);
 
 	instruccion = list_get(tcb_aux->instrucciones, PC);
-
+    pthread_mutex_unlock(mutex_tcb);
 	paquete_send = crear_paquete(OBTENER_INSTRUCCION);
 	agregar_a_paquete(paquete_send, instruccion, sizeof(instruccion));
 	enviar_paquete(paquete_send, socket_cliente_cpu);

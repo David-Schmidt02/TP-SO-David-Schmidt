@@ -3,7 +3,11 @@
 t_log *logger;
 int socket_cliente_cpu; //necesito que sea global para usarlo desde sistema.c
 t_memoria *memoria_usuario;
-t_list *lista_pcb_memoria;
+pthread_mutex_t * mutex_pcb;
+pthread_mutex_t * mutex_tcb;
+pthread_mutex_t * mutex_part_fijas;
+pthread_mutex_t * mutex_huecos;
+pthread_mutex_t * mutex_procesos_din;
 
 int main(int argc, char* argv[]) {
 
@@ -51,6 +55,12 @@ int main(int argc, char* argv[]) {
 
 }
 void inicializar_memoria(particiones tipo_particion, int size, t_list *particiones){
+	mutex_pcb = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(mutex_pcb, NULL);
+
+	mutex_tcb = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(mutex_pcb, NULL);
+
 	memoria_usuario = malloc(sizeof(t_memoria));
 	memoria_usuario->lista_pcb = list_create();
 	memoria_usuario->lista_tcb = list_create();
@@ -69,6 +79,7 @@ void inicializar_memoria(particiones tipo_particion, int size, t_list *particion
 			inicializar_tabla_particion_fija(particiones);
 			break;
 	}
+	log_info(logger, "Memoria inicializada");
 }
 void cargar_lista_particiones(t_list * particiones, char **particiones_array){
 	
@@ -148,6 +159,7 @@ void *peticion_kernel_NEW_PROCESS(void* arg_peticion){
 
 	paquete_list = recibir_paquete(socket);
 	pcb = list_remove(paquete_list, 0);
+
 	crear_proceso(pcb);
 	
 	//notificar resultado a kernel
@@ -172,6 +184,7 @@ void *peticion_kernel_NEW_THREAD(void* arg_peticion){
 	paquete_list = recibir_paquete(socket);
 	tcb = list_remove(paquete_list, 0);
 	pid = (intptr_t)list_remove(paquete_list, 0);
+	
 	crear_thread(tcb);
 	
 	//notificar resultado a kernel
@@ -251,6 +264,7 @@ void *conexion_cpu(void* arg_cpu)
 	uint32_t valor;
 	int PC;
 	int tid;
+	t_paquete *recv;
 	while(true){
 		protocolo_socket cod_op = (protocolo_socket)recibir_operacion(socket_cliente_cpu);
 		sleep(delay); // retardo en peticion / cpu
@@ -258,7 +272,7 @@ void *conexion_cpu(void* arg_cpu)
 		{
 			case CONTEXTO_RECEIVE:
 				// Recibo el paquete y extraigo pid y tid
-				t_list *paquete_recv = recibir_paquete(socket_cliente_cpu);
+				paquete_recv = recibir_paquete(socket_cliente_cpu);
 
 				int pid, tid;
 				if (recibir_pid_tid(paquete_recv, &pid, &tid)) {
@@ -270,14 +284,17 @@ void *conexion_cpu(void* arg_cpu)
 				break;
 			case OBTENER_INSTRUCCION:
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
-				PC = (intptr_t)list_remove(paquete_recv, 0);
-				tid = (intptr_t)list_remove(paquete_recv, 0);
+				recv = list_remove(paquete_recv, 0);
+				PC = (intptr_t)recv->buffer->stream;
+				recv = list_remove(paquete_recv, 0);
+				tid = (intptr_t)recv->buffer->stream;
 				obtener_instruccion(PC, tid);
 				list_destroy(paquete_recv);
 				break;
 			case READ_MEM:
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
-				direccion = (uint32_t)list_remove(paquete_recv, 0);
+				recv = list_remove(paquete_recv, 0);
+				direccion = (uint32_t)recv->buffer->stream;
 				valor = (uint32_t)read_memory(direccion);
 				if(valor != -1){
 					t_paquete *paquete_send = crear_paquete(OK);
@@ -285,7 +302,7 @@ void *conexion_cpu(void* arg_cpu)
 					enviar_paquete(paquete_send, socket_cliente_cpu);
 					eliminar_paquete(paquete_send);
 				}else {
-					t_paquete *paquete_send = crear_paquete(ERROR_MEMORIA);
+					t_paquete *paquete_send = crear_paquete(SEGMENTATION_FAULT);
 					log_error(logger, "Error escribiendo en memoria");
 					enviar_paquete(paquete_send, socket_cliente_cpu);
 					eliminar_paquete(paquete_send);
@@ -293,8 +310,10 @@ void *conexion_cpu(void* arg_cpu)
 				break;
 			case WRITE_MEM:
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
-				direccion = (uint32_t)list_remove(paquete_recv, 0);
-				valor = (uint32_t)list_remove(paquete_recv, 0);
+				recv = list_remove(paquete_recv, 0);
+				direccion = (uint32_t)recv->buffer->stream;
+				recv = list_remove(paquete_recv, 0);
+				valor = (uint32_t)recv->buffer->stream;
 				if(valor != -1){
 					write_memory(direccion, valor);
 					t_paquete *paquete_send = crear_paquete(OK);
