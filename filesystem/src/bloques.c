@@ -86,19 +86,8 @@ void crear_archivo_metadata(uint32_t block_count,  int block_size, char* dir_fil
         log_error(logger, "No se encontró el valor BLOCK_COUNT en el archivo de configuración.");
         exit(EXIT_FAILURE);
     }
-    struct timeval tiempo_actual;
-    gettimeofday(&tiempo_actual, NULL);
-    struct tm *tiempo_local = localtime(&tiempo_actual.tv_sec);
-    char nombre_archivo[30];
-    snprintf(nombre_archivo, sizeof(nombre_archivo), 
-             "%d-%d-%02d:%02d:%02d:%03ld.dmp", 
-             tiempo_local->tm_mday,
-             tiempo_local->tm_mon + 1,
-             tiempo_local->tm_hour,
-             tiempo_local->tm_min,
-             tiempo_local->tm_sec,
-             tiempo_actual.tv_usec / 1000);
 
+    //recibo aca el nombre del archivo
     size_t path_length = strlen(dir_files) + strlen(nombre_archivo) + 2;
     char *path_metadata = malloc(path_length);
     if (path_metadata == NULL) {
