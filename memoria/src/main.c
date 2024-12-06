@@ -187,12 +187,10 @@ void *peticion_kernel_NEW_THREAD(void* arg_peticion){
 	int pid;
 	//atender peticion
 	t_list * paquete_list;
-	t_paquete * paquete_recv;
 	t_paquete * paquete_send;
 
 	paquete_list = recibir_paquete(*socket);
-	paquete_recv = list_remove(paquete_list, 0);
-	memcpy(tcb, paquete_recv, paquete_recv->buffer->size);
+	tcb = list_remove(paquete_list, 0);
 	
 	crear_thread(tcb);
 	
@@ -211,12 +209,11 @@ void *peticion_kernel_END_PROCESS(void* arg_peticion){
 	int pid;
 	//atender peticion
 	t_list * paquete_list;
-	t_paquete * paquete_recv;
 	t_paquete * paquete_send;
 
 	paquete_list = recibir_paquete(*socket);
-	paquete_recv = list_remove(paquete_list, 0);
-	memcpy(&pid, paquete_recv, paquete_recv->buffer->size);
+	pid = list_remove(paquete_list, 0);
+
 	fin_proceso(pid);
 	
 	//notificar resultado a kernel
@@ -234,12 +231,10 @@ void *peticion_kernel_END_THREAD(void* arg_peticion){
 	int tid;
 	//atender peticion
 	t_list * paquete_list;
-	t_paquete * paquete_recv;
 	t_paquete * paquete_send;
 
 	paquete_list = recibir_paquete(*socket);
-	paquete_recv = list_remove(paquete_list, 0);
-	memcpy(&tid, paquete_recv, paquete_recv->buffer->size);
+	tid = list_remove(paquete_list, 0);
 
 	fin_thread(tid);
 	
@@ -261,15 +256,12 @@ void *peticion_kernel_DUMP(void* arg_peticion){
 	protocolo_socket respuesta;
 	//atender peticion
 	t_list * paquete_list;
-	t_paquete * paquete_recv;
 	t_paquete * paquete_send;
 
 	paquete_list = recibir_paquete(*socket);
-	paquete_recv = list_remove(paquete_list, 0);
-	tid = (int) paquete_recv->buffer->stream;
-	paquete_recv = list_remove(paquete_list, 0);
-	pid = (int) paquete_recv->buffer->stream;
-
+	tid = list_remove(paquete_list, 0);
+	pid = list_remove(paquete_list, 0);
+		
 	if(send_dump(pid, tid) == -1){
 		respuesta = ERROR;
 	}else{
