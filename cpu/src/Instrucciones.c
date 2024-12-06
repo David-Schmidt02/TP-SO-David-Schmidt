@@ -56,8 +56,8 @@ void obtener_contexto_de_memoria (RegistroCPU *registro, int pid) {
     t_paquete *msjerror;
     t_list *paquete_respuesta;
     // Crear un paquete de solicitud para obtener el contexto
-    send_handshake = crear_paquete(CONTEXTO_RECEIVE); // le pondria handshake?, como se que recibo?
-    agregar_a_paquete(send_handshake, &pid, sizeof(tid)); // Agregar TID
+    t_paquete *send_handshake = crear_paquete(CONTEXTO_RECEIVE); // le pondria handshake?, como se que recibo?
+    agregar_a_paquete(send_handshake, &tid, sizeof(tid)); // Agregar TID
 
     // Enviar la solicitud para obtener el contexto
     enviar_paquete(send_handshake, conexion_cpu_memoria);
@@ -71,7 +71,7 @@ void obtener_contexto_de_memoria (RegistroCPU *registro, int pid) {
         memcpy(error, msjerror->buffer, sizeof(msjerror->buffer->size));
         log_error(logger, error);
         free(error);
-        agregar_interrupcion(SEGMENTATION_FAULT,1);
+        agregar_interrupcion(SEGMENTATION_FAULT,1, tid);
     }
     paquete_respuesta = recibir_paquete(conexion_cpu_memoria); // Recibir el contexto de ejecución
     if (paquete_respuesta != NULL) 
@@ -107,7 +107,7 @@ void enviar_contexto_de_memoria (RegistroCPU *registro, int pid){
         char *error;
         memcpy(error, msjerror->buffer, sizeof(msjerror->buffer));
         log_error(logger, error);
-        agregar_interrupcion(SEGMENTATION_FAULT,1);
+        agregar_interrupcion(SEGMENTATION_FAULT,1,tid);
     }
     else log_info(logger, "contexto de PID %d enviado correctamente", pid);
     return;
@@ -129,9 +129,7 @@ void fetch(t_pcb *pcb) {
         t_paquete* paquete_request = list_remove(paquete_lista,0);
         char* instruccion;
         memcpy(instruccion, paquete_request->buffer, paquete_request->buffer);
-        if (strcmp(instruccion, "SEGMENTATION FAULT"))
-            // se genera interrupcion
-        // Registro de la acción de fetch en el log
+        
         log_info(logger,"## TID: %d - FETCH ", cpu->PC);
         
         // Llamar a la función decode para procesar la instrucción
@@ -152,6 +150,7 @@ void traducir_direccion(RegistroCPU *cpu, uint32_t dir_logica, uint32_t *dir_fis
 void decode(RegistroCPU *cpu, char *inst) {
     char **texto = string_split(inst," "); //5 porque hay instrucciiones que poseen 4 valores: PROCESS_CREATE(0) PROCESO1(1) 256(2) 1(3), la 5ta es pos NULL. ejemplo: string_split("hola, mundo", ",") => ["hola", " mundo", NULL]
     // Compara el ID de la instrucción y ejecuta la operación correspondiente
+
     if (strcmp(texto[0], "SET") == 0 && texto[1] && texto[2]) 
         // Instrucción SET: Asigna un valor a un registro
             execute(cpu,1,texto); // 1 = SET
@@ -174,18 +173,55 @@ void decode(RegistroCPU *cpu, char *inst) {
 
     else if (strcmp(texto[0], "JNZ") == 0 && texto[1] && texto[2]) 
         // Instrucción JNZ: Salta si el valor de un registro no es cero 
+
             execute(cpu,6,texto); // 6 = JNZ
-     else
+    else if (strcmp(texto[0], "MUTEX_CREATE") == 0 && texto[1] && texto[2]) 
+            execute(cpu,7,texto); // 7 = MUTEX_CREATE
+
+    else if (strcmp(texto[0], "MUTEX_LOCK") == 0 && texto[1] && texto[2]) 
+            execute(cpu,8,texto); // 8 = MUTEX_LOCK
+
+    else if (strcmp(texto[0], "DUMP_MEMORY") == 0 && texto[1] && texto[2]) 
+            execute(cpu,9,texto); // 9 = DUMP_MEMORY
+
+    else if (strcmp(texto[0], "PROCESS_CREATE") == 0 && texto[1] && texto[2]) 
+            execute(cpu,10,texto);// 10 = PROCESS_CREATE
+
+    else if (strcmp(texto[0], "THREAD_CREATE") == 0 && texto[1] && texto[2]) 
+            execute(cpu,11,texto);// 11 = THREAD_CREATE
+
+    else if (strcmp(texto[0], "THREAD_CANCEL") == 0 && texto[1] && texto[2]) 
+            execute(cpu,12,texto);// 12 = THREAD_CANCEL
+
+    else if (strcmp(texto[0], "THREAD_JOIN") == 0 && texto[1] && texto[2]) 
+            execute(cpu,13,texto);// 13 = THREAD_JOIN
+
+    else if (strcmp(texto[0], "THREAD_EXIT") == 0 && texto[1] && texto[2]) 
+            execute(cpu,14,texto);// 14 = THREAD_EXIT
+
+    else if (strcmp(texto[0], "PROCESS_EXIT") == 0 && texto[1] && texto[2]) 
+            execute(cpu,15,texto);// 15 = PROCESS_EXIT
+     else{
         log_info(logger, "Instrucción no reconocida: %s", texto[0]);
-        // interrupcion
+        exit(EXIT_FAILURE);
+     }
+    
+
+
 }
 
 // Función que ejecuta una instrucción
 void execute(RegistroCPU *cpu, int instruccion, char **texto) {
+    uint32_t *reg_destino = NULL;
+    uint32_t *reg_origen = NULL;
+    uint32_t *reg_direccion = NULL;
+    uint32_t *reg_valor = NULL;
+    uint32_t *reg_comparacion = NULL;
+
     switch (instruccion)
     {
         case 1: // SET
-            uint32_t *reg_destino = registro_aux(cpu, texto[1]);
+            reg_destino = registro_aux(cpu, texto[1]);
             if (reg_destino != NULL && texto[2]) 
             {
                 reg_destino = (uint32_t) atoi(texto[2]); // Convierte el valor a entero y lo asigna al registro
@@ -194,8 +230,8 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
                 log_error(logger, "Error en SET: Registro no válido o valor no especificado");
         break;
         case 2: // SUM
-            uint32_t *reg_destino = registro_aux(cpu, texto[1]);    
-            uint32_t *reg_origen = registro_aux(cpu, texto[2]);
+            reg_destino = registro_aux(cpu, texto[1]);    
+            reg_origen = registro_aux(cpu, texto[2]);
     
             if (reg_destino != NULL && reg_origen != NULL) 
             {
@@ -205,8 +241,8 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
                 log_info(logger, "Error: Registro no válido en SUM");
         break;
         case 3: // SUB
-            uint32_t *reg_destino = registro_aux(cpu,texto[1]);    
-            uint32_t *reg_origen = registro_aux(cpu, texto[2]);
+            reg_destino = registro_aux(cpu,texto[1]);    
+            reg_origen = registro_aux(cpu, texto[2]);
 
             if (reg_destino != NULL && reg_origen != NULL)
             {
@@ -217,8 +253,8 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
                 log_info(logger, "Error: Registro no válido en SUB");
         break;
         case 4: // READ MEM
-            uint32_t *reg_destino = registro_aux(cpu, texto[1]); // Registro donde se guardará el valor leído
-            uint32_t *reg_direccion = registro_aux(cpu, texto[2]); // Registro que contiene la dirección lógica
+            reg_destino = registro_aux(cpu, texto[1]); // Registro donde se guardará el valor leído
+            reg_direccion = registro_aux(cpu, texto[2]); // Registro que contiene la dirección lógica
             if (reg_destino != NULL && reg_direccion != NULL) 
             {
                 uint32_t direccion_fisica = 0;
@@ -235,37 +271,40 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
                 *reg_destino = (uint32_t) recv->buffer->stream;
                 list_destroy(paquete_recv);
                 eliminar_paquete(recv);
+            }    
                 else 
-                log_info(logger, "Error: Registro no válido en READ_MEM");
+                    log_info(logger, "Error: Registro no válido en READ_MEM");
         break;
         case 5: // WRITE MEM
-            uint32_t *reg_direccion = registro_aux(cpu, texto[1]); // Dirección lógica
-            uint32_t *reg_valor = registro_aux(cpu, texto[2]); // Registro con el valor a escribir
+            reg_direccion = registro_aux(cpu, texto[1]); // Dirección lógica
+            reg_valor = registro_aux(cpu, texto[2]); // Registro con el valor a escribir
             if (reg_direccion != NULL && reg_valor != NULL) {
-                uint32_t direccion_fisica = 0;
-                traducir_direccion(cpu, *reg_direccion, &direccion_fisica); // Traduce la dirección lógica a física
-                send_handshake = crear_paquete(WRITE_MEM);
-                agregar_a_paquete(send_handshake,reg_direccion,sizeof(uint32_t));
-                agregar_a_paquete(send_handshake,reg_valor,sizeof(uint32_t));
-                enviar_paquete(send_handshake,conexion_cpu_memoria);
-                eliminar_paquete(send_handshake);
-                log_info(logger, "## ESCRIBIR MEMORIA - Dirección Física: %u, Valor: %u", direccion_fisica, *reg_valor);
-                protocolo_socket cod_op;
-                cod_op = recibir_operacion(conexion_cpu_memoria);
-                switch (cod_op)
-                {
-                case OK:
-                    log_info(logger, "## Operación recibida: %s", cod_op_a_string(cod_op));
-                    break;
-                case SEGMENTATION_FAULT:
-                    manejar_segmentation_fault(cpu);
-                break;
-
-            } else 
-                log_info(logger,"Error: Registro no válido en WRITE_MEM");
+                    uint32_t direccion_fisica = 0;
+                    traducir_direccion(cpu, *reg_direccion, &direccion_fisica); // Traduce la dirección lógica a física
+                    send_handshake = crear_paquete(WRITE_MEM);
+                    agregar_a_paquete(send_handshake,reg_direccion,sizeof(uint32_t));
+                    agregar_a_paquete(send_handshake,reg_valor,sizeof(uint32_t));
+                    enviar_paquete(send_handshake,conexion_cpu_memoria);
+                    eliminar_paquete(send_handshake);
+                    log_info(logger, "## ESCRIBIR MEMORIA - Dirección Física: %u, Valor: %u", direccion_fisica, *reg_valor);
+                    protocolo_socket cod_op;
+                    cod_op = recibir_operacion(conexion_cpu_memoria);
+                    switch (cod_op)
+                    {
+                        case OK:
+                            log_info(logger, "## Operación recibida: %s", cod_op_a_string(cod_op));
+                        break;
+                        case SEGMENTATION_FAULT:
+                            manejar_segmentation_fault(cpu);
+                        break;
+                        default:
+                            log_info(logger,"Error: Registro no válido en WRITE_MEM");
+                        break;
+                    }
+                }
         break;
         case 6: // JNZ
-            uint32_t *reg_comparacion = registro_aux(cpu, texto[1]); // Registro a comparar con 0
+            reg_comparacion = registro_aux(cpu, texto[1]); // Registro a comparar con 0
             if (reg_comparacion != NULL && *reg_comparacion != 0) {
                 cpu->PC = (uint32_t) atoi(texto[2]); // Actualiza el PC, que se supone que es entero el valor del PC
                 log_info(logger, "## JNZ - Salto a la Instrucción: %u", cpu->PC);
@@ -274,11 +313,116 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
             else 
                 log_info(logger, "## JNZ - No se realiza salto porque el valor es 0");
         break;
-    default:
+
+        case 7: // MUTEX_CREATE
+            send_handshake = crear_paquete(MUTEX_CREATE);
+            agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
+            agregar_a_paquete(send_handshake,texto[1],sizeof(char**));
+            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            eliminar_paquete(send_handshake);
+            /*
+            nombre archivo texto[1]
+            cod_op
+            */
+        break;
+
+        case 8: // MUTEX_LOCK
+            send_handshake = crear_paquete(MUTEX_LOCK);
+            agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
+            agregar_a_paquete(send_handshake,texto[1],sizeof(char**));
+            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            eliminar_paquete(send_handshake);
+            /*
+            nombre archivo texto[1]
+            cod_op
+            */
+        break;
+
+        case 9: // DUMP_MEMORY
+            send_handshake = crear_paquete(DUMP_MEMORY);
+            agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
+            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            eliminar_paquete(send_handshake);
+        break;
+
+        case 10: // PROCESS_CREATE
+            send_handshake = crear_paquete(PROCESS_CREATE);
+            agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
+            agregar_a_paquete(send_handshake,texto[1],sizeof(char**));
+            agregar_a_paquete(send_handshake,texto[2],sizeof(char**));
+            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            eliminar_paquete(send_handshake);
+            /*
+            cod_op
+            nombre archivo texto[1]
+            prioridad texto[2]
+            */
+        break;
+
+        case 11: // THREAD_CREATE
+            send_handshake = crear_paquete(THREAD_CREATE);
+            agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
+            agregar_a_paquete(send_handshake,texto[1],sizeof(char**));
+            agregar_a_paquete(send_handshake,texto[2],sizeof(char**));
+            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            eliminar_paquete(send_handshake);
+            /*
+            cod_op
+            nombre archivo texto[1]
+            prioridad texto[2]
+            */        
+        break;
+        case 12: // THREAD_CANCEL
+            send_handshake = crear_paquete(THREAD_CANCEL);
+            agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
+            agregar_a_paquete(send_handshake,texto[1],sizeof(char**));
+            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            eliminar_paquete(send_handshake);
+            /*
+            cod_op
+            tid texto[1]
+            */  
+            
+        break;
+
+        case 13: // THREAD_JOIN
+            send_handshake = crear_paquete(THREAD_JOIN);
+            agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
+            agregar_a_paquete(send_handshake,texto[1],sizeof(char**));
+            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            eliminar_paquete(send_handshake);
+            /*
+            cod_op
+            tid texto[1]
+            */ 
+        break;
+
+        case 14: // THREAD_EXIT
+            send_handshake = crear_paquete(THREAD_EXIT);
+            agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
+            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            eliminar_paquete(send_handshake);
+            /*
+            cod_op
+            */ 
+            
+        break;
+
+        case 15: // PROCESS_EXIT
+            send_handshake = crear_paquete(PROCESS_EXIT);
+            agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
+            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            eliminar_paquete(send_handshake);
+            /*
+            cod_op
+            */
+        break;
+        default:
             log_info(logger, "Error: Instrucción no reconocida");
         break;
     }
     cpu->PC++; // Incrementar el contador de programa
+    checkInterrupt(cpu);
 }
 
 uint32_t* registro_aux(RegistroCPU *cpu, char* reg) {
@@ -302,33 +446,31 @@ uint32_t* registro_aux(RegistroCPU *cpu, char* reg) {
     
 }
 void checkInterrupt(RegistroCPU *cpu) { //el checkInterrupt se corre siempre -> interrupcion -> tipo 
-    while (1){
-        sem_wait(sem_lista_interrupciones);
 
-        t_interrupcion* interrupcion_actual = obtener_interrupcion_mayor_prioridad();
 
-        switch (interrupcion_actual->tipo) {
-            case FIN_QUANTUM:
-                log_info(logger, "## Interrupción FIN_QUANTUM recibida desde Kernel");
-                manejar_fin_quantum(cpu);        
-                break;
-            case THREAD_JOIN_OP:
-                log_info(logger, "## Interrupción THREAD_JOIN_OP recibida desde Kernel");
-                manejar_thread_join(cpu);  
-                break;
-            case SEGMENTATION_FAULT:
-                log_info(logger, "## Interrupción SEGMENTATION_FAULT recibida desde Kernel");
-                manejar_segmentation_fault(cpu);
-                
-            default:
+    t_interrupcion* interrupcion_actual = obtener_interrupcion_mayor_prioridad();
+    if (interrupcion_actual == NULL)
+        return;
+    switch (interrupcion_actual->tipo) {
+        case FIN_QUANTUM:
+            log_info(logger, "## Interrupción FIN_QUANTUM recibida desde Kernel");
+            manejar_fin_quantum(cpu);        
+            break;
+        case THREAD_JOIN_OP:
+            log_info(logger, "## Interrupción THREAD_JOIN_OP recibida desde Kernel");
+            manejar_thread_join(cpu);  
+            break;
+        case SEGMENTATION_FAULT:
+            log_info(logger, "## Interrupción SEGMENTATION_FAULT recibida desde Kernel");
+            manejar_segmentation_fault(cpu);    
+        default:
                 exit(EXIT_FAILURE);
            break;
         }
-
         // Verificar si la CPU generó alguna interrupción (ej: Segmentation Fault)
         
-    }
 }
+
 
 int cpu_genero_interrupcion(RegistroCPU *cpu) {
     // Verificar si se produjo un segmentation fault
@@ -501,7 +643,7 @@ t_interrupcion* obtener_interrupcion_mayor_prioridad() {
     }
     
     // Una vez que encontramos la interrupción con mayor prioridad, la eliminamos de la lista
-        list_remove_and_destroy_element(lista_interrupciones, indice_mayor_prioridad, (void*) liberar_interrupcion());
+        list_remove_and_destroy_element(lista_interrupciones, indice_mayor_prioridad, (void) liberar_interrupcion());
 
 
     return interrupcion_mayor_prioridad;
@@ -509,7 +651,6 @@ t_interrupcion* obtener_interrupcion_mayor_prioridad() {
 
 void liberar_interrupcion(t_interrupcion* interrupcion) {
     if (interrupcion != NULL) {
-        free(interrupcion->tipo);  // Liberamos la cadena duplicada con strdup
         free(interrupcion);  // Liberamos la estructura
     }
 }
@@ -569,14 +710,14 @@ void manejar_finalizacion(cpu){
     notificar_kernel_interrupcion(pid, tid, FINALIZACION);
 
 }
-void manejar_segmentation_fault(RegistroCPU *cpu);
+void manejar_segmentation_fault(RegistroCPU *cpu){
     enviar_contexto_de_memoria(cpu, pid);
 
  // Notificar al Kernel del error crítico
     notificar_kernel_interrupcion(pid, tid, SEGMENTATION_FAULT);
     
     detener_ejecucion();
-
+}
 void detener_ejecucion(){
-
+    pid = 0;
 }

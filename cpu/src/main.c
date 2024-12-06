@@ -6,6 +6,7 @@ int conexion_cpu_memoria;
 int pid;
 int tid;
 t_pcb *pcb;
+bool flag = true;
 
 int tid_actual;
 
@@ -44,7 +45,9 @@ int main(int argc, char* argv[]) {
 	//conexiones
 	inicializar_cpu_contexto(cpu);
 	inicializar_lista_interrupciones();
-	fetch(pcb);
+
+	while(flag)
+		fetch(pcb);
     //espero fin conexiones
 	
 	
@@ -109,6 +112,8 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 	t_paquete *handshake_send;
 	t_list *handshake_recv;
 	char * handshake_texto = "handshake";
+	t_list *paquete;
+	int tid;
 	
 	int server = iniciar_servidor(args->puerto);
 	log_info(logger, "Servidor listo para recibir al cliente Kernel");
@@ -131,13 +136,12 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 					enviar_paquete(handshake_send, socket_cliente_kernel);
 					break;
 				case FIN_QUANTUM:
-					t_list *paquete = recibir_paquete(socket_cliente_kernel);
-					int tid = *(int *)list_remove(paquete, 0);
+					paquete = recibir_paquete(socket_cliente_kernel);
+					tid = *(int *)list_remove(paquete, 0);
 					list_destroy_and_destroy_elements(paquete, free);
 					agregar_interrupcion(FIN_QUANTUM, 3, tid);
 					log_info(logger, "Se recibió interrupción FIN_QUANTUM");
 					break;
-
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
 					return (void *)EXIT_FAILURE;
@@ -160,6 +164,9 @@ void *cliente_conexion_memoria(void * arg_memoria){
 	char *valor = "conexion cpu";
 	protocolo_socket op;
 	int flag=1;
+	t_list *paquete;
+	int tid;
+	int pid;
 	do
 	{
 		conexion_cpu_memoria = crear_conexion(args->ip, args->puerto);
@@ -167,24 +174,26 @@ void *cliente_conexion_memoria(void * arg_memoria){
 
 	}while(conexion_cpu_memoria == -1);
 	
+	/*
 	send_handshake = crear_paquete(HANDSHAKE);
 	agregar_a_paquete (send_handshake, valor , strlen(valor)+1); 
 	
-	while(flag){
+	 while(flag){
 		enviar_paquete(send_handshake, conexion_cpu_memoria);
 		sleep(1);
 		op = recibir_operacion(conexion_cpu_memoria);
+		
 		switch (op){
 			case HANDSHAKE:
 				log_info(logger, "recibi handshake de memoria");
 				break;
-			case INSTRUCCIONES: {
+			case INSTRUCCIONES: 
 						log_info(logger, "Instrucción recibida de memoria");
 
 						// Recibir el TID, PID y la instrucción
 						t_list *paquete = recibir_paquete(conexion_cpu_memoria);
-						int tid = *(int *)list_remove(paquete, 0);
-						int pid = *(int *)list_remove(paquete, 0);
+						tid = *(int *)list_remove(paquete, 0);
+						pid = *(int *)list_remove(paquete, 0);
 						char *instruccion = (char *)list_remove(paquete, 0);
 						list_destroy_and_destroy_elements(paquete, free);
 
@@ -194,27 +203,22 @@ void *cliente_conexion_memoria(void * arg_memoria){
 						// Enviar el contexto actualizado a memoria
 						enviar_contexto_de_memoria(&cpu, pid);
 
-						// Notificar si hubo interrupciones generadas
-						if (cpu_genero_interrupcion(&cpu)) {//basicamente pregunta si hubo segmentation fault
-							log_warning(logger, "Notificando interrupción generada memoria");
-							notificar_kernel_interrupcion(pid, tid); //ponele que sea cod_op mem dump. Solo le mandaria el contexto de ejecion nomas. 
-						}
 						break;
 			case TERMINATE:
 				flag = 0;
 				break;
+
 			case THREAD_JOIN_OP:
-					t_list *paquete = recibir_paquete(socket_cliente_kernel);
-					int tid = *(int *)list_remove(paquete, 0);
+					paquete = recibir_paquete(conexion_cpu_memoria);
+					tid = *(int *)list_remove(paquete, 0);
 					list_destroy_and_destroy_elements(paquete, free);
 					agregar_interrupcion(THREAD_JOIN_OP, 2, tid);
 					log_info(logger, "Se recibió interrupción THREAD_JOIN_OP");
 
 					break;
-
 				case IO_SYSCALL:
-					t_list *paquete = recibir_paquete(socket_cliente_kernel);
-					int tid = *(int *)list_remove(paquete, 0);
+					paquete = recibir_paquete(conexion_cpu_memoria);
+					tid = *(int *)list_remove(paquete, 0);
 					list_destroy_and_destroy_elements(paquete, free);
 					agregar_interrupcion(IO_SYSCALL, 2, tid);
 					log_info(logger, "Se recibió syscall de tipo IO");
@@ -227,6 +231,6 @@ void *cliente_conexion_memoria(void * arg_memoria){
 		eliminar_paquete(send_handshake);
 		liberar_conexion(conexion_cpu_memoria);
 		return (void *)EXIT_SUCCESS;
-	}
+	}*/
 }
 
