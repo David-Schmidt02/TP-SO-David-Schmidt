@@ -12,7 +12,7 @@ typedef struct {
 // Función auxiliar para obtener el puntero a un registro 
 uint32_t* registro_aux(RegistroCPU *cpu, char *reg);
 
-void enviar_contexto_de_memoria (RegistroCPU *registro, int pid);
+void enviar_contexto_de_memoria(RegistroCPU *registro, int pid);
 void obtener_contexto_de_memoria (RegistroCPU *registro, int pid);
 
 void fetch(t_pcb *pcb);
@@ -22,7 +22,7 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto);
 
 void checkInterrupt(RegistroCPU *cpu);
 int recibir_interrupcion();
-notificar_kernel_interrupcion(int pid, int tid, protocolo_socket cod_op);
+void notificar_kernel_interrupcion(int pid, int tid, protocolo_socket cod_op);
 void agregar_interrupcion(protocolo_socket tipo, int prioridad,int tid);
 t_interrupcion* obtener_interrupcion_mayor_prioridad();
 void liberar_interrupcion(t_interrupcion* interrupcion);
@@ -32,7 +32,7 @@ void inicializar_lista_interrupciones();
 
 
 void manejar_segmentation_fault(RegistroCPU *cpu);
-void manejar_finalizacion(cpu);
+void manejar_finalizacion(RegistroCPU* cpu);
 void manejar_fin_quantum(RegistroCPU *cpu);
 void manejar_io_syscall(RegistroCPU *cpu);
 void manejar_thread_join(RegistroCPU *cpu);

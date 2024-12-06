@@ -7,7 +7,7 @@ extern int conexion_cpu_interrupt;
 extern int pid;
 extern int tid;
 extern int tid_actual;
-RegistroCPU *cpu;
+extern RegistroCPU *cpu;
 t_paquete *send_handshake;
 t_paquete *paquete_respuesta;
 
@@ -18,6 +18,7 @@ extern pthread_mutex_t *mutex_lista_interrupciones;
 //
 
 void inicializar_cpu_contexto(RegistroCPU *cpu) {
+    cpu = malloc(sizeof(RegistroCPU));
     cpu->AX = 0;
     cpu->BX = 0;
     cpu->CX = 0;
@@ -92,49 +93,46 @@ void obtener_contexto_de_memoria (RegistroCPU *registro, int pid) {
 
     log_info(logger, "## PID: %d - Solicito Contexto Ejecución", pid); 
 }
-void enviar_contexto_de_memoria (RegistroCPU *registro, int pid){
-    t_paquete *msjerror;
-    t_list *paquete_respuesta;
-    t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
-    agregar_a_paquete(paquete_send, registro, sizeof(registro));
-    agregar_a_paquete(paquete_send, pid, sizeof(pid));
-    enviar_paquete(paquete_send, conexion_cpu_memoria);
-    eliminar_paquete(paquete_send);
 
-    if (recibir_operacion(conexion_cpu_memoria)==ERROR_MEMORIA){
-        paquete_respuesta = recibir_paquete(conexion_cpu_memoria);
-        msjerror = list_remove(paquete_respuesta, 0);
-        char *error;
-        memcpy(error, msjerror->buffer, sizeof(msjerror->buffer));
-        log_error(logger, error);
-        agregar_interrupcion(SEGMENTATION_FAULT,1,tid);
-    }
-    else log_info(logger, "contexto de PID %d enviado correctamente", pid);
-    return;
-
-}
 
 
 // Función para obtener la próxima instrucción
 void fetch(t_pcb *pcb) {
         // Obtención de la instrucción correspondiente al Program Counter
+        
         send_handshake = crear_paquete(OBTENER_INSTRUCCION); 
-        agregar_a_paquete(send_handshake, &pid, sizeof(pid));
-        agregar_a_paquete(send_handshake, &tid, sizeof(tid)); 
-        agregar_a_paquete(send_handshake, &cpu->PC , sizeof(cpu->PC)); 
+        agregar_a_paquete(send_handshake, &pcb->pid, sizeof(pid));
+        agregar_a_paquete(send_handshake, &pcb->listaTCB, sizeof(pcb->listaTCB)); 
+        agregar_a_paquete(send_handshake, &pcb->pc , sizeof(uint32_t)); 
 
         enviar_paquete(send_handshake, conexion_cpu_memoria);
         eliminar_paquete(send_handshake); // elimina el paquete después de enviarlo
         t_list *paquete_lista = recibir_paquete(conexion_cpu_memoria);
-        t_paquete* paquete_request = list_remove(paquete_lista,0);
-        char* instruccion;
-        memcpy(instruccion, paquete_request->buffer, paquete_request->buffer);
+        
+        if (paquete_lista == NULL || list_is_empty(paquete_lista)) {
+            log_error(logger, "No se recibió ningún paquete o la lista está vacía");
+            return;
+        }
+
+        t_paquete *paquete_request = list_remove(paquete_lista,0);
+        if (paquete_request == NULL || paquete_request->buffer == NULL || paquete_request->buffer->stream == NULL) {
+            log_error(logger, "Paquete recibido no válido");
+            return;
+        }
+        
+        char *instruccion = malloc(paquete_request->buffer->size + 1);
+        if (instruccion == NULL) {
+            log_error(logger, "No se pudo asignar memoria para la instrucción");
+            return;
+        }
+        memcpy(instruccion, paquete_request->buffer->stream, paquete_request->buffer->size);
+        instruccion[paquete_request->buffer->size] = '\0'; // indico el final de la cadena
         
         log_info(logger,"## TID: %d - FETCH ", cpu->PC);
         
         // Llamar a la función decode para procesar la instrucción
         decode(cpu, instruccion);
-   
+        free(instruccion);
 }
 
 // Función para traducir direcciones lógicas a físicas
@@ -175,31 +173,31 @@ void decode(RegistroCPU *cpu, char *inst) {
         // Instrucción JNZ: Salta si el valor de un registro no es cero 
 
             execute(cpu,6,texto); // 6 = JNZ
-    else if (strcmp(texto[0], "MUTEX_CREATE") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "MUTEX_CREATE_OP") == 0 && texto[1] && texto[2]) 
             execute(cpu,7,texto); // 7 = MUTEX_CREATE
 
-    else if (strcmp(texto[0], "MUTEX_LOCK") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "MUTEX_LOCK_OP") == 0 && texto[1] && texto[2]) 
             execute(cpu,8,texto); // 8 = MUTEX_LOCK
 
-    else if (strcmp(texto[0], "DUMP_MEMORY") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "DUMP_MEMORY_OP") == 0 && texto[1] && texto[2]) 
             execute(cpu,9,texto); // 9 = DUMP_MEMORY
 
-    else if (strcmp(texto[0], "PROCESS_CREATE") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "PROCESS_CREATE_OP") == 0 && texto[1] && texto[2]) 
             execute(cpu,10,texto);// 10 = PROCESS_CREATE
 
-    else if (strcmp(texto[0], "THREAD_CREATE") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "THREAD_CREATE_OP") == 0 && texto[1] && texto[2]) 
             execute(cpu,11,texto);// 11 = THREAD_CREATE
 
-    else if (strcmp(texto[0], "THREAD_CANCEL") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "THREAD_CANCEL_OP") == 0 && texto[1] && texto[2]) 
             execute(cpu,12,texto);// 12 = THREAD_CANCEL
 
-    else if (strcmp(texto[0], "THREAD_JOIN") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "THREAD_JOIN_OP") == 0 && texto[1] && texto[2]) 
             execute(cpu,13,texto);// 13 = THREAD_JOIN
 
-    else if (strcmp(texto[0], "THREAD_EXIT") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "THREAD_EXIT_OP") == 0 && texto[1] && texto[2]) 
             execute(cpu,14,texto);// 14 = THREAD_EXIT
 
-    else if (strcmp(texto[0], "PROCESS_EXIT") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "PROCESS_EXIT_OP") == 0 && texto[1] && texto[2]) 
             execute(cpu,15,texto);// 15 = PROCESS_EXIT
      else{
         log_info(logger, "Instrucción no reconocida: %s", texto[0]);
@@ -224,7 +222,7 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
             reg_destino = registro_aux(cpu, texto[1]);
             if (reg_destino != NULL && texto[2]) 
             {
-                reg_destino = (uint32_t) atoi(texto[2]); // Convierte el valor a entero y lo asigna al registro
+                *reg_destino = (uint32_t) atoi(texto[2]); // Convierte el valor a entero y lo asigna al registro
                 log_info(logger, "## Ejecutando: SET - Reg: %s, Valor: %u", texto[1], *reg_destino);
             } else 
                 log_error(logger, "Error en SET: Registro no válido o valor no especificado");
@@ -268,7 +266,7 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
                 eliminar_paquete(send_handshake);
                 t_list* paquete_recv = recibir_paquete(conexion_cpu_memoria);
                 t_paquete* recv = list_remove(paquete_recv,0);
-                *reg_destino = (uint32_t) recv->buffer->stream;
+                *reg_destino = *((uint32_t *) recv->buffer->stream);
                 list_destroy(paquete_recv);
                 eliminar_paquete(recv);
             }    
@@ -292,7 +290,7 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
                     switch (cod_op)
                     {
                         case OK:
-                            log_info(logger, "## Operación recibida: %s", cod_op_a_string(cod_op));
+                            log_info(logger, "## Operación recibida:OK!");
                         break;
                         case SEGMENTATION_FAULT:
                             manejar_segmentation_fault(cpu);
@@ -315,10 +313,10 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
         break;
 
         case 7: // MUTEX_CREATE
-            send_handshake = crear_paquete(MUTEX_CREATE);
+            send_handshake = crear_paquete(MUTEX_CREATE_OP);
             agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
             agregar_a_paquete(send_handshake,texto[1],sizeof(char**));
-            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            enviar_paquete(send_handshake,conexion_cpu_interrupt);
             eliminar_paquete(send_handshake);
             /*
             nombre archivo texto[1]
@@ -327,10 +325,10 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
         break;
 
         case 8: // MUTEX_LOCK
-            send_handshake = crear_paquete(MUTEX_LOCK);
+            send_handshake = crear_paquete(MUTEX_LOCK_OP);
             agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
             agregar_a_paquete(send_handshake,texto[1],sizeof(char**));
-            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            enviar_paquete(send_handshake,conexion_cpu_interrupt);
             eliminar_paquete(send_handshake);
             /*
             nombre archivo texto[1]
@@ -339,18 +337,18 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
         break;
 
         case 9: // DUMP_MEMORY
-            send_handshake = crear_paquete(DUMP_MEMORY);
+            send_handshake = crear_paquete(DUMP_MEMORY_OP);
             agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
-            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            enviar_paquete(send_handshake,conexion_cpu_interrupt);
             eliminar_paquete(send_handshake);
         break;
 
         case 10: // PROCESS_CREATE
-            send_handshake = crear_paquete(PROCESS_CREATE);
+            send_handshake = crear_paquete(PROCESS_CREATE_OP);
             agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
             agregar_a_paquete(send_handshake,texto[1],sizeof(char**));
             agregar_a_paquete(send_handshake,texto[2],sizeof(char**));
-            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            enviar_paquete(send_handshake,conexion_cpu_interrupt);
             eliminar_paquete(send_handshake);
             /*
             cod_op
@@ -360,11 +358,11 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
         break;
 
         case 11: // THREAD_CREATE
-            send_handshake = crear_paquete(THREAD_CREATE);
+            send_handshake = crear_paquete(THREAD_CREATE_OP);
             agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
             agregar_a_paquete(send_handshake,texto[1],sizeof(char**));
             agregar_a_paquete(send_handshake,texto[2],sizeof(char**));
-            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            enviar_paquete(send_handshake,conexion_cpu_interrupt);
             eliminar_paquete(send_handshake);
             /*
             cod_op
@@ -373,10 +371,10 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
             */        
         break;
         case 12: // THREAD_CANCEL
-            send_handshake = crear_paquete(THREAD_CANCEL);
+            send_handshake = crear_paquete(THREAD_CANCEL_OP);
             agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
             agregar_a_paquete(send_handshake,texto[1],sizeof(char**));
-            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            enviar_paquete(send_handshake,conexion_cpu_interrupt);
             eliminar_paquete(send_handshake);
             /*
             cod_op
@@ -386,10 +384,10 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
         break;
 
         case 13: // THREAD_JOIN
-            send_handshake = crear_paquete(THREAD_JOIN);
+            send_handshake = crear_paquete(THREAD_JOIN_OP);
             agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
             agregar_a_paquete(send_handshake,texto[1],sizeof(char**));
-            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            enviar_paquete(send_handshake,conexion_cpu_interrupt);
             eliminar_paquete(send_handshake);
             /*
             cod_op
@@ -398,9 +396,9 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
         break;
 
         case 14: // THREAD_EXIT
-            send_handshake = crear_paquete(THREAD_EXIT);
+            send_handshake = crear_paquete(THREAD_EXIT_OP);
             agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
-            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            enviar_paquete(send_handshake,conexion_cpu_interrupt);
             eliminar_paquete(send_handshake);
             /*
             cod_op
@@ -409,9 +407,9 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
         break;
 
         case 15: // PROCESS_EXIT
-            send_handshake = crear_paquete(PROCESS_EXIT);
+            send_handshake = crear_paquete(PROCESS_EXIT_OP);
             agregar_a_paquete(send_handshake,texto[0],sizeof(char**));
-            enviar_paquete(send_handshake,conexion_kernel_interrupt);
+            enviar_paquete(send_handshake,conexion_cpu_interrupt);
             eliminar_paquete(send_handshake);
             /*
             cod_op
@@ -423,6 +421,7 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
     }
     cpu->PC++; // Incrementar el contador de programa
     checkInterrupt(cpu);
+    free(cpu);
 }
 
 uint32_t* registro_aux(RegistroCPU *cpu, char* reg) {
@@ -472,24 +471,7 @@ void checkInterrupt(RegistroCPU *cpu) { //el checkInterrupt se corre siempre -> 
 }
 
 
-int cpu_genero_interrupcion(RegistroCPU *cpu) {
-    // Verificar si se produjo un segmentation fault
-    if (cpu->PC >= cpu->limite) {
-        log_error(logger, "Segmentation Fault: PC (%d) fuera de los límites permitidos (%d)", cpu->PC, cpu->limite);
-        return 1; // Retorna 1 indicando que se generó una interrupción crítica
-    }
-
-    // Verificar si se ejecutó una instrucción no válida
-    if (cpu->base == 0 || cpu->limite == 0) { // CPU sin inicializar correctamente
-        log_error(logger, "Error crítico: Contexto de CPU no inicializado correctamente (base: %d, límite: %d)", cpu->base, cpu->limite);
-        return 1; // Indica interrupción crítica
-    }
-
-    // Si no se detectaron interrupciones críticas, retorna 0
-    return 0;
-}
-
-void enviar_contexto_de_memoria(RegistroCPU *registro, int pid) {
+/*void enviar_contexto_de_memoria(RegistroCPU *registro, int pid) {
     t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
     
     // Agregar los registros de la CPU al paquete para enviarlos a la memoria
@@ -509,6 +491,77 @@ void enviar_contexto_de_memoria(RegistroCPU *registro, int pid) {
 
     eliminar_paquete(paquete_respuesta);  // Limpiar paquete de respuesta
 }
+void enviar_contexto_de_memoria (RegistroCPU *registro, int pid){
+    t_paquete *msjerror;
+    t_list *paquete_respuesta;
+    t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
+    agregar_a_paquete(paquete_send, registro, sizeof(registro));
+    agregar_a_paquete(paquete_send, pid, sizeof(pid));
+    enviar_paquete(paquete_send, conexion_cpu_memoria);
+    eliminar_paquete(paquete_send);
+
+    if (recibir_operacion(conexion_cpu_memoria)==ERROR_MEMORIA){
+        paquete_respuesta = recibir_paquete(conexion_cpu_memoria);
+        msjerror = list_remove(paquete_respuesta, 0);
+        char *error;
+        memcpy(error, msjerror->buffer, sizeof(msjerror->buffer));
+        log_error(logger, error);
+        agregar_interrupcion(SEGMENTATION_FAULT,1,tid);
+    }
+    else log_info(logger, "contexto de PID %d enviado correctamente", pid);
+    return;
+
+}*/
+
+void enviar_contexto_de_memoria(RegistroCPU *registro, int pid) {
+    // Crear el paquete a enviar
+    t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
+
+    // Agregar los registros de la CPU al paquete
+    agregar_a_paquete(paquete_send, registro, sizeof(RegistroCPU));
+    agregar_a_paquete(paquete_send, &pid, sizeof(int));
+
+    // Enviar el paquete a la memoria
+    enviar_paquete(paquete_send, conexion_cpu_memoria);
+    eliminar_paquete(paquete_send); // Liberar el paquete enviado
+
+    // Verificar si hubo algún error en la operación
+    int operacion = recibir_operacion(conexion_cpu_memoria);
+    if (operacion == ERROR_MEMORIA) {
+        log_error(logger, "Error crítico: Memoria respondió con un error.");
+        agregar_interrupcion(SEGMENTATION_FAULT, 1,tid);
+        return; // Detener el flujo si ocurre un error crítico
+    }
+
+    // Recibir la respuesta de memoria (paquete del tipo t_list)
+    protocolo_socket respuesta = recibir_operacion(conexion_cpu_memoria);
+    t_list *paquete_respuesta = recibir_paquete(conexion_cpu_memoria);
+
+
+    // Validar que el paquete contenga datos y extraerlos
+    if (paquete_respuesta != NULL && !list_is_empty(paquete_respuesta)) {
+            switch (respuesta){
+                case OK:
+                    log_info(logger, "Contexto de PID %d enviado correctamente a Memoria", pid);
+                    break;
+                case SEGMENTATION_FAULT:
+                    log_error(logger, "Segmentation Fault recibido desde Memoria.");
+                    agregar_interrupcion(SEGMENTATION_FAULT, 1,tid);
+                break;      
+            
+                default:  // Caso de respuesta inesperada
+                    log_warning(logger, "Respuesta inesperada de Memoria!");
+            }
+        }
+     else {
+        log_error(logger, "Error: No se recibió una respuesta válida desde Memoria.");
+        agregar_interrupcion(SEGMENTATION_FAULT, 1,tid);
+    }
+
+    // Liberar la memoria usada por la lista de respuesta
+    list_destroy_and_destroy_elements(paquete_respuesta, free);
+}
+
 
 void notificar_kernel_interrupcion(int pid, int tid, protocolo_socket cod_op) {
     t_paquete *paquete_notify = crear_paquete(cod_op);
@@ -523,13 +576,13 @@ void notificar_kernel_interrupcion(int pid, int tid, protocolo_socket cod_op) {
 
     log_info(logger, "Notificación enviada al Kernel por la interrupción del PID %d, TID %d", pid, tid);
 
-    // Esperamos una confirmación de que el Kernel recibió la interrupción
+    /* Esperamos una confirmación de que el Kernel recibió la interrupción
     t_paquete *paquete_respuesta = recibir_paquete(conexion_cpu_interrupt);
     if (paquete_respuesta != NULL && strcmp(paquete_respuesta->buffer, "OK") == 0) {
         log_info(logger, "Kernel reconoció la interrupción para PID %d, TID %d", pid, tid);
     } else 
         log_error(logger, "Error al notificar al Kernel sobre la interrupción de PID %d, TID %d", pid, tid);
-    
+    */
     eliminar_paquete(paquete_respuesta);  // Limpiar el paquete de respuesta
 }
 
@@ -643,7 +696,7 @@ t_interrupcion* obtener_interrupcion_mayor_prioridad() {
     }
     
     // Una vez que encontramos la interrupción con mayor prioridad, la eliminamos de la lista
-        list_remove_and_destroy_element(lista_interrupciones, indice_mayor_prioridad, (void) liberar_interrupcion());
+        list_remove_and_destroy_element(lista_interrupciones, indice_mayor_prioridad, (void*) liberar_interrupcion);
 
 
     return interrupcion_mayor_prioridad;
@@ -651,8 +704,10 @@ t_interrupcion* obtener_interrupcion_mayor_prioridad() {
 
 void liberar_interrupcion(t_interrupcion* interrupcion) {
     if (interrupcion != NULL) {
-        free(interrupcion);  // Liberamos la estructura
+        free(interrupcion);  // Liberamos la estructura   
+        return;
     }
+    return;
 }
 
 void manejar_segmentation_fault(RegistroCPU *cpu) {
@@ -703,21 +758,14 @@ void manejar_io_syscall(RegistroCPU *cpu){
 
     detener_ejecucion();
 }
-void manejar_finalizacion(cpu){
+void manejar_finalizacion(RegistroCPU *cpu){
     log_info(logger, "## Manejo de Finalización");
 
     // Notificar al Kernel que el hilo finalizó
     notificar_kernel_interrupcion(pid, tid, FINALIZACION);
 
 }
-void manejar_segmentation_fault(RegistroCPU *cpu){
-    enviar_contexto_de_memoria(cpu, pid);
 
- // Notificar al Kernel del error crítico
-    notificar_kernel_interrupcion(pid, tid, SEGMENTATION_FAULT);
-    
-    detener_ejecucion();
-}
 void detener_ejecucion(){
     pid = 0;
 }

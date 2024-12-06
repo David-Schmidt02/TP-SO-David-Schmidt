@@ -3,6 +3,7 @@
 t_log *logger;
 RegistroCPU *cpu;
 int conexion_cpu_memoria;
+int conexion_cpu_interrupt;
 int pid;
 int tid;
 t_pcb *pcb;
@@ -45,7 +46,7 @@ int main(int argc, char* argv[]) {
 	//conexiones
 	inicializar_cpu_contexto(cpu);
 	inicializar_lista_interrupciones();
-
+	pcb = malloc(sizeof(t_pcb));
 	while(flag)
 		fetch(pcb);
     //espero fin conexiones

@@ -137,11 +137,16 @@ void largo_plazo_fifo()
             }
         }
         free(peticion);
-        if(sem_getvalue(sem_estado_procesos_a_crear)==0){
+        /*
+        int aux;
+        int val = sem_getvalue(sem_estado_procesos_a_crear,aux);
+        if(val == 0){
             t_paquete* send_terminate = crear_paquete(TERMINATE);
             enviar_paquete(send_terminate, conexion_kernel_cpu_interrupt);
             //lanzar funciones para liberar estructuras
         }
+        */
+    }
     
 }
 
