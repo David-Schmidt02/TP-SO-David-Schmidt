@@ -154,7 +154,6 @@ void *conexion_cpu_dispatch(void * arg_cpu){
 	char* valor = "conexion kernel->cpu dispatch";
 	do
 	{
-		log_info(logger, "Se intenta la conexion con CPU DISPAAAAAAAATCH");
 		conexion_kernel_cpu_dispatch = crear_conexion(args->ip, args->puerto);
 		sleep(1);
 
@@ -199,7 +198,6 @@ void *conexion_cpu_interrupt(void * arg_cpu){
 	int flag=1;
 	do
 	{
-		log_info(logger, "Se intenta la conexion CPU INTERRUUUUUUUUUPT");
 		conexion_kernel_cpu_interrupt = crear_conexion(args->ip, args->puerto);
 		sleep(1);
 
@@ -249,7 +247,6 @@ void *administrador_peticiones_memoria(void* arg_server){
 		peticion = list_remove(lista_t_peticiones, 0);
 		pthread_mutex_unlock(mutex_lista_t_peticiones);
 		{
-			log_info(logger, "Se intenta la conexion con memoria por una peticioooooooooon");
 			conexion_kernel_memoria = crear_conexion(args->ip, args->puerto);
 			sleep(1);
 
@@ -270,7 +267,7 @@ void *peticion_kernel(void *args) {
     t_tcb *hilo = peticion->hilo;
     t_paquete *send_protocolo;
     protocolo_socket op;
-
+	log_info(logger, "Se envía la peticion a memoria");
     switch (peticion->tipo) {
         case PROCESS_CREATE_OP:
             send_protocolo = crear_paquete(PROCESS_CREATE_OP);

@@ -7,16 +7,16 @@
 #include <main.h>
 
 // Códigos de operación
-#define HANDSHAKE 1
+//#define HANDSHAKE 1
 //#define PROCESS_CREATE_OP 2
 //#define FIN_HILO 3
 //#define THREAD_CREATE_OP 4
 //#define THREAD_JOIN_OP 5
 //#define THREAD_EXIT_OP 6
 //
-#define MUTEX_CREATE_OP 7
-#define MUTEX_LOCK_OP 8
-#define MUTEX_UNLOCK_OP 9
+//#define MUTEX_CREATE_OP 7
+//#define MUTEX_LOCK_OP 8
+//#define MUTEX_UNLOCK_OP 9
 //
 //#define DUMP_MEMORY_OP 10
 
@@ -76,6 +76,7 @@ void notificar_memoria_fin_proceso(int pid);
 void eliminar_hilo_de_cola_fifo_prioridades(t_tcb* tcb_asociado);
 void eliminar_hilo_de_cola_multinivel(t_tcb* tcb_asociado);
 void encolar_en_exit(t_tcb * hilo);
+void encolar_en_block(t_tcb * hilo);
 void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad);
 void THREAD_JOIN(int tid_a_esperar) ;
 void finalizar_hilo(t_tcb* hilo);
@@ -85,9 +86,9 @@ void notificar_memoria_fin_hilo(t_tcb* hilo);
 void eliminar_tcb(t_tcb* hilo);
 void THREAD_EXIT();
 void IO(float milisec, int tcb_id);
-void MUTEX_CREATE(char* nombre_mutex,t_pcb *pcb);
-void MUTEX_LOCK(char* nombre_mutex, t_tcb* hilo_actual,t_pcb *pcb);
-void MUTEX_UNLOCK(char* nombre_mutex,t_pcb *pcb);
+void MUTEX_CREATE(char* nombre_mutex);
+void MUTEX_LOCK(char* nombre_mutex);
+void MUTEX_UNLOCK(char* nombre_mutex);
 void DUMP_MEMORY(int pid);
 void element_destroyer(void* elemento);
 t_list* interpretarArchivo(FILE* archivo);

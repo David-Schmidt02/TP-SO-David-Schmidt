@@ -58,12 +58,15 @@ typedef enum
     ERROR_MEMORIA,
     INFO_HILO, // agregado para cuando el kernel le manda al cpu el tid del hilo planificado a ejecutar
     OK,
-    //para comunicar kernel y memoria
+    //para comunicar kernel - memoria y cpu
     PROCESS_CREATE_OP,
     PROCESS_EXIT_OP,
     THREAD_CREATE_OP,
     THREAD_CANCEL_OP,
-    THREAD_EXIT_OP, // es el mismo para THREAD_CANCEL_OP,
+    THREAD_EXIT_OP, 
+    MUTEX_CREATE_OP,
+    MUTEX_LOCK_OP,
+    MUTEX_UNLOCK_OP,
     DUMP_MEMORY_OP,
     ERROR,
     SUCCESS,

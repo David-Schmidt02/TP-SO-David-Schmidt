@@ -172,8 +172,10 @@ void PROCESS_EXIT() {
         //acá hay que hacer dos cosas, eliminarlos de la cola de hilos y moverlos a una cola de exit
         if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
             eliminar_hilo_de_cola_fifo_prioridades(tcb_asociado);
+            encolar_en_exit(tcb_asociado);//se agrega a la cola de exit
         } else if (strcmp(algoritmo, "CMN") == 0) {
             eliminar_hilo_de_cola_multinivel(tcb_asociado);
+            encolar_en_exit(tcb_asociado);//se agrega a la cola de exit
         } else {
             printf("Error: Algoritmo no reconocido.\n");
         }
@@ -221,7 +223,6 @@ void eliminar_hilo_de_cola_fifo_prioridades(t_tcb* tcb_asociado) {
         if (hilo->pid == tcb_asociado->pid) {
             list_remove(hilos_cola_ready->lista_hilos, i);
             i--;
-            encolar_en_exit(hilo); //se agrega a la cola de exit
             sem_wait(sem_estado_hilos_cola_ready);
             break;
         }
@@ -242,7 +243,6 @@ void eliminar_hilo_de_cola_multinivel(t_tcb* tcb_asociado) {
             if (hilo->pid == tcb_asociado->pid) {
                 list_remove(nivel->cola_hilos->lista_hilos, j);
                 j--;
-                encolar_en_exit(hilo);//se agrega a la cola de exit
                 sem_wait(sem_estado_multinivel);
                 break;
             }
@@ -257,6 +257,13 @@ void encolar_en_exit(t_tcb * hilo){
     list_add(hilos_cola_exit->lista_hilos, hilo);
     pthread_mutex_unlock(mutex_hilos_cola_exit);
     sem_post(sem_estado_hilos_cola_exit);
+}
+
+void encolar_en_block(t_tcb * hilo){
+    pthread_mutex_lock(mutex_hilos_cola_bloqueados);
+    list_add(hilos_cola_bloqueados->lista_hilos, hilo);
+    pthread_mutex_unlock(mutex_hilos_cola_bloqueados);
+    sem_post(sem_estado_hilos_cola_bloqueados);
 }
 
 //HILOS
@@ -427,13 +434,11 @@ void IO(float milisec, int tcb_id) {
 
     pthread_mutex_unlock(mutex_colaIO);
     sem_post(sem_estado_colaIO);
-}
+} 
 
-
-void MUTEX_CREATE(char* nombre_mutex,t_pcb *pcb) {
-    
-    for (int i = 0; i < list_size(pcb->listaMUTEX); i++) {
-        t_mutex* mutex = list_get(pcb->listaMUTEX, i);
+void MUTEX_CREATE(char* nombre_mutex) {
+    for (int i = 0; i < list_size(proceso_actual->listaMUTEX); i++) {
+        t_mutex* mutex = list_get(proceso_actual->listaMUTEX, i);
         if (strcmp(mutex->nombre, nombre_mutex) == 0) {
             log_warning(logger, "El mutex %s ya existe.", nombre_mutex);
             return;
@@ -443,17 +448,19 @@ void MUTEX_CREATE(char* nombre_mutex,t_pcb *pcb) {
     t_mutex* nuevo_mutex = malloc(sizeof(t_mutex));
     nuevo_mutex->nombre = strdup(nombre_mutex);
     nuevo_mutex->estado = 0; // Mutex empieza libre
+    nuevo_mutex->hilo_asignado = NULL;
     nuevo_mutex->hilos_esperando = list_create();
 
-    list_add(pcb->listaMUTEX, nuevo_mutex);
+    list_add(proceso_actual->listaMUTEX, nuevo_mutex);
+    list_add(lista_mutexes, nuevo_mutex);
     log_info(logger, "Mutex %s creado exitosamente.", nombre_mutex);
 }
 
-void MUTEX_LOCK(char* nombre_mutex, t_tcb* hilo_actual,t_pcb *pcb) {
+void MUTEX_LOCK(char* nombre_mutex) {
     t_mutex* mutex_encontrado = NULL;
 
-    for (int i = 0; i < list_size(pcb->listaMUTEX); i++) {
-        t_mutex* mutex = list_get(pcb->listaMUTEX, i);
+    for (int i = 0; i < list_size(lista_mutexes); i++) {
+        t_mutex* mutex = list_get(lista_mutexes, i);
         if (strcmp(mutex->nombre, nombre_mutex) == 0) {
             mutex_encontrado = mutex;
             break;
@@ -467,22 +474,44 @@ void MUTEX_LOCK(char* nombre_mutex, t_tcb* hilo_actual,t_pcb *pcb) {
 
     if (mutex_encontrado->estado == 0) {
         mutex_encontrado->estado = 1; // Bloqueo
-        log_info(logger, "Mutex %s adquirido por el hilo TID %d.", nombre_mutex, hilo_actual->tid);
-    } 
+        mutex_encontrado->hilo_asignado = hilo_actual;
+        cambiar_estado(hilo_actual, BLOCK);
+        log_info(logger, "Mutex %s adquirido por el hilo TID %d que entra en espera.", nombre_mutex, hilo_actual->tid);
 
-    // Si el mutex está bloqueado, el hilo entra en espera
+        if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
+            eliminar_hilo_de_cola_fifo_prioridades(hilo_actual);
+            encolar_en_exit(hilo_actual);//se agrega a la cola de exit
+        } else if (strcmp(algoritmo, "CMN") == 0) {
+            eliminar_hilo_de_cola_multinivel(hilo_actual);
+            encolar_en_block(hilo_actual);//se agrega a la cola de exit
+        } else {
+            printf("Error: Algoritmo no reconocido.\n");
+        }
+
+    } 
     else {
-        log_info(logger, "Mutex %s ya está bloqueado. El hilo TID %d entra en espera.", nombre_mutex, hilo_actual->tid);
         list_add(mutex_encontrado->hilos_esperando, hilo_actual);
         cambiar_estado(hilo_actual, BLOCK);
-    }
+        log_info(logger, "Mutex %s ya está addquirido. El hilo TID %d entra en espera en la cola del mutex.", nombre_mutex, hilo_actual->tid);
+
+        if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
+            eliminar_hilo_de_cola_fifo_prioridades(hilo_actual);
+            encolar_en_exit(hilo_actual);//se agrega a la cola de exit
+        } else if (strcmp(algoritmo, "CMN") == 0) {
+            eliminar_hilo_de_cola_multinivel(hilo_actual);
+            encolar_en_block(hilo_actual);//se agrega a la cola de exit
+        } else {
+            printf("Error: Algoritmo no reconocido.\n");
+        }
+
+    }   
 }
 
-void MUTEX_UNLOCK(char* nombre_mutex,t_pcb *pcb) {
+void MUTEX_UNLOCK(char* nombre_mutex) {
     t_mutex* mutex_encontrado = NULL;
 
-    for (int i = 0; i < list_size(pcb->listaMUTEX); i++) {
-        t_mutex* mutex = list_get(pcb->listaMUTEX, i);
+    for (int i = 0; i < list_size(lista_mutexes); i++) {
+        t_mutex* mutex = list_get(lista_mutexes, i);
         if (strcmp(mutex->nombre, nombre_mutex) == 0) {
             mutex_encontrado = mutex;
             break;
@@ -494,20 +523,28 @@ void MUTEX_UNLOCK(char* nombre_mutex,t_pcb *pcb) {
         return;
     }
 
-    if (mutex_encontrado->estado == 1) {
-        mutex_encontrado->estado = 0; // Liberar el mutex
-        log_info(logger, "Mutex %s liberado.", nombre_mutex);
+    if (mutex_encontrado->hilo_asignado = hilo_actual){
+        if (mutex_encontrado->estado == 1) {
+            log_info(logger, "Se libera el primer hilo bloqueado por el Mutex %s.", nombre_mutex);
 
-        // Despertar un hilo de la lista de espera, si hay alguno
-        if (list_size(mutex_encontrado->hilos_esperando) > 0) {
-            t_tcb* hilo_despertar = list_remove(mutex_encontrado->hilos_esperando, 0); // Quitar el primer hilo
-            cambiar_estado(hilo_despertar, READY); // Cambiar su estado a READY
-            log_info(logger, "Hilo TID %d ha sido despertado y ahora tiene el mutex %s.", hilo_despertar->tid, nombre_mutex);
-        }
-    } else {
-        log_warning(logger, "El mutex %s ya estaba libre.", nombre_mutex);
+            // Despertar un hilo de la lista de espera, si hay alguno
+            if (list_size(mutex_encontrado->hilos_esperando) > 0) {
+                t_tcb* hilo_despertar = list_remove(mutex_encontrado->hilos_esperando, 0); // Quitar el primer hilo
+                cambiar_estado(hilo_despertar, READY); // Cambiar su estado a READY
+                enviar_a_cpu_dispatch(hilo_despertar->pid, hilo_despertar->tid);
+                log_info(logger, "Hilo TID %d ha sido despertado y ahora tiene el mutex %s.", hilo_despertar->tid, nombre_mutex);
+            }
+        } 
+        else {
+            log_warning(logger, "El mutex %s ya estaba libre.", nombre_mutex);
+            }
     }
+    else{
+        log_warning(logger, "El mutex %s tenía asignado otro hilo", nombre_mutex);
+    }
+
 }
+
 
 void DUMP_MEMORY(int pid) {
     log_info(logger, "=== DUMP DE MEMORIA ===");
@@ -520,7 +557,6 @@ void DUMP_MEMORY(int pid) {
     peticion->hilo = NULL; 
     encolar_peticion_memoria(peticion);
     wait(sem_estado_respuesta_desde_memoria);
-    log_info(logger, "Espero respuesta de memoria");
 
     log_info(logger, "FIN DEL DUMP DE MEMORIA");
 }
