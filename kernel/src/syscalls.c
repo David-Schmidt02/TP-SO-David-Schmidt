@@ -436,7 +436,7 @@ void IO(float milisec, int tcb_id) {
     sem_post(sem_estado_colaIO);
 } 
 
-void MUTEX_CREATE(char* nombre_mutex, t_pcb* pcb) {
+void MUTEX_CREATE(char* nombre_mutex) {
     for (int i = 0; i < list_size(proceso_actual->listaMUTEX); i++) {
         t_mutex* mutex = list_get(proceso_actual->listaMUTEX, i);
         if (strcmp(mutex->nombre, nombre_mutex) == 0) {
@@ -479,7 +479,7 @@ void MUTEX_LOCK(char* nombre_mutex) {
         log_info(logger, "Mutex %s adquirido por el hilo TID %d que entra en espera.", nombre_mutex, hilo_actual->tid);
 
         if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
-            eliminar_hilo_de_cola_fifo_prioridades(tcb_asociado);
+            eliminar_hilo_de_cola_fifo_prioridades(hilo_actual);
             encolar_en_exit(hilo_actual);//se agrega a la cola de exit
         } else if (strcmp(algoritmo, "CMN") == 0) {
             eliminar_hilo_de_cola_multinivel(hilo_actual);
@@ -507,7 +507,7 @@ void MUTEX_LOCK(char* nombre_mutex) {
     }   
 }
 
-void MUTEX_UNLOCK(char* nombre_mutex,t_pcb *pcb) {
+void MUTEX_UNLOCK(char* nombre_mutex) {
     t_mutex* mutex_encontrado = NULL;
 
     for (int i = 0; i < list_size(lista_mutexes); i++) {

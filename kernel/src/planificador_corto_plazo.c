@@ -206,7 +206,7 @@ void ejecutar_round_robin(t_tcb * hilo_a_ejecutar) {
     // Lanzamos un nuevo hilo que cuente el quantum y envíe una interrupción si se agota
     pthread_t thread_contador_quantum;
     pthread_create(&thread_contador_quantum, NULL, (void *)contar_quantum, (void *)hilo_a_ejecutar);
-    recibir_motivo_devolucion(); 
+    recibir_motivo_devolucion_cpu(); 
     pthread_join(thread_contador_quantum, NULL); // Esperamos que el hilo del quantum termine
 }
 
@@ -224,74 +224,74 @@ void contar_quantum(void *hilo_void) {
 
 void encolar_corto_plazo_multinivel(t_tcb* hilo) {
     int prioridad = hilo->prioridad;
+
     if (colas_multinivel == NULL) {
         perror("Error: colas_multinivel no está inicializado");
         exit(EXIT_FAILURE);
     }
+
     if (colas_multinivel->niveles_prioridad == NULL) {
         perror("Error: niveles_prioridad no está inicializado");
         exit(EXIT_FAILURE);
     }
 
-    // Usamos list_find con la nueva función
-    t_nivel_prioridad* nivel = list_find(
-        colas_multinivel->niveles_prioridad,
-        (bool (*)(void*)) nivel_existe_por_prioridad,
-        &prioridad
-    );
-
+    // Buscar si existe un nivel de prioridad correspondiente
+    t_nivel_prioridad* nivel = NULL;
+    for (int i = 0; i < list_size(colas_multinivel->niveles_prioridad); i++) {
+        t_nivel_prioridad* actual = list_get(colas_multinivel->niveles_prioridad, i);
+        if (actual->nivel_prioridad == prioridad) {
+            nivel = actual;
+            break;
+        }
+    }
     if (nivel == NULL) {
         printf("Nivel de prioridad %d no existe. Creando nueva cola...\n", prioridad);
-        
+
         // Crear una nueva cola de hilos
         t_cola_hilo* nueva_cola = malloc(sizeof(t_cola_hilo));
         if (nueva_cola == NULL) {
             perror("Error al asignar memoria para nueva cola de hilos");
             exit(EXIT_FAILURE);
         }
+
         nueva_cola->nombre_estado = READY;
         nueva_cola->lista_hilos = list_create();
         if (nueva_cola->lista_hilos == NULL) {
             perror("Error al crear lista de hilos en la nueva cola");
+            free(nueva_cola);
             exit(EXIT_FAILURE);
         }
 
-        // Crear un nuevo nivel de prioridad y asociarlo con la nueva cola de hilos
+        // Crear un nuevo nivel de prioridad y asociarlo con la nueva cola
         t_nivel_prioridad* nuevo_nivel = malloc(sizeof(t_nivel_prioridad));
         if (nuevo_nivel == NULL) {
             perror("Error al asignar memoria para nuevo nivel de prioridad");
+            list_destroy(nueva_cola->lista_hilos);
+            free(nueva_cola);
             exit(EXIT_FAILURE);
         }
 
         nuevo_nivel->nivel_prioridad = prioridad;
         nuevo_nivel->cola_hilos = nueva_cola;
-        pthread_mutex_lock(mutex_colas_multinivel);
+
+        // Agregar el nuevo nivel de prioridad a la lista de niveles
         list_add(colas_multinivel->niveles_prioridad, nuevo_nivel);
-        pthread_mutex_unlock(mutex_colas_multinivel);
 
         // Encolar el hilo en la nueva cola
         list_add(nueva_cola->lista_hilos, hilo);
-
-        // Señalizar que hay un hilo en la nueva cola
-        sem_post(sem_estado_multinivel);
         printf("Hilo de prioridad %d encolado en la nueva cola\n", prioridad);
     } else {
         // Si ya existe el nivel, encolamos el hilo en la cola correspondiente
-        pthread_mutex_lock(mutex_colas_multinivel);
         list_add(nivel->cola_hilos->lista_hilos, hilo);
-        pthread_mutex_unlock(mutex_colas_multinivel);
-
-        // Señalizar que hay un hilo en la cola de este nivel
-        sem_post(sem_estado_multinivel);
         printf("Hilo de prioridad %d encolado en la cola existente\n", prioridad);
     }
 }
 
-bool nivel_existe_por_prioridad(void* elemento, int* prioridad) {
+bool nivel_existe_por_prioridad(void* elemento, void* contexto) {
     t_nivel_prioridad* nivel = (t_nivel_prioridad*) elemento;
-    return nivel->nivel_prioridad == *prioridad;
+    int* prioridad_buscada = (int*) contexto;
+    return nivel->nivel_prioridad == *prioridad_buscada;
 }
-
 
 void enviar_a_cpu_dispatch(int tid, int pid)
 {
@@ -338,6 +338,7 @@ void recibir_motivo_devolucion_cpu() {
     tid = *((int*)aux->buffer->stream);
     aux = list_remove(paquete_respuesta, 0);
     motivo = (protocolo_socket)aux->buffer->stream;
+    char* nombre_mutex;
     switch (motivo) {
     case FINALIZACION:
         log_info(logger, "El hilo %d ha FINALIZADO correctamente\n", tid);
@@ -361,18 +362,24 @@ void recibir_motivo_devolucion_cpu() {
         break;
 
     case MUTEX_CREATE_OP:
+        aux = list_remove(paquete_respuesta, 0);
+        nombre_mutex = *((char*)aux->buffer->stream);
         log_info(logger, "El hilo %d está creando un nuevo mutex\n", tid);
-        MUTEX_CREATE(obtener_nombre_mutex(tid), obtener_pcb_por_tid(tid));
+        MUTEX_CREATE(nombre_mutex);
         break;
 
     case MUTEX_LOCK_OP:
+        aux = list_remove(paquete_respuesta, 0);
+        nombre_mutex = *((char*)aux->buffer->stream);
         log_info(logger, "El hilo %d está intentando adquirir un mutex\n", tid);
-        MUTEX_LOCK(obtener_nombre_mutex(tid), obtener_tcb_por_tid(tid), obtener_pcb_por_tid(tid));
+        MUTEX_LOCK(nombre_mutex);
         break;
 
     case MUTEX_UNLOCK_OP:
+        aux = list_remove(paquete_respuesta, 0);
+        nombre_mutex = *((char*)aux->buffer->stream);
         log_info(logger, "El hilo %d está intentando liberar un mutex\n", tid);
-        MUTEX_UNLOCK(obtener_nombre_mutex(tid), obtener_tcb_por_tid(tid)->pcb);
+        MUTEX_UNLOCK(nombre_mutex);
         break;
 
     default:
