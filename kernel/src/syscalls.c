@@ -355,7 +355,7 @@ void notificar_memoria_creacion_hilo(t_tcb* hilo) {
         peticion->proceso = NULL; // No aplica en este caso
         peticion->hilo = hilo; 
         encolar_peticion_memoria(peticion);
-        wait(sem_estado_respuesta_desde_memoria);
+        sem_wait(sem_estado_respuesta_desde_memoria);
     if (peticion->respuesta_exitosa) {
         log_info(logger, "Información sobre la creacion del hilo con TID %d enviada a Memoria.", hilo->tid);
     } else {
@@ -369,7 +369,7 @@ void notificar_memoria_fin_hilo(t_tcb* hilo) {
     peticion->proceso = NULL; // No aplica en este caso
     peticion->hilo = hilo; 
     encolar_peticion_memoria(peticion);
-    wait(sem_estado_respuesta_desde_memoria);
+    sem_wait(sem_estado_respuesta_desde_memoria);
     if (peticion->respuesta_exitosa) {
         log_info(logger, "Finalización del hilo con TID %d confirmada por la Memoria.", hilo->tid);
     } else {
@@ -556,7 +556,7 @@ void DUMP_MEMORY(int pid) {
     peticion->proceso = obtener_pcb_por_pid(pid);
     peticion->hilo = NULL; 
     encolar_peticion_memoria(peticion);
-    wait(sem_estado_respuesta_desde_memoria);
+    sem_wait(sem_estado_respuesta_desde_memoria);
 
     log_info(logger, "FIN DEL DUMP DE MEMORIA");
 }
@@ -608,7 +608,7 @@ t_list* interpretarArchivo(FILE* archivo)
                 for (int i = 0; i < 2; i++) {
                     token = strtok(NULL, " ");
                     if (token != NULL) {
-                        instruccion->parametros[i] = atoi(token);
+                        instruccion->parametros[i] = token;
                     } else {
                         instruccion->parametros[i] = 0;
                     }

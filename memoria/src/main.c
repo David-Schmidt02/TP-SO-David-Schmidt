@@ -159,31 +159,30 @@ void *server_multihilo_kernel(void* arg_server){
     pthread_exit(EXIT_SUCCESS);
 }
 void *peticion_kernel_NEW_PROCESS(void* arg_peticion){
-	int socket = (int)arg_peticion;
+	int *socket = arg_peticion;
 	t_pcb *pcb;
 	//atender peticion
 	t_list * paquete_list;
 	t_paquete * paquete_recv;
 	t_paquete * paquete_send;
 
-	paquete_list = recibir_paquete(socket);
-	paquete_recv = list_remove(paquete_list, 0);
-	memcpy(pcb, paquete_recv, paquete_recv->buffer->size);
+	paquete_list = recibir_paquete(*socket);
+	pcb = list_remove(paquete_list, 0);
 
 	crear_proceso(pcb);
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
-	enviar_paquete(paquete_send, socket);
+	enviar_paquete(paquete_send, *socket);
 
 	eliminar_paquete(paquete_send);
 	eliminar_paquete(paquete_recv);
 	list_destroy(paquete_list);
-	close(socket); //cerrar socket
+	close(*socket); //cerrar socket
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
 void *peticion_kernel_NEW_THREAD(void* arg_peticion){
-	int socket = (int)arg_peticion;
+	int *socket = arg_peticion;
 	t_tcb *tcb;
 	int pid;
 	//atender peticion
@@ -191,7 +190,7 @@ void *peticion_kernel_NEW_THREAD(void* arg_peticion){
 	t_paquete * paquete_recv;
 	t_paquete * paquete_send;
 
-	paquete_list = recibir_paquete(socket);
+	paquete_list = recibir_paquete(*socket);
 	paquete_recv = list_remove(paquete_list, 0);
 	memcpy(tcb, paquete_recv, paquete_recv->buffer->size);
 	
@@ -199,46 +198,46 @@ void *peticion_kernel_NEW_THREAD(void* arg_peticion){
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
-	enviar_paquete(paquete_send, socket);
+	enviar_paquete(paquete_send, *socket);
 
 	eliminar_paquete(paquete_send);
 	eliminar_paquete(paquete_recv);
 	list_destroy(paquete_list);
-	close(socket); //cerrar socket
+	close(*socket); //cerrar socket
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
 void *peticion_kernel_END_PROCESS(void* arg_peticion){
-	int socket = (int)arg_peticion;
+	int *socket = arg_peticion;
 	int pid;
 	//atender peticion
 	t_list * paquete_list;
 	t_paquete * paquete_recv;
 	t_paquete * paquete_send;
 
-	paquete_list = recibir_paquete(socket);
+	paquete_list = recibir_paquete(*socket);
 	paquete_recv = list_remove(paquete_list, 0);
-	memcpy(&pid, paquete_recv, paquete_recv->buffer->size)
+	memcpy(&pid, paquete_recv, paquete_recv->buffer->size);
 	fin_proceso(pid);
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
-	enviar_paquete(paquete_send, socket);
+	enviar_paquete(paquete_send, *socket);
 
 	eliminar_paquete(paquete_send);
 	eliminar_paquete(paquete_recv);
 	list_destroy(paquete_list);
-	close(socket); //cerrar socket
+	close(*socket); //cerrar socket
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
 void *peticion_kernel_END_THREAD(void* arg_peticion){
-	int socket = (int)arg_peticion;
+	int *socket = arg_peticion;
 	int tid;
 	//atender peticion
 	t_list * paquete_list;
 	t_paquete * paquete_recv;
 	t_paquete * paquete_send;
 
-	paquete_list = recibir_paquete(socket);
+	paquete_list = recibir_paquete(*socket);
 	paquete_recv = list_remove(paquete_list, 0);
 	memcpy(&tid, paquete_recv, paquete_recv->buffer->size);
 
@@ -246,17 +245,17 @@ void *peticion_kernel_END_THREAD(void* arg_peticion){
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
-	enviar_paquete(paquete_send, socket);
+	enviar_paquete(paquete_send, *socket);
 
 	eliminar_paquete(paquete_send);
 	eliminar_paquete(paquete_recv);
 	list_destroy(paquete_list);
-	close(socket); //cerrar socket
+	close(*socket); //cerrar socket
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
 
 void *peticion_kernel_DUMP(void* arg_peticion){
-	int socket = (int)arg_peticion;
+	int *socket = arg_peticion;
 	int tid;
 	int pid;
 	protocolo_socket respuesta;
@@ -265,7 +264,7 @@ void *peticion_kernel_DUMP(void* arg_peticion){
 	t_paquete * paquete_recv;
 	t_paquete * paquete_send;
 
-	paquete_list = recibir_paquete(socket);
+	paquete_list = recibir_paquete(*socket);
 	paquete_recv = list_remove(paquete_list, 0);
 	tid = (int) paquete_recv->buffer->stream;
 	paquete_recv = list_remove(paquete_list, 0);
@@ -279,12 +278,12 @@ void *peticion_kernel_DUMP(void* arg_peticion){
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(respuesta);
-	enviar_paquete(paquete_send, socket);
+	enviar_paquete(paquete_send, *socket);
 
 	eliminar_paquete(paquete_send);
 	eliminar_paquete(paquete_recv);
 	list_destroy(paquete_list);
-	close(socket); //cerrar socket
+	close(*socket); //cerrar socket
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
 void *conexion_cpu(void* arg_cpu)
