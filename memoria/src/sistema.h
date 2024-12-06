@@ -29,6 +29,7 @@ void inicializar_tabla_particion_fija(t_list *particiones);
 void init_tablas_dinamicas();
 int buscar_en_tabla_fija(int tid);
 int buscar_en_dinamica(int pid);
+int send_dump(int pid, int tid);
 int agregar_a_tabla_particion_fija(t_pcb *pcb);
 int agregar_a_dinamica(t_pcb *pcb);
 

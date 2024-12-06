@@ -1,12 +1,15 @@
 #include "sistema.h"
 
 extern int socket_cliente_cpu;
+extern int conexion_memoria_fs;
 extern t_memoria *memoria_usuario;
 extern pthread_mutex_t * mutex_pcb;
 extern pthread_mutex_t * mutex_tcb;
 extern pthread_mutex_t * mutex_part_fijas;
 extern pthread_mutex_t * mutex_huecos;
 extern pthread_mutex_t * mutex_procesos_din;
+extern pthread_mutex_t * mutex_espacio;
+
 
 // Funcion auxiliar para buscar y validar el proceso (PCB) y el hilo (TCB) asociados al PID y TID
 // t_pcb **pcb_out y t_tcb **tcb_out: Son punteros de salida. Al encontrar el PCB y el TCB, la función los almacena en estas variables para que la función que llama a obtener_pcb_y_tcb pueda utilizarlos.
@@ -71,7 +74,7 @@ void enviar_contexto(int pid, int tid) {
     //agregar_a_paquete(paquete, &tcb->registro, sizeof(tcb->registro));
 
     // Agrego el registro entero del PCB
-    agregar_a_paquete(paquete, &pcb->registro, sizeof(pcb->registro));
+    agregar_a_paquete(paquete, pcb->registro, sizeof(pcb->registro));
 
     pthread_mutex_unlock(mutex_tcb);
     pthread_mutex_unlock(mutex_pcb);
@@ -410,7 +413,78 @@ int buscar_en_dinamica(int pid){
     pthread_mutex_unlock(mutex_procesos_din);
     return -1;
 }
+int send_dump(int pid, int tid){
 
+    protocolo_socket respuesta;
+    uint32_t size;
+    void *contenido = NULL;
+    uint32_t *contenido_segmento;
+    int index_pid;
+    elemento_procesos *aux_din;
+    elemento_particiones_fijas *aux_fij;
+    
+    switch(memoria_usuario->tipo_particion){
+        case DINAMICAS:
+            index_pid = buscar_en_dinamica(pid);
+            pthread_mutex_lock(mutex_procesos_din);
+            aux_din = list_get(memoria_usuario->tabla_procesos, index_pid);
+            size = aux_din->size;
+            pthread_mutex_unlock(mutex_procesos_din);
+            pthread_mutex_lock(mutex_espacio);
+            contenido = memoria_usuario->espacio;
+            contenido_segmento = malloc(sizeof(uint32_t) * size);
+            memcpy(contenido_segmento, contenido, sizeof(uint32_t) * size);
+            pthread_mutex_unlock(mutex_espacio);
+            break;
+
+        case FIJAS:
+            index_pid = buscar_en_tabla_fija(pid);
+            pthread_mutex_lock(mutex_part_fijas);
+            aux_fij = list_get(memoria_usuario->tabla_particiones_fijas, index_pid);
+            size = aux_fij->size;
+            pthread_mutex_unlock(mutex_part_fijas);
+            pthread_mutex_lock(mutex_espacio);
+            contenido = memoria_usuario->espacio;
+            contenido_segmento = malloc(sizeof(uint32_t) * size);
+            memcpy(contenido_segmento, contenido, sizeof(uint32_t) * size);
+            pthread_mutex_unlock(mutex_espacio);
+            break;
+    }
+
+    struct timeval tiempo_actual;
+    gettimeofday(&tiempo_actual, NULL);
+    struct tm *tiempo_local = localtime(&tiempo_actual.tv_sec);
+    char * nombre_archivo = NULL;
+    snprintf(nombre_archivo, sizeof(nombre_archivo), 
+             "%d-%d-%02d:%02d:%02d:%03ld.dmp", 
+             string_itoa(pid),
+             string_itoa(tid),
+             tiempo_local->tm_hour,
+             tiempo_local->tm_min,
+             tiempo_local->tm_sec,
+             tiempo_actual.tv_usec / 1000);
+    log_info(logger, nombre_archivo);
+    t_paquete * send = crear_paquete(DUMP_MEMORY_OP);
+    agregar_a_paquete(send, nombre_archivo, sizeof(pid));
+    agregar_a_paquete(send, &size, sizeof(uint32_t));
+    agregar_a_paquete(send, contenido_segmento, sizeof(contenido_segmento));
+
+
+    enviar_paquete(send, conexion_memoria_fs);
+
+    eliminar_paquete(send);
+
+    respuesta = recibir_operacion(conexion_memoria_fs);
+    
+    
+    if(respuesta == OK){
+        return 0;
+    }
+    else{
+        return -1;
+    }
+    
+}
 void crear_proceso(t_pcb *pcb) {
     switch(memoria_usuario->tipo_particion) {
         case FIJAS:

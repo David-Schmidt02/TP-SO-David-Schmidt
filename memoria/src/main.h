@@ -9,6 +9,7 @@
 #include "../../kernel/src/pcb.h"
 #include <sistema.h>
 #include <time.h>
+#include <sys/time.h>
 
 typedef enum particiones{
     DINAMICAS,
@@ -17,7 +18,8 @@ typedef enum particiones{
 
 void enviar_contexto(int pid, int tid);
 void *conexion_kernel(void * arg_kernel);
-void *conexion_cpu(void * arg_cpu);
+void *peticion_kernel_DUMP(void *arg_peticion);
+void *conexion_cpu(void *arg_cpu);
 void *cliente_conexion_filesystem(void * arg_fs);
 void *server_multihilo_kernel(void* arg_server);
 void *peticion_kernel_NEW_PROCESS(void* arg_peticion);

@@ -2,12 +2,15 @@
 
 t_log *logger;
 int socket_cliente_cpu; //necesito que sea global para usarlo desde sistema.c
+int conexion_memoria_fs;
 t_memoria *memoria_usuario;
 pthread_mutex_t * mutex_pcb;
 pthread_mutex_t * mutex_tcb;
 pthread_mutex_t * mutex_part_fijas;
 pthread_mutex_t * mutex_huecos;
 pthread_mutex_t * mutex_procesos_din;
+pthread_mutex_t * mutex_espacio;
+
 
 int main(int argc, char* argv[]) {
 
@@ -130,8 +133,8 @@ void *server_multihilo_kernel(void* arg_server){
 				log_info(logger, "nueva peticion");
 				break;
 			case DUMP_MEMORY_OP:
-				//pthread_create(&aux_thread, NULL, peticion_kernel_END_THREAD, (void *)&socket_cliente_kernel);
-				//list_add(lista_t_peticiones, &aux_thread);
+				pthread_create(&aux_thread, NULL, peticion_kernel_DUMP, (void *)&socket_cliente_kernel);
+				list_add(lista_t_peticiones, &aux_thread);
 				log_info(logger, "nueva peticion");
 				break;
 			case TERMINATE:
@@ -247,23 +250,30 @@ void *peticion_kernel_END_THREAD(void* arg_peticion){
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
 
-void *peticion_kernel_DUMP_MEMORY(void* arg_peticion){
+void *peticion_kernel_DUMP(void* arg_peticion){
 	int socket = (int)arg_peticion;
 	int tid;
 	int pid;
+	protocolo_socket respuesta;
 	//atender peticion
 	t_list * paquete_list;
 	t_paquete * paquete_recv;
 	t_paquete * paquete_send;
 
 	paquete_list = recibir_paquete(socket);
-	pid = (intptr_t)list_remove(paquete_list, 0);
-	tid = (intptr_t)list_remove(paquete_list, 0);
-	
-	//mandar a filesystem dump_memory
+	paquete_recv = list_remove(paquete_list, 0);
+	tid = (int) paquete_recv->buffer->stream;
+	paquete_recv = list_remove(paquete_list, 0);
+	pid = (int) paquete_recv->buffer->stream;
 
+	if(send_dump(pid, tid) == -1){
+		respuesta = ERROR;
+	}else{
+		respuesta = OK;
+	}
+	
 	//notificar resultado a kernel
-	paquete_send = crear_paquete(OK);
+	paquete_send = crear_paquete(respuesta);
 	enviar_paquete(paquete_send, socket);
 
 	eliminar_paquete(paquete_send);
@@ -272,7 +282,6 @@ void *peticion_kernel_DUMP_MEMORY(void* arg_peticion){
 	close(socket); //cerrar socket
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
-
 void *conexion_cpu(void* arg_cpu)
 {
 	argumentos_thread *args = arg_cpu; 
@@ -377,7 +386,6 @@ void *cliente_conexion_filesystem(void * arg_fs){
 
 	argumentos_thread * args = arg_fs;
 	t_paquete* send_handshake;
-	int conexion_memoria_fs;
 	protocolo_socket op;
 	char* valor = "conexion memoria";
 	int flag=1;
