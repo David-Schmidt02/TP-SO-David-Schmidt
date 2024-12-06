@@ -27,6 +27,13 @@ int main(int argc, char* argv[]) {
 
     void *ret_value;
 
+	init_mutex(mutex_pcb);
+	init_mutex(mutex_tcb);
+	init_mutex(mutex_part_fijas);
+	init_mutex(mutex_huecos);
+	init_mutex(mutex_procesos_din);
+	init_mutex(mutex_espacio);
+
 	//inicializar memoria
 	t_list *particiones = list_create();
 	char ** particiones_string = config_get_array_value(config, "PARTICIONES");
@@ -56,6 +63,13 @@ int main(int argc, char* argv[]) {
 	log_info(logger,"conexion con filesystem cerrada con status code: %ld", ret_value_int);
 	//espero fin conexiones
 
+}
+void init_mutex(pthread_mutex_t * mutex){
+	mutex = malloc(sizeof(pthread_mutex_t));
+	if (mutex == NULL) {
+        exit(EXIT_FAILURE);
+    }
+	pthread_mutex_init(mutex, NULL);
 }
 void inicializar_memoria(particiones tipo_particion, int size, t_list *particiones){
 	mutex_pcb = malloc(sizeof(pthread_mutex_t));
@@ -209,7 +223,7 @@ void *peticion_kernel_END_PROCESS(void* arg_peticion){
 	t_paquete * paquete_send;
 
 	paquete_list = recibir_paquete(*socket);
-	pid = list_remove(paquete_list, 0);
+	pid = (intptr_t)list_remove(paquete_list, 0);
 
 	fin_proceso(pid);
 	
@@ -230,7 +244,7 @@ void *peticion_kernel_END_THREAD(void* arg_peticion){
 	t_paquete * paquete_send;
 
 	paquete_list = recibir_paquete(*socket);
-	tid = list_remove(paquete_list, 0);
+	tid = (intptr_t)list_remove(paquete_list, 0);
 
 	fin_thread(tid);
 	
@@ -254,8 +268,8 @@ void *peticion_kernel_DUMP(void* arg_peticion){
 	t_paquete * paquete_send;
 
 	paquete_list = recibir_paquete(*socket);
-	tid = list_remove(paquete_list, 0);
-	pid = list_remove(paquete_list, 0);
+	tid = (intptr_t)list_remove(paquete_list, 0);
+	pid = (intptr_t)list_remove(paquete_list, 0);
 		
 	if(send_dump(pid, tid) == -1){
 		respuesta = ERROR;
@@ -268,7 +282,6 @@ void *peticion_kernel_DUMP(void* arg_peticion){
 	enviar_paquete(paquete_send, *socket);
 
 	eliminar_paquete(paquete_send);
-	eliminar_paquete(paquete_recv);
 	list_destroy(paquete_list);
 	close(*socket); //cerrar socket
 	return(void*)EXIT_SUCCESS; //finalizar hilo
@@ -310,15 +323,15 @@ void *conexion_cpu(void* arg_cpu)
 				break;
 			case OBTENER_INSTRUCCION:
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
-				PC = list_remove(paquete_recv, 0);
-				tid = list_remove(paquete_recv, 0);
+				PC = (intptr_t)list_remove(paquete_recv, 0);
+				tid = (intptr_t)list_remove(paquete_recv, 0);
 				obtener_instruccion(PC, tid);
 				list_destroy(paquete_recv);
 				break;
 			case READ_MEM:
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
-				direccion = list_remove(paquete_recv, 0);
-				valor = (uint32_t)read_memory(direccion);
+				direccion = (intptr_t)list_remove(paquete_recv, 0);
+				valor = (intptr_t)read_memory(direccion);
 				if(valor != -1){
 					t_paquete *paquete_send = crear_paquete(OK);
 					agregar_a_paquete(paquete_send, &valor, sizeof(uint32_t));
@@ -333,8 +346,8 @@ void *conexion_cpu(void* arg_cpu)
 				break;
 			case WRITE_MEM:
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
-				direccion = list_remove(paquete_recv, 0);
-				valor = list_remove(paquete_recv, 0);
+				direccion = (intptr_t)list_remove(paquete_recv, 0);
+				valor = (intptr_t)list_remove(paquete_recv, 0);
 				if(valor != -1){
 					write_memory(direccion, valor);
 					t_paquete *paquete_send = crear_paquete(OK);

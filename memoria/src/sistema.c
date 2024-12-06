@@ -135,10 +135,10 @@ void actualizar_contexto_ejecucion() {
     }
 
     // Obtengo el PID
-    pid = list_remove(paquete_recv_list, 0);
+    pid = (intptr_t)list_remove(paquete_recv_list, 0);
    
     // Obtengo el TID
-    tid = list_remove(paquete_recv_list, 0);
+    tid = (intptr_t)list_remove(paquete_recv_list, 0);
 
     // Obtengo los registros actualizados
     registros_actualizados = list_remove(paquete_recv_list, 0);
