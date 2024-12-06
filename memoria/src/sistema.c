@@ -42,14 +42,10 @@ bool recibir_pid_tid(t_list *paquete_recv, int *pid, int *tid) {
     }
 
     // Extraer PID
-    t_paquete *pid_paquete = list_remove(paquete_recv, 0);
-    memcpy(pid, pid_paquete->buffer->stream, sizeof(int));
-    eliminar_paquete(pid_paquete);
+    pid = list_remove(paquete_recv, 0);
 
     // Extraer TID
-    t_paquete *tid_paquete = list_remove(paquete_recv, 0);
-    memcpy(tid, tid_paquete->buffer->stream, sizeof(int));
-    eliminar_paquete(tid_paquete);
+    tid = list_remove(paquete_recv, 0);
 
     list_destroy(paquete_recv);  // Liberar lista de paquetes
     return true;
@@ -139,20 +135,14 @@ void actualizar_contexto_ejecucion() {
     }
 
     // Obtengo el PID
-    t_paquete *pid_paquete = list_remove(paquete_recv_list, 0);
-    memcpy(&pid, pid_paquete->buffer->stream, sizeof(int));
-    eliminar_paquete(pid_paquete);
-
+    pid = list_remove(paquete_recv_list, 0);
+   
     // Obtengo el TID
-    t_paquete *tid_paquete = list_remove(paquete_recv_list, 0);
-    memcpy(&tid, tid_paquete->buffer->stream, sizeof(int));
-    eliminar_paquete(tid_paquete);
+    tid = list_remove(paquete_recv_list, 0);
 
     // Obtengo los registros actualizados
-    t_paquete *registros_paquete = list_remove(paquete_recv_list, 0);
-    memcpy(registros_actualizados, registros_paquete->buffer->stream, sizeof(RegistroCPU));
-    eliminar_paquete(registros_paquete);
-
+    registros_actualizados = list_remove(paquete_recv_list, 0);
+    
     // Libero lista de paquetes
     list_destroy(paquete_recv_list);
 
