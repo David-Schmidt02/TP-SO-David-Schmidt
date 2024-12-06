@@ -3,6 +3,10 @@
 static t_bitarray* bitmap;
 static pthread_mutex_t mutex_bitmap;
 static FILE* bitmap_file;
+extern uint32_t block_count;
+extern int block_size;
+extern retardo_acceso;
+extern char* mount_dir;
 
 extern t_config *config;
 extern t_log *logger;

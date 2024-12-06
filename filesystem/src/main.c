@@ -3,6 +3,10 @@
 t_log *logger;
 int retardo_acceso;
 t_config *config;
+uint32_t block_count;
+int block_size;
+char* mount_dir;
+
 int main() {
 
     pthread_t tid_memoria;
@@ -19,18 +23,18 @@ int main() {
    	arg_memoria.puerto = config_get_string_value(config, "PUERTO_ESCUCHA");
 	
 	// Leer parámetros del archivo de configuración
-    uint32_t block_count = (uint32_t) config_get_int_value(config, "BLOCK_COUNT");
-    int block_size = config_get_int_value(config, "BLOCK_SIZE");
-    retardo_acceso = config_get_int_value(config, "RETARDO_ACCESO_BLOQUE");
-	char* mount_dir = config_get_string_value(config, "MOUNT_DIR");
+	block_count = config_get_int_value(config, "BLOCK_COUNT");
+	block_size = config_get_int_value(config, "BLOCK_SIZE");
+	retardo_acceso = config_get_int_value(config, "RETARDO_ACCESO_BLOQUE");
+	mount_dir = config_get_string_value(config, "MOUNT_DIR");
 	// Inicializar estructuras
 	
 	mount_dir = crear_directorio(mount_dir,"/mount_dir");
 	inicializar_bitmap(mount_dir,block_count);
 	inicializar_bloques(block_count,block_size,mount_dir);
-	char* dir_files = mount_dir;
-	dir_files = crear_directorio(dir_files,"/files");
-	crear_archivo_metadata(block_count,block_size,dir_files);
+
+	//esto es lo que tiene que hacer cuando recibe la peticion
+	//
 	
     //conexiones
 	pthread_create(&tid_memoria, NULL, conexion_memoria, (void *)&arg_memoria);
@@ -47,8 +51,8 @@ int main() {
 void *conexion_memoria(void* arg_memoria)
 {
 	argumentos_thread * args = arg_memoria; 
-	t_paquete *handshake_send;
-	t_list *handshake_recv;
+	t_paquete *recv;
+	t_list *recv_list;
 	char * handshake_texto = "conexion filesystem";
 	t_config *config = config_create("config/filesystem.config");
 
@@ -56,9 +60,6 @@ void *conexion_memoria(void* arg_memoria)
 	log_info(logger, "Servidor listo para recibir al cliente memoria");
 	int socket_cliente_memoria = esperar_cliente(server);
 
-	//HANDSHAKE
-	handshake_send = crear_paquete(HANDSHAKE);
-	agregar_a_paquete (handshake_send, handshake_texto , strlen(handshake_texto)+1);
 	//HANDSHAKE_end
 
 
@@ -66,12 +67,6 @@ void *conexion_memoria(void* arg_memoria)
 			int cod_op = recibir_operacion(socket_cliente_memoria);
 			switch (cod_op)
 			{
-				case HANDSHAKE:
-					handshake_recv = recibir_paquete(socket_cliente_memoria);
-					log_info(logger, "me llego: memoria");
-					list_iterate(handshake_recv, (void*) iterator);
-					enviar_paquete(handshake_send, socket_cliente_memoria);
-					break;
 				case INIT_BITMAP:
 					log_info(logger, "Solicitud para inicializar el Bitmap recibida");
 
@@ -87,9 +82,20 @@ void *conexion_memoria(void* arg_memoria)
 					}
 					inicializar_bitmap(mount_dir, block_count);
 					break;
-				//case DUMP_MEMORY_OP
-				//lógica para hacer el dump_memory
-				//confirmacion a memoria
+				case DUMP_MEMORY_OP:
+					recv_list = recibir_paquete(socket_cliente_memoria);
+					recv = list_remove(recv_list,0);
+					char* nombre_archivo;
+					uint32_t tamanio;
+					uint32_t *datos;
+					memcpy(nombre_archivo,recv,sizeof(recv->buffer->stream));
+					recv = list_remove(recv_list,0);
+					memcpy(&tamanio,recv,sizeof(recv->buffer->stream));
+					recv = list_remove(recv_list,0);
+					memcpy(datos,recv,sizeof(recv->buffer->stream));
+					char* dir_files = mount_dir;
+					dir_files = crear_directorio(dir_files,"/files");
+					crear_archivo_metadata(block_count,block_size,dir_files, nombre_archivo);
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
 					return (void *)EXIT_FAILURE;

@@ -4,6 +4,10 @@ extern t_log* logger;
 extern int retardo_acceso;
 static FILE* metadata_file;
 int index_block=0;
+extern uint32_t block_count;
+extern int block_size;
+extern retardo_acceso;
+extern char* mount_dir;
 
 void inicializar_bloques(uint32_t block_count, int block_size, char* mount_dir) {
     if (mount_dir == NULL) {
@@ -81,7 +85,7 @@ void *leer_bloque(int bloque) {
 }
 
 
-void crear_archivo_metadata(uint32_t block_count,  int block_size, char* dir_files) {
+void crear_archivo_metadata(uint32_t block_count,  int block_size, char* dir_files, char* nombre_archivo) {
     if (block_count == 0) {
         log_error(logger, "No se encontró el valor BLOCK_COUNT en el archivo de configuración.");
         exit(EXIT_FAILURE);
