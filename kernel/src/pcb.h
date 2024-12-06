@@ -60,6 +60,7 @@ typedef struct {
 typedef struct {
     char* nombre;
     int estado; // 0 = libre, 1 = bloqueado
+    t_tcb* hilo_asignado;  
     t_list* hilos_esperando; // Lista de hilos esperando el mutex
 } t_mutex;
 
