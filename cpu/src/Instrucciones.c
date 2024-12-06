@@ -316,15 +316,6 @@ void checkInterrupt(RegistroCPU *cpu) { //el checkInterrupt se corre siempre -> 
                 log_info(logger, "## Interrupción THREAD_JOIN_OP recibida desde Kernel");
                 manejar_thread_join(cpu);  
                 break;
-
-            case IO_SYSCALL:
-                log_info(logger, "## Interrupción IO_SYSCALL recibida desde Kernel");
-                manejar_io_syscall(cpu);
-                break;
-            case FINALIZACION;
-                log_info(logger, "## Interrupción IO_SYSCALL recibida desde Kernel");
-                manejar_finalizacion(cpu);
-            break;
             case SEGMENTATION_FAULT:
                 log_info(logger, "## Interrupción SEGMENTATION_FAULT recibida desde Kernel");
                 manejar_segmentation_fault(cpu);
