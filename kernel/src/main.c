@@ -267,7 +267,7 @@ void *peticion_kernel(void *args) {
     t_tcb *hilo = peticion->hilo;
     t_paquete *send_protocolo;
     protocolo_socket op;
-
+	log_info(logger, "Se envía la peticion a memoria");
     switch (peticion->tipo) {
         case PROCESS_CREATE_OP:
             send_protocolo = crear_paquete(PROCESS_CREATE_OP);
