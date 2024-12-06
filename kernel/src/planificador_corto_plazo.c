@@ -390,12 +390,12 @@ void recibir_motivo_devolucion_cpu() {
     case IO_SYSCALL:
         aux = list_remove(paquete_respuesta, 0);
         tiempo = *((int*)aux->buffer->stream);
-        log_info(logger, "El hilo %d está intentando liberar un mutex\n", tid);
+        log_info(logger, "El hilo %d ejecuta un IO\n", tid);
         MUTEX_UNLOCK(nombre_mutex);
         break;   
 
     case DUMP_MEMORY_OP:
-        log_info(logger, "El hilo %d está intentando liberar un mutex\n", tid);
+        log_info(logger, "El hilo %d lanza un dump del proceso padre\n", tid);
         pid = proceso_actual->pid;
         DUMP_MEMORY(pid);
         break;   
