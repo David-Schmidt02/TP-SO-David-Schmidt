@@ -87,6 +87,9 @@ void *conexion_memoria(void* arg_memoria)
 					}
 					inicializar_bitmap(mount_dir, block_count);
 					break;
+				//case DUMP_MEMORY_OP
+				//lógica para hacer el dump_memory
+				//confirmacion a memoria
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
 					return (void *)EXIT_FAILURE;

@@ -5,8 +5,8 @@ extern int conexion_kernel_cpu_dispatch;
 extern int conexion_kernel_cpu_interrupt;
 extern int ultimo_tid;
 
-t_tcb* hilo_actual;  
-t_pcb* proceso_actual;
+extern t_tcb* hilo_actual;  
+extern t_pcb* proceso_actual;
 
 extern t_cola_hilo* hilos_cola_ready;
 extern pthread_mutex_t * mutex_hilos_cola_ready;
@@ -390,12 +390,12 @@ void recibir_motivo_devolucion_cpu() {
     case IO_SYSCALL:
         aux = list_remove(paquete_respuesta, 0);
         tiempo = *((int*)aux->buffer->stream);
-        log_info(logger, "El hilo %d está intentando liberar un mutex\n", tid);
+        log_info(logger, "El hilo %d ejecuta un IO\n", tid);
         MUTEX_UNLOCK(nombre_mutex);
         break;   
 
     case DUMP_MEMORY_OP:
-        log_info(logger, "El hilo %d está intentando liberar un mutex\n", tid);
+        log_info(logger, "El hilo %d lanza un dump del proceso padre\n", tid);
         pid = proceso_actual->pid;
         DUMP_MEMORY(pid);
         break;   
