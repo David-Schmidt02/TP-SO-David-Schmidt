@@ -335,10 +335,13 @@ void recibir_motivo_devolucion_cpu() {
     t_paquete *aux;
     protocolo_socket motivo;
     aux  = list_remove(paquete_respuesta, 0);
-    tid = *((int*)aux->buffer->stream);
-    aux = list_remove(paquete_respuesta, 0);
     motivo = (protocolo_socket)aux->buffer->stream;
     char* nombre_mutex;
+    int tiempo;
+    int pid;
+    char * nombre_archivo;
+    int prioridad;
+    int tamanio;
     switch (motivo) {
     case FINALIZACION:
         log_info(logger, "El hilo %d ha FINALIZADO correctamente\n", tid);
@@ -352,6 +355,8 @@ void recibir_motivo_devolucion_cpu() {
 
     case THREAD_JOIN_OP:
         log_info(logger, "El hilo %d fue bloqueado por THREAD JOIN\n", tid);
+        aux = list_remove(paquete_respuesta, 0);
+        tid = *((int*)aux->buffer->stream);
         // Transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
         esperar_desbloqueo_ejecutar_hilo(tid);
         break;
@@ -382,12 +387,55 @@ void recibir_motivo_devolucion_cpu() {
         MUTEX_UNLOCK(nombre_mutex);
         break;
 
+    case IO_SYSCALL:
+        aux = list_remove(paquete_respuesta, 0);
+        tiempo = *((int*)aux->buffer->stream);
+        log_info(logger, "El hilo %d está intentando liberar un mutex\n", tid);
+        MUTEX_UNLOCK(nombre_mutex);
+        break;   
+
+    case DUMP_MEMORY_OP:
+        log_info(logger, "El hilo %d está intentando liberar un mutex\n", tid);
+        pid = proceso_actual->pid;
+        DUMP_MEMORY(pid);
+        break;   
+
+    case PROCESS_CREATE_OP:
+        aux = list_remove(paquete_respuesta, 0);
+        nombre_archivo = *((char*)aux->buffer->stream);
+        FILE * archivo = fopen(nombre_archivo, "r");
+        aux = list_remove(paquete_respuesta, 0);
+        tamanio = *((int*)aux->buffer->stream);
+        aux = list_remove(paquete_respuesta, 0);
+        prioridad = *((int*)aux->buffer->stream);
+        log_info(logger, "El hilo %d inició un PROCESS CREATE\n", tid);
+        pid = proceso_actual->pid;
+        PROCESS_CREATE(archivo, tamanio, prioridad);
+        break;   
+    
+    case PROCESS_EXIT_OP:
+        log_info(logger, "El hilo %d inició un PROCESS EXIT\n", tid);
+        pid = proceso_actual->pid;
+        PROCESS_EXIT();
+        break;   
+    
+    case THREAD_CANCEL_OP:
+        aux = list_remove(paquete_respuesta, 0);
+        tid = *((int*)aux->buffer->stream);
+        log_info(logger, "El hilo %d inició un THREAD CANCEL\n", tid);
+        THREAD_CANCEL(tid);
+        break;   
+
+    case THREAD_EXIT_OP:
+        log_info(logger, "El hilo %d inició un THREAD EXIT\n", tid);
+        THREAD_EXIT();
+        break;   
+
     default:
         log_warning(logger, "Motivo desconocido para el hilo %d\n", tid);
         break;
 }
     eliminar_paquete(aux);
-    //quizas deba incluir un eliminar_lista;
 }
 
 void desbloquear_hilos(int tid) {

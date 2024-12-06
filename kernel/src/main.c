@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
 	pthread_create(&tid_memoria, NULL, administrador_peticiones_memoria, (void *)&arg_memoria);
     pthread_create(&tid_cpu_dispatch, NULL, conexion_cpu_dispatch, (void *)&arg_cpu_dispatch);
     pthread_create(&tid_cpu_interrupt, NULL, conexion_cpu_interrupt, (void *)&arg_cpu_interrupt);
-	
+
     //espero fin conexiones
 	pthread_join(tid_memoria, ret_value);
 	pthread_join(tid_cpu_dispatch, ret_value);

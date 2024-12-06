@@ -20,6 +20,9 @@ extern sem_t * sem_estado_respuesta_desde_memoria;
 //extern pthread_mutex_t * mutex_respuesta_desde_memoria;
 //extern pthread_cond_t * cond_respuesta_desde_memoria;
 
+extern conexion_kernel_cpu_dispatch;
+extern conexion_kernel_cpu_interrupt;
+
 extern sem_t * sem_proceso_finalizado;
 
 extern char* algoritmo;
@@ -134,7 +137,11 @@ void largo_plazo_fifo()
             }
         }
         free(peticion);
-    }
+        if(sem_getvalue(sem_estado_procesos_a_crear)==0){
+            t_paquete* send_terminate = crear_paquete(TERMINATE);
+            enviar_paquete(send_terminate, conexion_kernel_cpu_interrupt);
+            //lanzar funciones para liberar estructuras
+        }
     
 }
 
