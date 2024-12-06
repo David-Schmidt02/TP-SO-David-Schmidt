@@ -166,7 +166,8 @@ void *peticion_kernel_NEW_PROCESS(void* arg_peticion){
 	t_paquete * paquete_send;
 
 	paquete_list = recibir_paquete(socket);
-	pcb = list_remove(paquete_list, 0);
+	paquete_recv = list_remove(paquete_list, 0);
+	memcpy(pcb, paquete_recv, paquete_recv->buffer->size);
 
 	crear_proceso(pcb);
 	
@@ -190,8 +191,8 @@ void *peticion_kernel_NEW_THREAD(void* arg_peticion){
 	t_paquete * paquete_send;
 
 	paquete_list = recibir_paquete(socket);
-	tcb = list_remove(paquete_list, 0);
-	pid = (intptr_t)list_remove(paquete_list, 0);
+	paquete_recv = list_remove(paquete_list, 0);
+	memcpy(tcb, paquete_recv, paquete_recv->buffer->size);
 	
 	crear_thread(tcb);
 	
@@ -214,7 +215,8 @@ void *peticion_kernel_END_PROCESS(void* arg_peticion){
 	t_paquete * paquete_send;
 
 	paquete_list = recibir_paquete(socket);
-	pid = (intptr_t)list_remove(paquete_list, 0);
+	paquete_recv = list_remove(paquete_list, 0);
+	memcpy(&pid, paquete_recv, paquete_recv->buffer->size)
 	fin_proceso(pid);
 	
 	//notificar resultado a kernel
@@ -236,7 +238,9 @@ void *peticion_kernel_END_THREAD(void* arg_peticion){
 	t_paquete * paquete_send;
 
 	paquete_list = recibir_paquete(socket);
-	tid = (intptr_t)list_remove(paquete_list, 0);
+	paquete_recv = list_remove(paquete_list, 0);
+	memcpy(&tid, paquete_recv, paquete_recv->buffer->size);
+
 	fin_thread(tid);
 	
 	//notificar resultado a kernel

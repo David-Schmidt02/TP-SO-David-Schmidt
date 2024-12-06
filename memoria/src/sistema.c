@@ -125,7 +125,7 @@ void actualizar_contexto_ejecucion() {
     t_pcb *pcb;
     t_tcb *tcb;
     int pid, tid;
-    RegistroCPU registros_actualizados;
+    RegistroCPU *registros_actualizados;
 
     // Recibo el paquete de la CPU
     paquete_recv_list = recibir_paquete(socket_cliente_cpu);
@@ -150,7 +150,7 @@ void actualizar_contexto_ejecucion() {
 
     // Obtengo los registros actualizados
     t_paquete *registros_paquete = list_remove(paquete_recv_list, 0);
-    memcpy(&registros_actualizados, registros_paquete->buffer->stream, sizeof(RegistroCPU));
+    memcpy(registros_actualizados, registros_paquete->buffer->stream, sizeof(RegistroCPU));
     eliminar_paquete(registros_paquete);
 
     // Libero lista de paquetes
@@ -175,7 +175,7 @@ void actualizar_contexto_ejecucion() {
     // t_tcb *tcb = list_get(pcb->listaTCB, index_tcb);
 
     // Actualizar registros en el TCB
-    memcpy(&(pcb->registro), &registros_actualizados, sizeof(RegistroCPU));
+    memcpy((pcb->registro), registros_actualizados, sizeof(RegistroCPU));
     log_info(logger, "Registros actualizados para PID %d, TID %d.", pid, tid);
     pthread_mutex_unlock(mutex_pcb);
 
