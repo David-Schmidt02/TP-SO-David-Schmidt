@@ -131,22 +131,29 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 					enviar_paquete(handshake_send, socket_cliente_kernel);
 					break;
 				case FIN_QUANTUM:
-					t_list *paquete = recibir_paquete(conexion_cpu_memoria);
+					t_list *paquete = recibir_paquete(socket_cliente_kernel);
 					int tid = *(int *)list_remove(paquete, 0);
 					list_destroy_and_destroy_elements(paquete, free);
-					agregar_interrupcion(FIN_QUANTUM, 3, tid)
+					agregar_interrupcion(FIN_QUANTUM, 3, tid);
 					log_info(logger, "Se recibió interrupción FIN_QUANTUM");
-					//manejar_fin_quantum(socket_cliente_kernel);
+
 					break;
 
 				case THREAD_JOIN_OP:
+					t_list *paquete = recibir_paquete(socket_cliente_kernel);
+					int tid = *(int *)list_remove(paquete, 0);
+					list_destroy_and_destroy_elements(paquete, free);
+					agregar_interrupcion(THREAD_JOIN_OP, 2, tid);
 					log_info(logger, "Se recibió interrupción THREAD_JOIN_OP");
-					manejar_thread_join_op(socket_cliente_kernel);
+
 					break;
 
 				case IO_SYSCALL:
+					t_list *paquete = recibir_paquete(socket_cliente_kernel);
+					int tid = *(int *)list_remove(paquete, 0);
+					list_destroy_and_destroy_elements(paquete, free);
+					agregar_interrupcion(IO_SYSCALL, 2, tid);
 					log_info(logger, "Se recibió syscall de tipo IO");
-					manejar_syscall_io(socket_cliente_kernel);
 					break;
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");

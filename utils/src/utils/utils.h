@@ -71,8 +71,9 @@ typedef enum
     FINALIZACION,
     FIN_QUANTUM,
     THREAD_JOIN_OP,
-    INIT_BITMAP,
-    IO_SYSCALL
+    IO_SYSCALL,
+    // para filesystem
+    INIT_BITMAP
     
 }protocolo_socket;
 

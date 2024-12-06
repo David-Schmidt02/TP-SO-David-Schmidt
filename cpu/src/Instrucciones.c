@@ -226,8 +226,16 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
                 log_info(logger, "## LEER MEMORIA - Dirección Física: %u", direccion_fisica);
 
                 // iría la lógica de leer de la memoria real y asignar al registro destino
-                *reg_destino = 1234; // Simulación de lectura de memoria, asignamos un valor ficticio
-            } else 
+                send_handshake = crear_paquete(READ_MEM);
+                agregar_a_paquete(send_handshake,reg_direccion,sizeof(uint32_t));
+                enviar_paquete(send_handshake,conexion_cpu_memoria);
+                eliminar_paquete(send_handshake);
+                t_list* paquete_recv = recibir_paquete(conexion_cpu_memoria);
+                t_paquete* recv = list_remove(paquete_recv,0);
+                *reg_destino = (uint32_t) recv->buffer->stream;
+                list_destroy(paquete_recv);
+                eliminar_paquete(recv);
+                else 
                 log_info(logger, "Error: Registro no válido en READ_MEM");
         break;
         case 5: // WRITE MEM
@@ -236,9 +244,23 @@ void execute(RegistroCPU *cpu, int instruccion, char **texto) {
             if (reg_direccion != NULL && reg_valor != NULL) {
                 uint32_t direccion_fisica = 0;
                 traducir_direccion(cpu, *reg_direccion, &direccion_fisica); // Traduce la dirección lógica a física
+                send_handshake = crear_paquete(WRITE_MEM);
+                agregar_a_paquete(send_handshake,reg_direccion,sizeof(uint32_t));
+                agregar_a_paquete(send_handshake,reg_valor,sizeof(uint32_t));
+                enviar_paquete(send_handshake,conexion_cpu_memoria);
+                eliminar_paquete(send_handshake);
                 log_info(logger, "## ESCRIBIR MEMORIA - Dirección Física: %u, Valor: %u", direccion_fisica, *reg_valor);
+                protocolo_socket cod_op;
+                cod_op = recibir_operacion(conexion_cpu_memoria);
+                switch (cod_op)
+                {
+                case OK:
+                    log_info(logger, "## Operación recibida: %s", cod_op_a_string(cod_op));
+                    break;
+                case SEGMENTATION_FAULT:
+                    manejar_segmentation_fault(cpu);
+                break;
 
-                // iría la lógica de escribir en la memoria real
             } else 
                 log_info(logger,"Error: Registro no válido en WRITE_MEM");
         break;
@@ -279,53 +301,41 @@ uint32_t* registro_aux(RegistroCPU *cpu, char* reg) {
     return NULL; // En caso de que el registro no sea válido
     
 }
-void checkInterrupt(RegistroCPU *cpu) { 
+void checkInterrupt(RegistroCPU *cpu) { //el checkInterrupt se corre siempre -> interrupcion -> tipo 
     while (1){
         sem_wait(sem_lista_interrupciones);
-        int tipo_interrupcion = recibir_interrupcion();
-        switch (tipo_interrupcion) {
+
+        t_interrupcion* interrupcion_actual = obtener_interrupcion_mayor_prioridad();
+
+        switch (interrupcion_actual->tipo) {
             case FIN_QUANTUM:
                 log_info(logger, "## Interrupción FIN_QUANTUM recibida desde Kernel");
-                manejar_fin_quantum(cpu);
-                //agregar_interrupcion(FIN_QUANTUM, 3);  // Prioridad baja
+                manejar_fin_quantum(cpu);        
                 break;
-    //el checkInterrupt se corre cuando ? -> interrupcion -> tipo 
             case THREAD_JOIN_OP:
                 log_info(logger, "## Interrupción THREAD_JOIN_OP recibida desde Kernel");
-                manejar_thread_join(cpu);
-                //agregar_interrupcion(THREAD_JOIN_OP, 2);  // Prioridad media
+                manejar_thread_join(cpu);  
                 break;
 
-            case INTERRUPCION:
-                log_info(logger, "## Interrupción genérica desde Kernel");
-
-                //agregar_interrupcion(INTERRUPCION, 4);  // Prioridad baja-media
+            case IO_SYSCALL:
+                log_info(logger, "## Interrupción IO_SYSCALL recibida desde Kernel");
+                manejar_io_syscall(cpu);
                 break;
+            case FINALIZACION;
+                log_info(logger, "## Interrupción IO_SYSCALL recibida desde Kernel");
+                manejar_finalizacion(cpu);
+            break;
+            case SEGMENTATION_FAULT:
+                log_info(logger, "## Interrupción SEGMENTATION_FAULT recibida desde Kernel");
+                manejar_segmentation_fault(cpu);
+                
+            default:
+                exit(EXIT_FAILURE);
+           break;
         }
 
         // Verificar si la CPU generó alguna interrupción (ej: Segmentation Fault)
-        if (cpu_genero_interrupcion()) {  // esta función determina si la CPU generó una interrupción crítica
-            log_info(logger, "## Llega interrupción de la CPU");
-
-            //agregar_interrupcion(SEGMENTATION_FAULT, 1);  // Interrupción crítica de la CPU, prioridad alta
-        }
-
-        // Obtener la interrupción de mayor prioridad
-        t_interrupcion* interrupcion_actual = obtener_interrupcion_mayor_prioridad();
-        /*
-        if (interrupcion_actual != NULL) {
-            if (strcmp(interrupcion_actual->tipo, SEGMENTATION_FAULT) == 0) {
-                manejar_segmentation_fault(cpu);
-            } else if (strcmp(interrupcion_actual->tipo, THREAD_JOIN_OP) == 0) {
-                manejar_thread_join(cpu);
-            } else if (strcmp(interrupcion_actual->tipo, FIN_QUANTUM) == 0) {
-                manejar_fin_quantum(cpu);
-            } else if (strcmp(interrupcion_actual->tipo, IO_SYSCALL) == 0) {
-                manejar_io_syscall(cpu);
-            }
-            liberar_interrupcion(interrupcion_actual);
-        }
-        */
+        
     }
 }
 
@@ -345,51 +355,6 @@ int cpu_genero_interrupcion(RegistroCPU *cpu) {
     // Si no se detectaron interrupciones críticas, retorna 0
     return 0;
 }
-
-//no debería usarse
-int recibir_interrupcion() {
-    //sem_wait(sem_estado_lista_interrupciones);
-    t_paquete *paquete_interrupcion = recibir_paquete(conexion_cpu_interrupt);
-
-    if (paquete_interrupcion == NULL) {
-        return 0;  // No se recibió ninguna interrupción
-    }
-
-    char *tipo_interrupcion = paquete_interrupcion->buffer;
-    //Modificar esta comparacion de recibir interrupcion por un switch
-
-    if (strcmp(tipo_interrupcion, FIN_QUANTUM) == 0) {
-        log_info(logger, "Interrupción recibida: FIN_QUANTUM");
-
-        agregar_interrupcion(FIN_QUANTUM, 4);  
-        eliminar_paquete(paquete_interrupcion);
-        return 1;
-    } 
-    else if (strcmp(tipo_interrupcion, THREAD_JOIN_OP) == 0) {
-        log_info(logger, "Interrupción recibida: THREAD_JOIN_OP");
-        agregar_interrupcion(THREAD_JOIN_OP, 2);  
-        eliminar_paquete(paquete_interrupcion);
-        return 1;
-    }
-    else if (strcmp(tipo_interrupcion, "SYS_IO") == 0) {
-        log_info(logger, "Interrupción recibida: SYS_IO");
-        agregar_interrupcion(SYS_IO, 2);  
-        eliminar_paquete(paquete_interrupcion);
-        return 1;
-    } 
-    /*else if (strcmp(tipo_interrupcion, "INTERRUPCION") == 0) {
-        log_info(logger, "Interrupción recibida: INTERRUPCION_KERNEL");
-        agregar_interrupcion("INTERRUPCION", 4);  
-        eliminar_paquete(paquete_interrupcion);
-        return 1;
-    }*/ 
-    else {
-        log_warning(logger, "Interrupción desconocida: %s", tipo_interrupcion);
-        eliminar_paquete(paquete_interrupcion);
-        return 0;
-    }
-}
-
 
 void enviar_contexto_de_memoria(RegistroCPU *registro, int pid) {
     t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
@@ -516,14 +481,14 @@ void agregar_interrupcion(protocolo_socket tipo, int prioridad, int tid) { // La
     }
     else{
         t_interrupcion* nueva_interrupcion = malloc(sizeof(t_interrupcion));
-        protocolo_socket aux = tipo;
-        nueva_interrupcion->tipo = aux; // si no uso el strdup, tanto "nueva_interrupcion->tipo" como "tipo" apuntarian al mismo lugar, por lo que si se modifica uno se modifica el otro; 
+        nueva_interrupcion->tipo = tipo;
         nueva_interrupcion->prioridad = prioridad; // aca no importa porque es entero xd
         
         // Insertamos la interrupción en la lista
         list_add(lista_interrupciones, nueva_interrupcion);
         sem_post(sem_lista_interrupciones);
         log_info(logger, "Interrupción agregada: %s con prioridad %d", tipo, prioridad);
+        free(nueva_interrupcion);
     }
 
 }
@@ -591,9 +556,11 @@ void manejar_thread_join(RegistroCPU *cpu) {
 
     // Notificar al Kernel que se ejecutó la Syscall Join
     notificar_kernel_interrupcion(pid, tid,THREAD_JOIN_OP);
+
+    detener_ejecucion();
 }
 
-manejar_io_syscall(RegistroCPU *cpu){
+void manejar_io_syscall(RegistroCPU *cpu){
     log_info(logger, "## Manejo de syscall io");
 
     // Guardar contexto en Memoria
@@ -601,14 +568,24 @@ manejar_io_syscall(RegistroCPU *cpu){
 
     // Notificar al Kernel que se ejecutó la io syscall
     notificar_kernel_interrupcion(pid, tid,IO_SYSCALL);
-}
-/*void manejar_interrupcion_kernel(RegistroCPU *cpu) {
-    log_info(logger, "## Manejo de interrupción genérica enviada por el Kernel");
 
-    // Guardar contexto en Memoria
+    detener_ejecucion();
+}
+void manejar_finalizacion(cpu){
+    log_info(logger, "## Manejo de Finalización");
+
+    // Notificar al Kernel que el hilo finalizó
+    notificar_kernel_interrupcion(pid, tid, FINALIZACION);
+
+}
+void manejar_segmentation_fault(RegistroCPU *cpu);
     enviar_contexto_de_memoria(cpu, pid);
 
-    // Notificar al Kernel que la interrupción fue manejada
-    notificar_kernel_interrupcion(pid, tid,INTERRUPCION);
+ // Notificar al Kernel del error crítico
+    notificar_kernel_interrupcion(pid, tid, SEGMENTATION_FAULT);
+    
+    detener_ejecucion();
+
+void detener_ejecucion(){
+
 }
-*/
