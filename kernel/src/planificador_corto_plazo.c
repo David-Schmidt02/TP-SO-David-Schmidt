@@ -361,11 +361,6 @@ void recibir_motivo_devolucion_cpu() {
         esperar_desbloqueo_ejecutar_hilo(tid);
         break;
 
-    case SEGMENTATION_FAULT:
-        log_info(logger, "El hilo %d es finalizado por SEGMENTATION FAULT\n", tid);
-        PROCESS_EXIT();
-        break;
-
     case MUTEX_CREATE_OP:
         aux = list_remove(paquete_respuesta, 0);
         memcpy(nombre_mutex, aux, aux->buffer->size);

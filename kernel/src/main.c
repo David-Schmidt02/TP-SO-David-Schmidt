@@ -178,6 +178,10 @@ void *conexion_cpu_dispatch(void * arg_cpu){
 		case INSTRUCCIONES:
 			log_info(logger, "Recibi el archivo de instruccciones de memoria");
 			break;
+		case SEGMENTATION_FAULT:
+			log_info(logger, "El hilo %d es finalizado por SEGMENTATION FAULT\n", hilo_actual->tid);
+			PROCESS_EXIT();
+			break;
 		case TERMINATE:
 			flag = 0;
 			break;
