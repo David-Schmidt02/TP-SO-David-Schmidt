@@ -249,7 +249,7 @@ void *administrador_peticiones_memoria(void* arg_server){
 		pthread_mutex_lock(mutex_lista_t_peticiones);
 		peticion = list_remove(lista_t_peticiones, 0);
 		pthread_mutex_unlock(mutex_lista_t_peticiones);
-		{
+		do{
 			conexion_kernel_memoria = crear_conexion(args->ip, args->puerto);
 			sleep(1);
 

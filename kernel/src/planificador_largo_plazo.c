@@ -20,8 +20,8 @@ extern sem_t * sem_estado_respuesta_desde_memoria;
 //extern pthread_mutex_t * mutex_respuesta_desde_memoria;
 //extern pthread_cond_t * cond_respuesta_desde_memoria;
 
-extern conexion_kernel_cpu_dispatch;
-extern conexion_kernel_cpu_interrupt;
+extern int conexion_kernel_cpu_dispatch;
+extern int conexion_kernel_cpu_interrupt;
 
 extern sem_t * sem_proceso_finalizado;
 

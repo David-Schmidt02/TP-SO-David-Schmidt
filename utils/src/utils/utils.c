@@ -31,7 +31,9 @@
 
     int esperar_cliente(int socket_servidor)
     {
+        //log_info(logger, "Se rompe cuando espera la nueva conexion");
         int socket_cliente = accept(socket_servidor, NULL, NULL);
+        //log_info(logger, "Se rompe despues del segunda accept");
         log_info(logger, "Se conecto un cliente!");
 
         return socket_cliente;
