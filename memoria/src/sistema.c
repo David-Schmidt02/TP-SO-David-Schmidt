@@ -499,42 +499,6 @@ void crear_thread(t_tcb *tcb){
 
 }
 
-/*
-void fin_proceso(int pid){ // potencialmente faltan semaforos
-    int index_pid, index_tid;
-    t_pcb *pcb_aux;
-    t_tcb *tcb_aux;
-    
-    switch(memoria_usuario->tipo_particion){
-
-        case FIJAS:
-            elemento_particiones_fijas *aux;
-            index_pid = buscar_en_tabla_fija(pid);
-            if(index_pid!=(-1)){
-                aux = list_get(memoria_usuario->tabla_particiones_fijas, index_pid);
-                aux->libre_ocupado = 0;
-            }
-            index_pid = buscar_pid(memoria_usuario->lista_pcb, pid);
-            pcb_aux = list_get(memoria_usuario->lista_pcb, index_pid);
-            
-            t_list_iterator *iterator = list_iterator_create(pcb_aux->listaTCB);
-            while(list_iterator_has_next(iterator)){
-                tcb_aux = list_iterator_next(iterator);
-                index_tid = buscar_tid(memoria_usuario->lista_tcb, tcb_aux->tid);
-                tcb_aux = list_remove(memoria_usuario->lista_tcb, index_tid);
-            }
-            //mutex?
-            pcb_aux = list_remove(memoria_usuario->lista_pcb, index_pid);
-            //mutex?
-            
-        case DINAMICAS:
-            //falta hacer
-            break;
-    }
-    free(tcb_aux);
-    free(pcb_aux);
-} */
-
 void fin_proceso(int pid) {
     int index_pid, index_tid;
     t_pcb *pcb_aux;
@@ -560,12 +524,30 @@ void fin_proceso(int pid) {
             //mutex?
             pcb_aux = list_remove(memoria_usuario->lista_pcb, index_pid);
             //mutex?
-
+            list_iterator_destroy(iterator);
             break;
             
         case DINAMICAS:
             remover_proceso_de_tabla_dinamica(pid);
             log_info(logger, "Proceso PID %d liberado de memoria dinámica.", pid);
+            //remover pcb de lista_pcb
+            int index_pcb;
+            index_pcb = buscar_pid(memoria_usuario->lista_pcb, pid);
+            t_pcb * pcb = list_remove(memoria_usuario->lista_pcb, index_pcb); // saco el pid de la tabla_pcb
+            free(pcb);
+            //
+            //remover tcb's de lista_tcb
+            t_list_iterator *iterator_tcb = list_iterator_create(memoria_usuario->lista_tcb);
+            t_tcb *aux_tcb;
+            while(list_iterator_has_next(iterator_tcb)){
+                aux_tcb = list_iterator_next(iterator_tcb);
+                if(aux_tcb->pid == pid){
+                    list_iterator_remove(iterator_tcb);
+                    free(aux_tcb);
+                }
+            }
+            //
+            list_iterator_destroy(iterator_tcb);
             break;
         
         default:

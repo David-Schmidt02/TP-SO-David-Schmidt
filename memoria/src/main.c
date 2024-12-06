@@ -59,14 +59,14 @@ void inicializar_memoria(particiones tipo_particion, int size, t_list *particion
 
 	switch(tipo_particion){
 		case DINAMICAS: // particiones dinamicas
-			log_error(logger, "particiones dinamicas no implementadas todavia");
+			memoria_usuario->tipo_particion = DINAMICAS;
+			init_tablas_dinamicas();
 			break;
 		
 		case FIJAS: // fijas
 			memoria_usuario->tipo_particion = FIJAS;
 			memoria_usuario->tabla_particiones_fijas = list_create();
 			inicializar_tabla_particion_fija(particiones);
-			
 			break;
 	}
 }
