@@ -124,7 +124,7 @@ void crear_archivo_metadata(uint32_t block_count,  int block_size, char* dir_fil
         log_info(logger, "Archivo metadata ya existe: %s", path_metadata);
         fclose(metadata_file);
     }
-    log_info(logger, "Creación Archivo: “## Archivo Creado: <%s> - Tamaño: <%d>", nombre_archivo, tamanio);
+    log_info(logger, "Archivo Creado: <%s> - Tamaño: <%d>", nombre_archivo, tamanio);
     free(path_metadata);
 
 

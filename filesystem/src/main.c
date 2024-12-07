@@ -61,8 +61,6 @@ void *conexion_memoria(void* arg_memoria)
 	int socket_cliente_memoria = esperar_cliente(server);
 
 	//HANDSHAKE_end
-
-
 		while(true){
 			int cod_op = recibir_operacion(socket_cliente_memoria);
 			switch (cod_op)
@@ -95,6 +93,7 @@ void *conexion_memoria(void* arg_memoria)
 					memcpy(datos,recv,sizeof(recv->buffer->stream));
 					char* dir_files = mount_dir;
 					dir_files = crear_directorio(dir_files,"/files");
+					espacio_disponible(tamanio);
 					crear_archivo_metadata(block_count,block_size,dir_files,nombre_archivo,tamanio);
 					log_info(logger, "Fin de solicitud - Archivo: <%s>", nombre_archivo);
 					

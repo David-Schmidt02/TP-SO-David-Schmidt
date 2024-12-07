@@ -7,9 +7,13 @@ extern uint32_t block_count;
 extern int block_size;
 extern retardo_acceso;
 extern char* mount_dir;
-
 extern t_config *config;
 extern t_log *logger;
+int libres;
+
+void inicializar_libres() {
+    libres = (int)block_count;
+}
 
 void inicializar_bitmap(char* mount_dir, uint32_t block_count) {
     if (block_count == 0) {
@@ -89,13 +93,12 @@ void inicializar_bitmap(char* mount_dir, uint32_t block_count) {
     free(path_bitmap);
 }
 
-bool espacio_disponible(int cantidad) {
+bool espacio_disponible(uint32_t cantidad) {
     pthread_mutex_lock(&mutex_bitmap);
-    int libres = 0;
     for (int i = 0; i < bitarray_get_max_bit(bitmap); i++) {
         if (!bitarray_test_bit(bitmap, i)) {
-            libres++;
-            if (libres >= cantidad) {
+            libres--;
+            if (libres <= cantidad) {
                 pthread_mutex_unlock(&mutex_bitmap);
                 return true;
             }
