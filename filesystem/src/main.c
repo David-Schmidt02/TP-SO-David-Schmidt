@@ -82,15 +82,15 @@ void *conexion_memoria(void* arg_memoria)
 					break;
 				case DUMP_MEMORY_OP:
 					recv_list = recibir_paquete(socket_cliente_memoria);
-					recv = list_remove(recv_list,0);
+
 					char* nombre_archivo;
 					uint32_t tamanio;
 					uint32_t *datos;
-					memcpy(nombre_archivo,recv,sizeof(recv->buffer->stream));
-					recv = list_remove(recv_list,0);
-					memcpy(&tamanio,recv,sizeof(recv->buffer->stream));
-					recv = list_remove(recv_list,0);
-					memcpy(datos,recv,sizeof(recv->buffer->stream));
+
+					nombre_archivo = list_remove(recv_list,0);
+					tamanio = list_remove(recv_list,0);
+					datos = list_remove(recv_list,0);
+
 					char* dir_files = mount_dir;
 					dir_files = crear_directorio(dir_files,"/files");
 					espacio_disponible(tamanio);
