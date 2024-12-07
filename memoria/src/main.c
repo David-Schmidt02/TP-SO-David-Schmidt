@@ -27,12 +27,18 @@ int main(int argc, char* argv[]) {
 
     void *ret_value;
 
-	init_mutex(mutex_pcb);
-	init_mutex(mutex_tcb);
-	init_mutex(mutex_part_fijas);
-	init_mutex(mutex_huecos);
-	init_mutex(mutex_procesos_din);
-	init_mutex(mutex_espacio);
+	mutex_pcb = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(mutex_pcb, NULL);
+	mutex_tcb = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(mutex_pcb, NULL);
+	mutex_part_fijas = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(mutex_pcb, NULL);
+	mutex_huecos = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(mutex_pcb, NULL);
+	mutex_procesos_din = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(mutex_pcb, NULL);
+	mutex_espacio = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(mutex_pcb, NULL);
 
 	//inicializar memoria
 	t_list *particiones = list_create();
@@ -64,19 +70,8 @@ int main(int argc, char* argv[]) {
 	//espero fin conexiones
 
 }
-void init_mutex(pthread_mutex_t * mutex){
-	mutex = malloc(sizeof(pthread_mutex_t));
-	if (mutex == NULL) {
-        exit(EXIT_FAILURE);
-    }
-	pthread_mutex_init(mutex, NULL);
-}
-void inicializar_memoria(particiones tipo_particion, int size, t_list *particiones){
-	mutex_pcb = malloc(sizeof(pthread_mutex_t));
-	pthread_mutex_init(mutex_pcb, NULL);
 
-	mutex_tcb = malloc(sizeof(pthread_mutex_t));
-	pthread_mutex_init(mutex_pcb, NULL);
+void inicializar_memoria(particiones tipo_particion, int size, t_list *particiones){
 
 	memoria_usuario = malloc(sizeof(t_memoria));
 	memoria_usuario->lista_pcb = list_create();
@@ -191,6 +186,7 @@ void *peticion_kernel_NEW_PROCESS(void* arg_peticion){
 	eliminar_paquete(paquete_send);
 	list_destroy(paquete_list);
 	close(*socket); //cerrar socket
+	log_info(logger, "Se creo un nuevo proceso pid: %d", pcb->pid);
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
 void *peticion_kernel_NEW_THREAD(void* arg_peticion){

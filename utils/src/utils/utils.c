@@ -125,7 +125,6 @@
                             server_info->ai_protocol);
 
         if (connect(socket_cliente, server_info->ai_addr, server_info->ai_addrlen)==-1){
-            log_error(logger, "no se pudo establecer conexion al servidor");
             return -1;
         }else log_info(logger, "Conectado al servidor");
 

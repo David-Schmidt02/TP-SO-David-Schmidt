@@ -26,7 +26,6 @@ void *peticion_kernel_NEW_PROCESS(void* arg_peticion);
 void *peticion_kernel_NEW_THREAD(void *arg_peticion);
 void *peticion_kernel_END_PROCESS(void *arg_peticion);
 void *peticion_kernel_END_THREAD(void *arg_peticion);
-void init_mutex(pthread_mutex_t *mutex);
 void inicializar_memoria(particiones tipo_particion, int size, t_list *); // hacer para dinamicas
 void levantar_conexiones(void); //
 void cargar_lista_particiones(t_list *, char **); //solo para fijas
