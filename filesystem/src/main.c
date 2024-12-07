@@ -65,21 +65,6 @@ void *conexion_memoria(void* arg_memoria)
 			int cod_op = recibir_operacion(socket_cliente_memoria);
 			switch (cod_op)
 			{
-				case INIT_BITMAP:
-					log_info(logger, "Solicitud para inicializar el Bitmap recibida");
-
-					char* mount_dir = config_get_string_value(config, "MOUNT_DIR");
-					if (mount_dir == NULL) {
-						log_error(logger, "Error: No se encontró 'MOUNT_DIR' en la configuración.");
-						return (void*)EXIT_FAILURE;
-					}
-					uint32_t block_count = (uint32_t) config_get_int_value(config, "BLOCK_COUNT");
-					if (block_count == 0) {
-						log_error(logger, "Error: No se encontró 'BLOCK_COUNT' en la configuración.");
-						return (void*)EXIT_FAILURE;
-					}
-					inicializar_bitmap(mount_dir, block_count);
-					break;
 				case DUMP_MEMORY_OP:
 					recv_list = recibir_paquete(socket_cliente_memoria);
 
@@ -88,7 +73,7 @@ void *conexion_memoria(void* arg_memoria)
 					uint32_t *datos;
 
 					nombre_archivo = list_remove(recv_list,0);
-					tamanio = list_remove(recv_list,0);
+					tamanio = (uint32_t)list_remove(recv_list,0);
 					datos = list_remove(recv_list,0);
 
 					char* dir_files = mount_dir;
@@ -96,7 +81,7 @@ void *conexion_memoria(void* arg_memoria)
 					espacio_disponible(tamanio);
 					crear_archivo_metadata(block_count,block_size,dir_files,nombre_archivo,tamanio);
 					log_info(logger, "Fin de solicitud - Archivo: <%s>", nombre_archivo);
-					
+					break;
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
 					return (void *)EXIT_FAILURE;

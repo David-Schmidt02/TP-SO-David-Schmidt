@@ -385,13 +385,5 @@ void *cliente_conexion_filesystem(void * arg_fs){
 
 	}while(conexion_memoria_fs == -1);
 
-	char* nombre_archivo = "Test.dmp";
-	uint32_t size = 10;
-	void * contenido_segmento = memoria_usuario->espacio;
-	t_paquete * send = crear_paquete(DUMP_MEMORY_OP);
-    agregar_a_paquete(send, nombre_archivo, strlen(nombre_archivo)+1);
-    agregar_a_paquete(send, &size, sizeof(uint32_t));
-    agregar_a_paquete(send, contenido_segmento, sizeof(contenido_segmento));
-
 	return (void *)EXIT_SUCCESS;
 }

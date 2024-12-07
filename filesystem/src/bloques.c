@@ -6,7 +6,7 @@ static FILE* metadata_file;
 int index_block=0;
 extern uint32_t block_count;
 extern int block_size;
-extern retardo_acceso;
+extern int retardo_acceso;
 extern char* mount_dir;
 int bloques_libres;
 
