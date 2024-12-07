@@ -8,6 +8,7 @@ extern uint32_t block_count;
 extern int block_size;
 extern retardo_acceso;
 extern char* mount_dir;
+int bloques_libres;
 
 void inicializar_bloques(uint32_t block_count, int block_size, char* mount_dir) {
     if (mount_dir == NULL) {
@@ -51,47 +52,41 @@ void inicializar_bloques(uint32_t block_count, int block_size, char* mount_dir) 
 }
 
 void escribir_bloque(int bloque, void *contenido, size_t tamanio) {
-    int block_count = config_get_int_value(config, "BLOCK_COUNT"); // Obtiene el total de bloques
+    int block_count = config_get_int_value(config, "BLOCK_COUNT"); 
     if (bloque < 0 || bloque >= block_count) {
         log_error(logger, "El índice de bloque %d está fuera del rango permitido.", bloque);
-        return; // No continúa la operación si el bloque es inválido
+        return;
     }
     if (tamanio > block_size) {
         log_error(logger, "El tamaño de escritura excede el tamaño del bloque.");
         exit(EXIT_FAILURE);
     }
-    usleep(retardo_acceso * 1000); // Retardo simulado
+    usleep(retardo_acceso * 1000);
     memcpy(bloques + (bloque * block_size), contenido, tamanio);
-    log_info(logger, "Escribiendo bloque %d con %lu bytes", bloque, tamanio);
+    bloques_libres = bloques_libres - bloque;
+    log_info(logger, "Bloque asignado: %d con %lu bytes", bloque, bloques_libres);
 }
 
 void *leer_bloque(int bloque) {
-    // Valida bloque dentro del rango
-    int block_count = config_get_int_value(config, "BLOCK_COUNT"); // Obtiene el número total de bloques
+    int block_count = config_get_int_value(config, "BLOCK_COUNT");
     if (bloque < 0 || bloque >= block_count) {
         log_error(logger, "El índice de bloque %d está fuera del rango permitido (0 - %d).", bloque, block_count - 1);
-        return NULL; // Devuelve NULL si el bloque es inválido
+        return NULL;
     }
-
-    // Simula retardo de acceso al bloque
     usleep(retardo_acceso * 1000);
-
-    // Calcula la dirección del bloque dentro del archivo mapeado
     void *direccion_bloque = bloques + (bloque * block_size);
-
     log_info(logger, "Bloque %d leído correctamente. Dirección: %p, Tamaño: %d bytes", bloque, direccion_bloque, block_size);
 
     return direccion_bloque;
 }
 
 
-void crear_archivo_metadata(uint32_t block_count,  int block_size, char* dir_files, char* nombre_archivo) {
+void crear_archivo_metadata(uint32_t block_count,  int block_size, char* dir_files, char* nombre_archivo,uint32_t tamanio) {
     if (block_count == 0) {
         log_error(logger, "No se encontró el valor BLOCK_COUNT en el archivo de configuración.");
         exit(EXIT_FAILURE);
     }
 
-    //recibo aca el nombre del archivo
     size_t path_length = strlen(dir_files) + strlen(nombre_archivo) + 2;
     char *path_metadata = malloc(path_length);
     if (path_metadata == NULL) {
@@ -129,7 +124,7 @@ void crear_archivo_metadata(uint32_t block_count,  int block_size, char* dir_fil
         log_info(logger, "Archivo metadata ya existe: %s", path_metadata);
         fclose(metadata_file);
     }
-    log_info(logger, "Creación Archivo: “## Archivo Creado: <%s> - Tamaño: <%d>", nombre_archivo, block_size);
+    log_info(logger, "Creación Archivo: “## Archivo Creado: <%s> - Tamaño: <%d>", nombre_archivo, tamanio);
     free(path_metadata);
 
 

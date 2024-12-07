@@ -95,7 +95,9 @@ void *conexion_memoria(void* arg_memoria)
 					memcpy(datos,recv,sizeof(recv->buffer->stream));
 					char* dir_files = mount_dir;
 					dir_files = crear_directorio(dir_files,"/files");
-					crear_archivo_metadata(block_count,block_size,dir_files, nombre_archivo);
+					crear_archivo_metadata(block_count,block_size,dir_files,nombre_archivo,tamanio);
+					log_info(logger, "Fin de solicitud - Archivo: <%s>", nombre_archivo);
+					
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
 					return (void *)EXIT_FAILURE;
@@ -118,7 +120,6 @@ char* crear_directorio(char* base_path, char* ruta_a_agregar) {
         exit(EXIT_FAILURE);
     }
 
-    // Calcular la longitud de la nueva ruta con "/mount_dir"
     size_t path_length = strlen(base_path) + strlen(ruta_a_agregar) + 1;
     char* mount_dir = malloc(path_length);
     if (!mount_dir) {
@@ -126,10 +127,8 @@ char* crear_directorio(char* base_path, char* ruta_a_agregar) {
         exit(EXIT_FAILURE);
     }
 
-    // Construir la ruta completa
     snprintf(mount_dir, path_length, "%s%s", base_path,ruta_a_agregar);
 
-    // Intentar crear el directorio
     if (mkdir(mount_dir, 0700) == 0) {
         printf("Directorio '%s' creado correctamente.\n", mount_dir);
     } else if (errno == EEXIST) {
