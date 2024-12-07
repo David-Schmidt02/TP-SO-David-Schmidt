@@ -36,3 +36,4 @@ void inicializar_lista_interrupciones();
 void manejar_motivo(protocolo_socket tipo, char** texto);
 void manejar_finalizacion(protocolo_socket tipo, char** texto);
 void liberar_interrupcion(t_interrupcion* interrupcion);
+void detener_ejecucion();
