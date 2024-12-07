@@ -6,6 +6,7 @@ int conexion_cpu_memoria;
 int conexion_cpu_interrupt;
 int pid;
 int tid;
+int flag_hay_contexto;
 
 bool flag = true;
 
@@ -44,14 +45,13 @@ int main(int argc, char* argv[]) {
 	pthread_create(&tid_kernelD, NULL, conexion_kernel_dispatch, (void *)&arg_kernelD);
 	pthread_create(&tid_memoria, NULL, cliente_conexion_memoria, (void *)&arg_memoria);
 	//conexiones
-	inicializar_cpu_contexto(cpu);
+	inicializar_cpu_contexto();
 	inicializar_lista_interrupciones();
 
-	
 	while(flag){
 
-		if (pid == 0)
-            checkInterrupt(cpu);
+		if (pid == 0 || flag_hay_contexto)
+            checkInterrupt();
 		else
 			fetch();
 	}
@@ -86,21 +86,19 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 		while(true){
 			int cod_op = recibir_operacion(socket_cliente_kernel);
 			switch (cod_op){
-				case HANDSHAKE:
-					handshake_recv = recibir_paquete(socket_cliente_kernel);
-					log_info(logger, "me llego: kernel dispatch\n");
-					list_iterate(handshake_recv, (void*) iterator);
-					enviar_paquete(handshake_send, socket_cliente_kernel);
-					break;
-				// hilo_actual = hilo;
 				case INFO_HILO:
 					t_list *paquete = recibir_paquete(socket_cliente_kernel);
 					tid = *(int *)list_remove(paquete, 0);
-					list_destroy_and_destroy_elements(paquete, free);
-					char* texto[2];
+					pid = *(int *)list_remove(paquete, 0);
+					list_destroy(paquete);
+					char* texto[3];
+					texto[0] = malloc(5);
+					texto[1] = malloc(5);
+					texto[2] = malloc(5);
 					strcpy(texto[1],string_itoa(tid)); 
+					strcpy(texto[2],string_itoa(pid)); 
 					agregar_interrupcion(INFO_HILO,3,texto);
-					
+					break;
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
 					return (void *)EXIT_FAILURE;

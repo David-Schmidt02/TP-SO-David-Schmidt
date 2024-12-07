@@ -11,13 +11,15 @@ extern RegistroCPU *cpu;
 t_paquete *send_handshake;
 t_paquete *paquete_respuesta;
 
+extern int flag_hay_contexto;
+
 //hay que inicializar
 extern t_list* lista_interrupciones;
 extern sem_t * sem_lista_interrupciones;
 extern pthread_mutex_t *mutex_lista_interrupciones;
 //
 
-void inicializar_cpu_contexto(RegistroCPU *cpu) {
+void inicializar_cpu_contexto() {
     cpu = malloc(sizeof(RegistroCPU));
     cpu->AX = 0;
     cpu->BX = 0;
@@ -54,6 +56,8 @@ void inicializar_lista_interrupciones(){
 
 // Función para obtener el contexto de ejecución de la memoria
 void obtener_contexto_de_memoria() {
+    char *texto[1];
+    
     t_paquete *msjerror;
     t_list *paquete_respuesta;
     // Crear un paquete de solicitud para obtener el contexto
@@ -73,14 +77,14 @@ void obtener_contexto_de_memoria() {
         memcpy(error, msjerror->buffer, sizeof(msjerror->buffer->size));
         log_error(logger, error);
         free(error);
-        agregar_interrupcion(SEGMENTATION_FAULT,1, tid);
+        agregar_interrupcion(SEGMENTATION_FAULT,1, texto);
         return;
     }
     paquete_respuesta = recibir_paquete(conexion_cpu_memoria); // Recibir el contexto de ejecución
     if (paquete_respuesta != NULL) 
     {
-        t_paquete * recv_reg = list_remove(paquete_respuesta, 0);
-         memcpy(cpu, recv_reg->buffer->stream, recv_reg->buffer->size);
+        cpu = list_remove(paquete_respuesta, 0);
+        flag_hay_contexto = 1;
 
         log_info(logger, "## PID: %d - Contexto inicializado", pid);
 
@@ -130,6 +134,7 @@ void fetch() {
         // Llamar a la función decode para procesar la instrucción
         decode(instruccion);
         free(instruccion);
+        
 }
 
 // Función para traducir direcciones lógicas a físicas
@@ -428,6 +433,8 @@ void checkInterrupt() { //el checkInterrupt se corre siempre -> interrupcion -> 
             manejar_motivo(interrupcion_actual->tipo,interrupcion_actual->parametro);
             break;    
         case INFO_HILO:
+            tid = atoi(interrupcion_actual->parametro[1]);
+            pid = atoi(interrupcion_actual->parametro[2]);
             obtener_contexto_de_memoria();
             break;
 
@@ -484,6 +491,7 @@ void enviar_contexto_de_memoria (RegistroCPU *registro, int pid){
 
 void enviar_contexto_de_memoria() {
     // Crear el paquete a enviar
+    char *texto[1];
     t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
 
     // Agregar los registros de la CPU al paquete
@@ -499,7 +507,7 @@ void enviar_contexto_de_memoria() {
     int operacion = recibir_operacion(conexion_cpu_memoria);
     if (operacion == ERROR_MEMORIA) {
         log_error(logger, "Error crítico: Memoria respondió con un error.");
-        agregar_interrupcion(SEGMENTATION_FAULT, 1,tid);
+        agregar_interrupcion(SEGMENTATION_FAULT, 1,texto);
         return; // Detener el flujo si ocurre un error crítico
     }
 
@@ -516,7 +524,7 @@ void enviar_contexto_de_memoria() {
                     break;
                 case SEGMENTATION_FAULT:
                     log_error(logger, "Segmentation Fault recibido desde Memoria.");
-                    agregar_interrupcion(SEGMENTATION_FAULT, 1,tid);
+                    agregar_interrupcion(SEGMENTATION_FAULT, 1,texto);
                 break;      
             
                 default:  // Caso de respuesta inesperada
@@ -525,7 +533,7 @@ void enviar_contexto_de_memoria() {
         }
      else {
         log_error(logger, "Error: No se recibió una respuesta válida desde Memoria.");
-        agregar_interrupcion(SEGMENTATION_FAULT, 1,tid);
+        agregar_interrupcion(SEGMENTATION_FAULT, 1,texto);
     }
 
     // Liberar la memoria usada por la lista de respuesta
@@ -676,12 +684,11 @@ void agregar_interrupcion(protocolo_socket tipo, int prioridad,char**texto) { //
         nueva_interrupcion->tipo = tipo;
         nueva_interrupcion->prioridad = prioridad;
         nueva_interrupcion->parametro = texto;
-
+        
         // Insertamos la interrupción en la lista
         list_add(lista_interrupciones, nueva_interrupcion);
         sem_post(sem_lista_interrupciones);
-        log_info(logger, "Interrupción agregada: %s con prioridad %d", tipo, prioridad);
-        free(nueva_interrupcion);
+        log_info(logger, "Interrupción agregada: %i con prioridad %d", tipo, prioridad);
     }
 
 }
@@ -740,4 +747,5 @@ void manejar_finalizacion(protocolo_socket tipo, char** texto){
 
 void detener_ejecucion(){
     pid = 0;
+    flag_hay_contexto = 0;
 }

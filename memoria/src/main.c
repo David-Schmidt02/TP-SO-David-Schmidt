@@ -207,6 +207,7 @@ void *peticion_kernel_NEW_THREAD(void* arg_peticion){
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
+	log_info(logger, "Se crea el paquete de respuesta de thread create");
 	enviar_paquete(paquete_send, *socket);
 
 	eliminar_paquete(paquete_send);
@@ -305,7 +306,7 @@ void *conexion_cpu(void* arg_cpu)
 	t_paquete *recv;
 	while(true){
 		protocolo_socket cod_op = (protocolo_socket)recibir_operacion(socket_cliente_cpu);
-		sleep(delay); // retardo en peticion / cpu
+		usleep(delay); // retardo en peticion / cpu
 		switch (cod_op)
 		{
 			case CONTEXTO_RECEIVE:

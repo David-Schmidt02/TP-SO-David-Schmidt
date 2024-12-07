@@ -5,7 +5,7 @@
 
 int pid=0;
 int ultimo_tid=0;
-extern quantum;
+extern int quantum;
 
 t_pcb* crear_pcb(int pid, int prioridadTID)
 {

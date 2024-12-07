@@ -155,10 +155,6 @@ int main(int argc, char* argv[]) {
 void *conexion_cpu_dispatch(void * arg_cpu){
 
 	argumentos_thread * args = arg_cpu;
-	t_paquete* send_handshake;
-	protocolo_socket op;
-	int flag=1;
-	char* valor = "conexion kernel->cpu dispatch";
 	do
 	{
 		conexion_kernel_cpu_dispatch = crear_conexion(args->ip, args->puerto);
@@ -166,81 +162,19 @@ void *conexion_cpu_dispatch(void * arg_cpu){
 
 	}while(conexion_kernel_cpu_dispatch == -1);
 	
-	
-	send_handshake = crear_paquete(HANDSHAKE);
-	agregar_a_paquete (send_handshake, valor , strlen(valor)+1); 
-
-	while(flag){
-		enviar_paquete(send_handshake, conexion_kernel_cpu_dispatch);
-		sleep(1);
-		op = recibir_operacion(conexion_kernel_cpu_dispatch);
-		switch (op)
-		{
-		case HANDSHAKE:
-			log_info(logger, "recibi handshake de cpu_dispatch");
-			break;
-		case INSTRUCCIONES:
-			log_info(logger, "Recibi el archivo de instruccciones de memoria");
-			break;
-		case SEGMENTATION_FAULT:
-			log_info(logger, "El hilo %d es finalizado por SEGMENTATION FAULT\n", hilo_actual->tid);
-			PROCESS_EXIT();
-			break;
-		case TERMINATE:
-			flag = 0;
-			break;
-		default:
-			break;
-		}
-	}
-
-	eliminar_paquete(send_handshake);
-	liberar_conexion(conexion_kernel_cpu_dispatch);
     return (void *)EXIT_SUCCESS;
 }
 
 void *conexion_cpu_interrupt(void * arg_cpu){
 
 	argumentos_thread * args = arg_cpu;
-	t_paquete* send_handshake;
-	int conexion_kernel_cpu_interrupt;
-	protocolo_socket op;
-	char* valor = "conexion kernel->cpu interrupt";
-	int flag=1;
 	do
 	{
 		conexion_kernel_cpu_interrupt = crear_conexion(args->ip, args->puerto);
 		sleep(1);
 
 	}while(conexion_kernel_cpu_interrupt == -1);
-	
-	
-	send_handshake = crear_paquete(HANDSHAKE);
-	agregar_a_paquete (send_handshake, valor , strlen(valor)+1); 
-	
-	while(flag){
-		enviar_paquete(send_handshake, conexion_kernel_cpu_interrupt);
-		sleep(1);
-		op = recibir_operacion(conexion_kernel_cpu_interrupt);
-		switch (op)
-		{
-		case HANDSHAKE:
-			log_info(logger, "recibi handshake de cpu_interrupt");
-			break;
-		case INSTRUCCIONES:
-			log_info(logger, "Recibi el archivo de instruccciones de memoria");
-			break;
-		case TERMINATE:
-			flag = 0;
-			break;
-
-		default:
-			break;
-		}
-	}
-
-	eliminar_paquete(send_handshake);
-	liberar_conexion(conexion_kernel_cpu_interrupt);
+		
     return (void *)EXIT_SUCCESS;
 }
 

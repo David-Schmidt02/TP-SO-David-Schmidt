@@ -176,6 +176,7 @@ void actualizar_contexto_ejecucion() {
     agregar_a_paquete(paquete_ok, (void *)mensaje_ok, strlen(mensaje_ok) + 1);
     enviar_paquete(paquete_ok, socket_cliente_cpu);
     eliminar_paquete(paquete_ok);
+    log_info(logger, "Recibi contexto de CPU");
 }
 
 void enviar_error_actualizacion() {
@@ -201,11 +202,12 @@ int buscar_pid(t_list *lista, int pid){
     while(list_iterator_has_next(iterator)){
         elemento = list_iterator_next(iterator);
         if(elemento->pid == pid){
+            pthread_mutex_unlock(mutex_pcb);
             return list_iterator_index(iterator);
         }
     }
-    list_iterator_destroy(iterator);
     pthread_mutex_unlock(mutex_pcb);
+    list_iterator_destroy(iterator);
     return -1;
 }
 //retorna index de tid en la lista de threads
@@ -217,6 +219,7 @@ int buscar_tid(t_list *lista, int tid){
     while(list_iterator_has_next(iterator)){
         elemento = list_iterator_next(iterator);
         if(elemento->tid == tid){
+            pthread_mutex_unlock(mutex_tcb);
             return list_iterator_index(iterator);
         }
     }

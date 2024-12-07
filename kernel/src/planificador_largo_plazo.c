@@ -171,8 +171,9 @@ void encolar_hilo_principal_corto_plazo(t_pcb * proceso){
     peticion->tipo = THREAD_CREATE_OP;
     peticion->proceso = NULL;
     peticion->hilo = hilo;
-    sem_wait(sem_estado_respuesta_desde_memoria);
     encolar_peticion_memoria(peticion);
+    sem_wait(sem_estado_respuesta_desde_memoria);
+    
     if (strcmp(algoritmo, "FIFO") == 0) {
         log_info(logger, "Se encola el hilo según el algoritmo de FIFO");
         encolar_corto_plazo_fifo(hilo);
