@@ -194,7 +194,8 @@ void *peticion_kernel_NEW_PROCESS(void* arg_peticion){
 }
 void *peticion_kernel_NEW_THREAD(void* arg_peticion){
 	int *socket = arg_peticion;
-	t_tcb *tcb;
+	t_tcb *tcb = malloc(sizeof(t_tcb));
+	t_list * instrucciones = list_create();
 	int pid;
 	//atender peticion
 	t_list * paquete_list;
@@ -203,6 +204,14 @@ void *peticion_kernel_NEW_THREAD(void* arg_peticion){
 	paquete_list = recibir_paquete(*socket);
 	tcb = list_remove(paquete_list, 0);
 	
+	t_list_iterator *iterator = list_iterator_create(paquete_list);
+	char * aux_instruccion;
+	while(list_iterator_has_next(iterator)){
+		aux_instruccion = list_iterator_next(iterator);
+		log_info(logger, "ID instruccion %s", aux_instruccion);
+		list_add(instrucciones, aux_instruccion);
+	}
+	tcb->instrucciones = instrucciones;
 	crear_thread(tcb);
 	
 	//notificar resultado a kernel
@@ -323,15 +332,15 @@ void *conexion_cpu(void* arg_cpu)
 				break;
 			case OBTENER_INSTRUCCION:
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
-				PC = (intptr_t)list_remove(paquete_recv, 0);
-				tid = (intptr_t)list_remove(paquete_recv, 0);
+				PC = *(int *)list_remove(paquete_recv, 0);
+				tid = *(int *)list_remove(paquete_recv, 0);
 				obtener_instruccion(PC, tid);
 				list_destroy(paquete_recv);
 				break;
 			case READ_MEM:
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
-				direccion = (intptr_t)list_remove(paquete_recv, 0);
-				valor = (intptr_t)read_memory(direccion);
+				direccion = *(int *)list_remove(paquete_recv, 0);
+				valor = read_memory(direccion);
 				if(valor != -1){
 					t_paquete *paquete_send = crear_paquete(OK);
 					agregar_a_paquete(paquete_send, &valor, sizeof(uint32_t));
@@ -346,8 +355,8 @@ void *conexion_cpu(void* arg_cpu)
 				break;
 			case WRITE_MEM:
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
-				direccion = (intptr_t)list_remove(paquete_recv, 0);
-				valor = (intptr_t)list_remove(paquete_recv, 0);
+				direccion = *(int *)list_remove(paquete_recv, 0);
+				valor = *(int *)list_remove(paquete_recv, 0);
 				if(valor != -1){
 					write_memory(direccion, valor);
 					t_paquete *paquete_send = crear_paquete(OK);

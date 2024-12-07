@@ -659,6 +659,7 @@ int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu.
 	paquete_send = crear_paquete(OBTENER_INSTRUCCION);
 	agregar_a_paquete(paquete_send, instruccion, sizeof(instruccion));
 	enviar_paquete(paquete_send, socket_cliente_cpu);
+    log_info(logger, "Se envia instruccion %d a CPU", PC);
 	eliminar_paquete(paquete_send);
 
     return 0;

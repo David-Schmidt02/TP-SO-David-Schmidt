@@ -101,9 +101,9 @@ void fetch() {
         // Obtención de la instrucción correspondiente al Program Counter
         
         send_handshake = crear_paquete(OBTENER_INSTRUCCION); 
-        agregar_a_paquete(send_handshake, &pid, sizeof(pid));
+        agregar_a_paquete(send_handshake, &cpu->PC , sizeof(uint32_t));
         agregar_a_paquete(send_handshake, &tid, sizeof(tid)); 
-        agregar_a_paquete(send_handshake, &cpu->PC , sizeof(uint32_t)); 
+        
 
         enviar_paquete(send_handshake, conexion_cpu_memoria);
         eliminar_paquete(send_handshake); // elimina el paquete después de enviarlo
@@ -115,20 +115,15 @@ void fetch() {
             return;
         }
 
-        t_paquete *paquete_request = list_remove(paquete_lista,0);
-        if (paquete_request == NULL || paquete_request->buffer == NULL || paquete_request->buffer->stream == NULL) {
-            log_error(logger, "Paquete recibido no válido");
-            return;
-        }
+        char *instruccion;
+        instruccion = list_remove(paquete_lista,0);
+             
         
-        char *instruccion = malloc(paquete_request->buffer->size + 1);
         if (instruccion == NULL) {
             log_error(logger, "No se pudo asignar memoria para la instrucción");
             return;
         }
-        memcpy(instruccion, paquete_request->buffer->stream, paquete_request->buffer->size);
-        instruccion[paquete_request->buffer->size] = '\0'; // indico el final de la cadena
-        
+              
         log_info(logger,"## TID: %d - FETCH ", cpu->PC);
         
         // Llamar a la función decode para procesar la instrucción

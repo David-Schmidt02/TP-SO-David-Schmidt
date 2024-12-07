@@ -109,8 +109,6 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
 
     log_info(logger, "Proceso PID %d agregado a la lista de procesos.", nuevo_pcb->pid);
     
-    liberarInstrucciones(lista_instrucciones);
-
     log_info(logger, "## (<PID>:<TID>) - Solicitó syscall: PROCESS_CREATE");
     
 }
@@ -574,7 +572,7 @@ t_list* interpretarArchivo(FILE* archivo)
         return NULL;
     }
 
-    char linea[100];
+    char *linea;
     t_list* instrucciones = list_create();
     if (instrucciones == NULL) {
         perror("Error de asignación de memoria");
@@ -585,37 +583,9 @@ t_list* interpretarArchivo(FILE* archivo)
     while (fgets(linea, sizeof(linea), archivo) != NULL) {
         linea[strcspn(linea, "\n")] = 0; 
 
-        t_instruccion* instruccion = malloc(sizeof(t_instruccion));
-        if (instruccion == NULL) {
-            perror("Error de asignación de memoria para la instrucción");
-            list_destroy_and_destroy_elements(instrucciones, element_destroyer);
-            return NULL;
-        }
-
-        char* token = strtok(linea, " ");
-        if (token != NULL) {
-            instruccion->ID_instruccion = strdup(token);
-
-            // Si la instrucción es "SALIR", no asignar parámetros
-            if (strcmp(instruccion->ID_instruccion, "SALIR") == 0) {
-                instruccion->parametros_validos = 0;
-                instruccion->parametros[0] = 0;
-                instruccion->parametros[1] = 0;
-            } else {
-                instruccion->parametros_validos = 1;
-                for (int i = 0; i < 2; i++) {
-                    token = strtok(NULL, " ");
-                    if (token != NULL) {
-                        instruccion->parametros[i] = token;
-                    } else {
-                        instruccion->parametros[i] = 0;
-                    }
-                }
-            }
-
-            list_add(instrucciones, instruccion);
-        } else {
-            free(instruccion);
+        if (linea != NULL) {
+            
+            list_add(instrucciones, linea);
         }
     }
 
