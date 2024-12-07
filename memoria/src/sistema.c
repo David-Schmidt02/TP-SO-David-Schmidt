@@ -456,7 +456,7 @@ int send_dump(int pid, int tid){
              tiempo_actual.tv_usec / 1000);
     log_info(logger, nombre_archivo);
     t_paquete * send = crear_paquete(DUMP_MEMORY_OP);
-    agregar_a_paquete(send, nombre_archivo, sizeof(pid));
+    agregar_a_paquete(send, nombre_archivo, strlen(nombre_archivo)+1);
     agregar_a_paquete(send, &size, sizeof(uint32_t));
     agregar_a_paquete(send, contenido_segmento, sizeof(contenido_segmento));
 
