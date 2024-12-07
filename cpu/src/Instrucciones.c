@@ -198,7 +198,7 @@ void decode( char *inst) {
             execute(15,texto);// 15 = PROCESS_EXIT
 
     else if (strcmp(texto[0], "MUTEX_LOCK") == 0 && texto[1] && texto[2]) 
-            execute(16,texto) // MUTEX_LOCK
+            execute(16,texto); // MUTEX_LOCK
     else{
         log_info(logger, "Instrucción no reconocida: %s", texto[0]);
         exit(EXIT_FAILURE);
