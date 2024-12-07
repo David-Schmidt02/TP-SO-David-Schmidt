@@ -70,7 +70,7 @@ void enviar_contexto(int pid, int tid) {
     //agregar_a_paquete(paquete, &tcb->registro, sizeof(tcb->registro));
 
     // Agrego el registro entero del PCB
-    agregar_a_paquete(paquete, pcb->registro, sizeof(pcb->registro));
+    agregar_a_paquete(paquete, tcb->registro, sizeof(tcb->registro));
 
     pthread_mutex_unlock(mutex_tcb);
     pthread_mutex_unlock(mutex_pcb);
@@ -147,14 +147,14 @@ void actualizar_contexto_ejecucion() {
     list_destroy(paquete_recv_list);
 
     // Validar PID y TID
-    pthread_mutex_lock(mutex_pcb);
-    int index_pcb = buscar_pid(memoria_usuario->lista_pcb, pid);
-    if (index_pcb == -1) {
-        log_error(logger, "No se encontró el PID %d en memoria para actualizar contexto.", pid);
+    pthread_mutex_lock(mutex_tcb);
+    int index_tcb = buscar_pid(memoria_usuario->lista_tcb, tid);
+    if (index_tcb == -1) {
+        log_error(logger, "No se encontró el TID %d en memoria para actualizar contexto.", tid);
         enviar_error_actualizacion();
         return;
     }
-    pcb = list_get(memoria_usuario->lista_pcb, index_pcb);
+    tcb = list_get(memoria_usuario->lista_tcb, index_tcb);
 
     // int index_tcb = buscar_tid(pcb->listaTCB, tid);
     // if (index_tcb == -1) {
@@ -165,9 +165,9 @@ void actualizar_contexto_ejecucion() {
     // t_tcb *tcb = list_get(pcb->listaTCB, index_tcb);
 
     // Actualizar registros en el TCB
-    memcpy((pcb->registro), registros_actualizados, sizeof(RegistroCPU));
+    memcpy((tcb->registro), registros_actualizados, sizeof(RegistroCPU));
     log_info(logger, "Registros actualizados para PID %d, TID %d.", pid, tid);
-    pthread_mutex_unlock(mutex_pcb);
+    pthread_mutex_unlock(mutex_tcb);
 
     // Respondemos a la CPU con un paquete de confirmación
     t_paquete *paquete_ok = crear_paquete(OK_MEMORIA);
@@ -248,8 +248,9 @@ int agregar_a_tabla_particion_fija(t_pcb *pcb){
             break;
         }
     }pthread_mutex_unlock(mutex_part_fijas);
-    return list_iterator_index(iterator);
+    int index = list_iterator_index(iterator);
     list_iterator_destroy(iterator);
+    return index;
 }
 int agregar_a_dinamica(t_pcb *pcb){
     
@@ -480,8 +481,8 @@ void crear_proceso(t_pcb *pcb) {
         case FIJAS:
             int index_fija = agregar_a_tabla_particion_fija(pcb);
             elemento_particiones_fijas *aux_fija = list_get(memoria_usuario->tabla_particiones_fijas, index_fija);
-            pcb->registro->base = aux_fija->base;  // Guardo la dirección de inicio en el registro base
-            pcb->registro->limite = aux_fija->size;
+            pcb->base = aux_fija->base;  // Guardo la dirección de inicio en el registro base
+            pcb->limite = aux_fija->size;
             
             // Agrego el PCB a la lista global
             pthread_mutex_lock(mutex_pcb);

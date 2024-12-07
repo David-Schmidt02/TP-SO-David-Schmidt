@@ -30,15 +30,15 @@ int main(int argc, char* argv[]) {
 	mutex_pcb = malloc(sizeof(pthread_mutex_t));
 	pthread_mutex_init(mutex_pcb, NULL);
 	mutex_tcb = malloc(sizeof(pthread_mutex_t));
-	pthread_mutex_init(mutex_pcb, NULL);
+	pthread_mutex_init(mutex_tcb, NULL);
 	mutex_part_fijas = malloc(sizeof(pthread_mutex_t));
-	pthread_mutex_init(mutex_pcb, NULL);
+	pthread_mutex_init(mutex_part_fijas, NULL);
 	mutex_huecos = malloc(sizeof(pthread_mutex_t));
-	pthread_mutex_init(mutex_pcb, NULL);
+	pthread_mutex_init(mutex_huecos, NULL);
 	mutex_procesos_din = malloc(sizeof(pthread_mutex_t));
-	pthread_mutex_init(mutex_pcb, NULL);
+	pthread_mutex_init(mutex_procesos_din, NULL);
 	mutex_espacio = malloc(sizeof(pthread_mutex_t));
-	pthread_mutex_init(mutex_pcb, NULL);
+	pthread_mutex_init(mutex_espacio, NULL);
 
 	//inicializar memoria
 	t_list *particiones = list_create();
@@ -95,11 +95,14 @@ void inicializar_memoria(particiones tipo_particion, int size, t_list *particion
 }
 void cargar_lista_particiones(t_list * particiones, char **particiones_array){
 	
-	char* elemento = malloc(sizeof(char*)*20);
-	elemento = *particiones_array;
-	for(int i=0;particiones_array[i]!=NULL;i++){
-		list_add(particiones, particiones_array[i]);
+	char * elemento;
+	int size = string_array_size(particiones_array);
+	for (int i = 0; i < size; i++)
+	{
+		elemento = string_array_pop(particiones_array);
+		list_add_in_index(particiones, -1, (void*)atoi(elemento));
 	}
+	//lo que dolio esta funcion no se puede explicar
 }
 void *server_multihilo_kernel(void* arg_server){
 

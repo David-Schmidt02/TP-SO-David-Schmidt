@@ -77,9 +77,8 @@ t_pcb* obtener_pcb_por_pid(int pid) {
 void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadTID) {
     
     int pid = generar_pid_unico();
-    int pc = 0;
 
-    t_pcb* nuevo_pcb = crear_pcb(pid, pc, prioridadTID);
+    t_pcb* nuevo_pcb = crear_pcb(pid, prioridadTID);
     nuevo_pcb->memoria_necesaria = tam_proceso;
     nuevo_pcb->quantum = prioridadTID;
 
@@ -133,10 +132,6 @@ void eliminar_pcb(t_pcb* pcb) {
 
     if (pcb->listaMUTEX != NULL) {
         list_destroy_and_destroy_elements(pcb->listaMUTEX, (void*) eliminar_mutex); // <-- Asegúrate de tener esta función
-    }
-
-    if (pcb->registro != NULL) {
-        free(pcb->registro);
     }
 
     free(pcb);
@@ -360,8 +355,8 @@ void notificar_memoria_creacion_hilo(t_tcb* hilo) {
         log_info(logger, "Información sobre la creacion del hilo con TID %d enviada a Memoria.", hilo->tid);
     } else {
         log_info(logger, "Error al informar sobre la creacion del hilo con TID %d a Memoria.", hilo->tid);
-        }   
-}
+        }
+        }
 
 void notificar_memoria_fin_hilo(t_tcb* hilo) {
     t_peticion *peticion = malloc(sizeof(t_peticion));
@@ -381,7 +376,10 @@ void eliminar_tcb(t_tcb* hilo) {
     if (hilo == NULL) {
         return;
     }
-
+    if (hilo->registro != NULL) {
+        free(hilo->registro);
+    }
+    
     // Implementar lógica para liberar otros recursos?
     free(hilo);  // Libero el TCB
 }
