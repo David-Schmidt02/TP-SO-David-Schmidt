@@ -6,7 +6,7 @@ int conexion_cpu_memoria;
 int conexion_cpu_interrupt;
 int pid;
 int tid;
-t_pcb *pcb;
+
 bool flag = true;
 
 int tid_actual;
@@ -46,9 +46,15 @@ int main(int argc, char* argv[]) {
 	//conexiones
 	inicializar_cpu_contexto(cpu);
 	inicializar_lista_interrupciones();
-	pcb = malloc(sizeof(t_pcb));
-	while(flag)
-		fetch(pcb);
+
+	
+	while(flag){
+
+		if (pid == 0)
+            checkInterrupt(cpu);
+		else
+			fetch();
+	}
     //espero fin conexiones
 	
 	
@@ -89,9 +95,12 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 				// hilo_actual = hilo;
 				case INFO_HILO:
 					t_list *paquete = recibir_paquete(socket_cliente_kernel);
-					int tid = *(int *)list_remove(paquete, 0);
+					tid = *(int *)list_remove(paquete, 0);
 					list_destroy_and_destroy_elements(paquete, free);
-					tid_actual = tid;
+					char* texto[2];
+					strcpy(texto[1],string_itoa(tid)); 
+					agregar_interrupcion(INFO_HILO,3,texto);
+					
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
 					return (void *)EXIT_FAILURE;
@@ -140,9 +149,12 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 					paquete = recibir_paquete(socket_cliente_kernel);
 					tid = *(int *)list_remove(paquete, 0);
 					list_destroy_and_destroy_elements(paquete, free);
-					agregar_interrupcion(FIN_QUANTUM, 3, tid);
+					char* texto[1];
+					agregar_interrupcion(FIN_QUANTUM,3,texto);
+
 					log_info(logger, "Se recibió interrupción FIN_QUANTUM");
 					break;
+				
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
 					return (void *)EXIT_FAILURE;
