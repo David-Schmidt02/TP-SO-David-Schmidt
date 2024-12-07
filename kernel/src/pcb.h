@@ -53,6 +53,7 @@ typedef struct {
     int prioridad;
     sem_t * cant_hilos_block; // Semaforo para tratar con los hilos que bloquean a este hilo por THREAD JOIN
     t_estado estado;
+    int quantum_restante;
     t_list* lista_espera; // Lista de hilos que están esperando a que el hilo corriendo termine
     t_list* instrucciones;
     RegistroCPU *registro;  // Lista de instrucciones para el hilo

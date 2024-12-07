@@ -1,6 +1,8 @@
 #include "planificador_corto_plazo.h"
 #include <syscalls.h>
 
+int quamtun;
+
 extern int conexion_kernel_cpu_dispatch;
 extern int conexion_kernel_cpu_interrupt;
 extern int ultimo_tid;
@@ -206,6 +208,7 @@ void ejecutar_round_robin(t_tcb * hilo_a_ejecutar) {
     // Lanzamos un nuevo hilo que cuente el quantum y envíe una interrupción si se agota
     pthread_t thread_contador_quantum;
     pthread_create(&thread_contador_quantum, NULL, (void *)contar_quantum, (void *)hilo_a_ejecutar);
+    //algo que cuente el quantum y que haga una resta
     recibir_motivo_devolucion_cpu(); 
     pthread_join(thread_contador_quantum, NULL); // Esperamos que el hilo del quantum termine
 }
@@ -213,10 +216,11 @@ void ejecutar_round_robin(t_tcb * hilo_a_ejecutar) {
 // Función para contar el quantum y enviar una interrupción si se agota
 void contar_quantum(void *hilo_void) {
     t_tcb* hilo = (t_tcb*) hilo_void;
-    usleep(quantum * 1000);
+    //usleep(hilo->quantum);
     // Si el quantum se agotó, enviamos una interrupción al CPU por el canal de interrupt
     // Si el hilo finalizó, igual se manda la interrupcion por Fin de Quantum, pero la CPU chequea que ese hilo ya terminó y la desestima
     pthread_mutex_lock(mutex_socket_cpu_interrupt);
+    //semáforo para modificar el quantum
     enviar_a_cpu_interrupt(hilo->tid, FIN_QUANTUM);
     pthread_mutex_unlock(mutex_socket_cpu_interrupt);
     log_info(logger, "Interrupción por fin de quantum enviada para el TID %d", hilo->tid);
@@ -386,7 +390,7 @@ void recibir_motivo_devolucion_cpu() {
         aux = list_remove(paquete_respuesta, 0);
         memcpy(&tiempo, aux->buffer->stream, aux->buffer->size);
         log_info(logger, "El hilo %d ejecuta un IO\n", tid);
-        MUTEX_UNLOCK(nombre_mutex);
+        //IO(nombre_mutex);
         break;   
 
     case DUMP_MEMORY_OP:

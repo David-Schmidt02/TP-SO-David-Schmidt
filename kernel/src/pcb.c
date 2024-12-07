@@ -4,7 +4,14 @@
 #include "pcb.h"
 
 int pid=0;
+<<<<<<< HEAD
+int pc=0;
+int pid_counter = 0;
+int ultimo_tid = 0;
+extern quantum;
+=======
 int ultimo_tid=0;
+>>>>>>> 57fcc844cc2faa2a487b70b10dcafb577a83a10e
 
 t_pcb* crear_pcb(int pid, int prioridadTID)
 {
@@ -29,6 +36,7 @@ t_tcb* crear_tcb(int pid,int tid, int prioridad)
     tcb->tid = tid;
     tcb->pid = pid;
     tcb->prioridad = prioridad;
+    tcb->quantum_restante = quantum;
     cambiar_estado(tcb,NEW);
     tcb->instrucciones = list_create();
     tcb->lista_espera = list_create();  // Inicializa la lista de hilos en espera
