@@ -178,6 +178,10 @@ void *conexion_cpu_dispatch(void * arg_cpu){
 		case INSTRUCCIONES:
 			log_info(logger, "Recibi el archivo de instruccciones de memoria");
 			break;
+		case SEGMENTATION_FAULT:
+			log_info(logger, "El hilo %d es finalizado por SEGMENTATION FAULT\n", hilo_actual->tid);
+			PROCESS_EXIT();
+			break;
 		case TERMINATE:
 			flag = 0;
 			break;
@@ -249,7 +253,7 @@ void *administrador_peticiones_memoria(void* arg_server){
 		pthread_mutex_lock(mutex_lista_t_peticiones);
 		peticion = list_remove(lista_t_peticiones, 0);
 		pthread_mutex_unlock(mutex_lista_t_peticiones);
-		{
+		do{
 			conexion_kernel_memoria = crear_conexion(args->ip, args->puerto);
 			sleep(1);
 
@@ -305,8 +309,8 @@ void *peticion_kernel(void *args) {
 
         case DUMP_MEMORY_OP:
             send_protocolo = crear_paquete(DUMP_MEMORY_OP);
-			agregar_a_paquete(send_protocolo, proceso_actual->pid, sizeof(int));
-            agregar_a_paquete(send_protocolo, hilo_actual->tid, sizeof(int));
+			agregar_a_paquete(send_protocolo, &proceso_actual->pid, sizeof(int));
+            agregar_a_paquete(send_protocolo, &hilo_actual->tid, sizeof(int));
 			log_info(logger, "Se crea la peticion de DUMP MEMORY");
             break;
 

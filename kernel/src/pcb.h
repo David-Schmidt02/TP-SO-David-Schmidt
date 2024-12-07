@@ -29,6 +29,7 @@ typedef struct{
 
 }RegistroCPU;
 
+
 typedef struct {
     char* parametros[2]; // almacena los parámetros que acompañan la instrucción. Por ejemplo, en la instrucción SET AX, 5, el primer parámetro (índice 0) sería AX y el segundo parámetro (índice 1) sería 5.
     char* ID_instruccion; // Almacena el nombre de la instrucción (por ejemplo, "SET", "SUM", "READ_MEM", etc.).
@@ -37,13 +38,13 @@ typedef struct {
 
 typedef struct {
     int pid;
-    int pc;
     int quantum;
     int memoria_necesaria;
     t_estado estado;
     t_list *listaTCB;
     t_list *listaMUTEX;
-    RegistroCPU *registro;
+    uint32_t base;
+    uint32_t limite;
 } t_pcb;
 
 typedef struct {
@@ -53,7 +54,8 @@ typedef struct {
     sem_t * cant_hilos_block; // Semaforo para tratar con los hilos que bloquean a este hilo por THREAD JOIN
     t_estado estado;
     t_list* lista_espera; // Lista de hilos que están esperando a que el hilo corriendo termine
-    t_list* instrucciones;  // Lista de instrucciones para el hilo
+    t_list* instrucciones;
+    RegistroCPU *registro;  // Lista de instrucciones para el hilo
 } t_tcb;
 
 // Estructura para manejar el mutex
@@ -65,7 +67,7 @@ typedef struct {
 } t_mutex;
 
 
-t_pcb* crear_pcb(int pid,int pc,int prioridadTID);
+t_pcb* crear_pcb(int pid,int prioridadTID);
 t_tcb* crear_tcb(int pid,int tid, int prioridad);
 void cambiar_estado(t_tcb* tcb, t_estado estado);
 int generar_pid_unico();

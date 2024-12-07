@@ -361,35 +361,30 @@ void recibir_motivo_devolucion_cpu() {
         esperar_desbloqueo_ejecutar_hilo(tid);
         break;
 
-    case SEGMENTATION_FAULT:
-        log_info(logger, "El hilo %d es finalizado por SEGMENTATION FAULT\n", tid);
-        PROCESS_EXIT();
-        break;
-
     case MUTEX_CREATE_OP:
         aux = list_remove(paquete_respuesta, 0);
-        nombre_mutex = *((char*)aux->buffer->stream);
+        memcpy(nombre_mutex, aux, aux->buffer->size);
         log_info(logger, "El hilo %d está creando un nuevo mutex\n", tid);
         MUTEX_CREATE(nombre_mutex);
         break;
 
     case MUTEX_LOCK_OP:
         aux = list_remove(paquete_respuesta, 0);
-        nombre_mutex = *((char*)aux->buffer->stream);
+        memcpy(nombre_mutex, aux->buffer->stream, aux->buffer->size);
         log_info(logger, "El hilo %d está intentando adquirir un mutex\n", tid);
         MUTEX_LOCK(nombre_mutex);
         break;
 
     case MUTEX_UNLOCK_OP:
         aux = list_remove(paquete_respuesta, 0);
-        nombre_mutex = *((char*)aux->buffer->stream);
+        memcpy(nombre_mutex, aux->buffer->stream, aux->buffer->size);
         log_info(logger, "El hilo %d está intentando liberar un mutex\n", tid);
         MUTEX_UNLOCK(nombre_mutex);
         break;
 
     case IO_SYSCALL:
         aux = list_remove(paquete_respuesta, 0);
-        tiempo = *((int*)aux->buffer->stream);
+        memcpy(&tiempo, aux->buffer->stream, aux->buffer->size);
         log_info(logger, "El hilo %d ejecuta un IO\n", tid);
         MUTEX_UNLOCK(nombre_mutex);
         break;   
@@ -402,7 +397,7 @@ void recibir_motivo_devolucion_cpu() {
 
     case PROCESS_CREATE_OP:
         aux = list_remove(paquete_respuesta, 0);
-        nombre_archivo = *((char*)aux->buffer->stream);
+        memcpy(nombre_archivo, aux->buffer->stream, aux->buffer->size);
         FILE * archivo = fopen(nombre_archivo, "r");
         aux = list_remove(paquete_respuesta, 0);
         tamanio = *((int*)aux->buffer->stream);

@@ -27,6 +27,19 @@ int main(int argc, char* argv[]) {
 
     void *ret_value;
 
+	mutex_pcb = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(mutex_pcb, NULL);
+	mutex_tcb = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(mutex_tcb, NULL);
+	mutex_part_fijas = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(mutex_part_fijas, NULL);
+	mutex_huecos = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(mutex_huecos, NULL);
+	mutex_procesos_din = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(mutex_procesos_din, NULL);
+	mutex_espacio = malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(mutex_espacio, NULL);
+
 	//inicializar memoria
 	t_list *particiones = list_create();
 	char ** particiones_string = config_get_array_value(config, "PARTICIONES");
@@ -57,12 +70,8 @@ int main(int argc, char* argv[]) {
 	//espero fin conexiones
 
 }
-void inicializar_memoria(particiones tipo_particion, int size, t_list *particiones){
-	mutex_pcb = malloc(sizeof(pthread_mutex_t));
-	pthread_mutex_init(mutex_pcb, NULL);
 
-	mutex_tcb = malloc(sizeof(pthread_mutex_t));
-	pthread_mutex_init(mutex_pcb, NULL);
+void inicializar_memoria(particiones tipo_particion, int size, t_list *particiones){
 
 	memoria_usuario = malloc(sizeof(t_memoria));
 	memoria_usuario->lista_pcb = list_create();
@@ -86,11 +95,14 @@ void inicializar_memoria(particiones tipo_particion, int size, t_list *particion
 }
 void cargar_lista_particiones(t_list * particiones, char **particiones_array){
 	
-	char* elemento = malloc(sizeof(char*)*20);
-	elemento = *particiones_array;
-	for(int i=0;particiones_array[i]!=NULL;i++){
-		list_add(particiones, particiones_array[i]);
+	char * elemento;
+	int size = string_array_size(particiones_array);
+	for (int i = 0; i < size; i++)
+	{
+		elemento = string_array_pop(particiones_array);
+		list_add_in_index(particiones, -1, (void*)atoi(elemento));
 	}
+	//lo que dolio esta funcion no se puede explicar
 }
 void *server_multihilo_kernel(void* arg_server){
 
@@ -106,21 +118,22 @@ void *server_multihilo_kernel(void* arg_server){
 	
 	while (flag)
 	{
-		log_info(logger, "esperando nueva peticion");
+		log_info(logger, "esperando nueva peticion de kernel");
 		int socket_cliente_kernel = esperar_cliente(server); //pausado hasta que llegue una peticion nueva (nuevo cliente)
 	
 		cod_op = recibir_operacion(socket_cliente_kernel);
+		log_info(logger, "SE RECIBIO UNA PETICION DESDE KERNEL CON EL CODIGO DE OPERACION: %i", cod_op);
 		switch (cod_op)
 		{
 			case PROCESS_CREATE_OP:
 				pthread_create(&aux_thread, NULL, peticion_kernel_NEW_PROCESS, (void *)&socket_cliente_kernel);
 				list_add(lista_t_peticiones, &aux_thread);
-				log_info(logger, "nueva peticion");
+				log_info(logger, "nueva peticion de process create");
 				break;
 			case THREAD_CREATE_OP:
 				pthread_create(&aux_thread, NULL, peticion_kernel_NEW_THREAD, (void *)&socket_cliente_kernel);
 				list_add(lista_t_peticiones, &aux_thread);
-				log_info(logger, "nueva peticion");
+				log_info(logger, "nueva peticion de thread create");
 				break;
 			case PROCESS_EXIT_OP:
 				pthread_create(&aux_thread, NULL, peticion_kernel_END_PROCESS, (void *)&socket_cliente_kernel);
@@ -158,114 +171,105 @@ void *server_multihilo_kernel(void* arg_server){
     pthread_exit(EXIT_SUCCESS);
 }
 void *peticion_kernel_NEW_PROCESS(void* arg_peticion){
-	int socket = (int)arg_peticion;
+	int *socket = arg_peticion;
 	t_pcb *pcb;
 	//atender peticion
 	t_list * paquete_list;
-	t_paquete * paquete_recv;
 	t_paquete * paquete_send;
 
-	paquete_list = recibir_paquete(socket);
+	paquete_list = recibir_paquete(*socket);
 	pcb = list_remove(paquete_list, 0);
 
 	crear_proceso(pcb);
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
-	enviar_paquete(paquete_send, socket);
+	enviar_paquete(paquete_send, *socket);
 
 	eliminar_paquete(paquete_send);
-	eliminar_paquete(paquete_recv);
 	list_destroy(paquete_list);
-	close(socket); //cerrar socket
+	close(*socket); //cerrar socket
+	log_info(logger, "Se creo un nuevo proceso pid: %d", pcb->pid);
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
 void *peticion_kernel_NEW_THREAD(void* arg_peticion){
-	int socket = (int)arg_peticion;
+	int *socket = arg_peticion;
 	t_tcb *tcb;
 	int pid;
 	//atender peticion
 	t_list * paquete_list;
-	t_paquete * paquete_recv;
 	t_paquete * paquete_send;
 
-	paquete_list = recibir_paquete(socket);
+	paquete_list = recibir_paquete(*socket);
 	tcb = list_remove(paquete_list, 0);
-	pid = (intptr_t)list_remove(paquete_list, 0);
 	
 	crear_thread(tcb);
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
-	enviar_paquete(paquete_send, socket);
+	enviar_paquete(paquete_send, *socket);
 
 	eliminar_paquete(paquete_send);
-	eliminar_paquete(paquete_recv);
 	list_destroy(paquete_list);
-	close(socket); //cerrar socket
+	close(*socket); //cerrar socket
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
 void *peticion_kernel_END_PROCESS(void* arg_peticion){
-	int socket = (int)arg_peticion;
+	int *socket = arg_peticion;
 	int pid;
 	//atender peticion
 	t_list * paquete_list;
-	t_paquete * paquete_recv;
 	t_paquete * paquete_send;
 
-	paquete_list = recibir_paquete(socket);
+	paquete_list = recibir_paquete(*socket);
 	pid = (intptr_t)list_remove(paquete_list, 0);
+
 	fin_proceso(pid);
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
-	enviar_paquete(paquete_send, socket);
+	enviar_paquete(paquete_send, *socket);
 
 	eliminar_paquete(paquete_send);
-	eliminar_paquete(paquete_recv);
 	list_destroy(paquete_list);
-	close(socket); //cerrar socket
+	close(*socket); //cerrar socket
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
 void *peticion_kernel_END_THREAD(void* arg_peticion){
-	int socket = (int)arg_peticion;
+	int *socket = arg_peticion;
 	int tid;
 	//atender peticion
 	t_list * paquete_list;
-	t_paquete * paquete_recv;
 	t_paquete * paquete_send;
 
-	paquete_list = recibir_paquete(socket);
+	paquete_list = recibir_paquete(*socket);
 	tid = (intptr_t)list_remove(paquete_list, 0);
+
 	fin_thread(tid);
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
-	enviar_paquete(paquete_send, socket);
+	enviar_paquete(paquete_send, *socket);
 
 	eliminar_paquete(paquete_send);
-	eliminar_paquete(paquete_recv);
 	list_destroy(paquete_list);
-	close(socket); //cerrar socket
+	close(*socket); //cerrar socket
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
 
 void *peticion_kernel_DUMP(void* arg_peticion){
-	int socket = (int)arg_peticion;
+	int *socket = arg_peticion;
 	int tid;
 	int pid;
 	protocolo_socket respuesta;
 	//atender peticion
 	t_list * paquete_list;
-	t_paquete * paquete_recv;
 	t_paquete * paquete_send;
 
-	paquete_list = recibir_paquete(socket);
-	paquete_recv = list_remove(paquete_list, 0);
-	tid = (int) paquete_recv->buffer->stream;
-	paquete_recv = list_remove(paquete_list, 0);
-	pid = (int) paquete_recv->buffer->stream;
-
+	paquete_list = recibir_paquete(*socket);
+	tid = (intptr_t)list_remove(paquete_list, 0);
+	pid = (intptr_t)list_remove(paquete_list, 0);
+		
 	if(send_dump(pid, tid) == -1){
 		respuesta = ERROR;
 	}else{
@@ -274,18 +278,16 @@ void *peticion_kernel_DUMP(void* arg_peticion){
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(respuesta);
-	enviar_paquete(paquete_send, socket);
+	enviar_paquete(paquete_send, *socket);
 
 	eliminar_paquete(paquete_send);
-	eliminar_paquete(paquete_recv);
 	list_destroy(paquete_list);
-	close(socket); //cerrar socket
+	close(*socket); //cerrar socket
 	return(void*)EXIT_SUCCESS; //finalizar hilo
 }
 void *conexion_cpu(void* arg_cpu)
 {
 	argumentos_thread *args = arg_cpu; 
-	t_paquete *handshake_send;
 	t_list *paquete_recv;
 	char * handshake_texto = "conexion con memoria";
 	
@@ -295,11 +297,6 @@ void *conexion_cpu(void* arg_cpu)
 	int server = iniciar_servidor(args->puerto);
 	log_info(logger, "Servidor listo para recibir al cliente CPU");
 	socket_cliente_cpu = esperar_cliente(server);
-
-	//HANDSHAKE
-	handshake_send = crear_paquete(HANDSHAKE);
-	agregar_a_paquete (handshake_send, handshake_texto , strlen(handshake_texto)+1);
-	//HANDSHAKE_end
 
 	uint32_t direccion;
 	uint32_t valor;
@@ -325,18 +322,15 @@ void *conexion_cpu(void* arg_cpu)
 				break;
 			case OBTENER_INSTRUCCION:
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
-				recv = list_remove(paquete_recv, 0);
-				PC = (intptr_t)recv->buffer->stream;
-				recv = list_remove(paquete_recv, 0);
-				tid = (intptr_t)recv->buffer->stream;
+				PC = (intptr_t)list_remove(paquete_recv, 0);
+				tid = (intptr_t)list_remove(paquete_recv, 0);
 				obtener_instruccion(PC, tid);
 				list_destroy(paquete_recv);
 				break;
 			case READ_MEM:
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
-				recv = list_remove(paquete_recv, 0);
-				direccion = (uint32_t)recv->buffer->stream;
-				valor = (uint32_t)read_memory(direccion);
+				direccion = (intptr_t)list_remove(paquete_recv, 0);
+				valor = (intptr_t)read_memory(direccion);
 				if(valor != -1){
 					t_paquete *paquete_send = crear_paquete(OK);
 					agregar_a_paquete(paquete_send, &valor, sizeof(uint32_t));
@@ -351,10 +345,8 @@ void *conexion_cpu(void* arg_cpu)
 				break;
 			case WRITE_MEM:
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
-				recv = list_remove(paquete_recv, 0);
-				direccion = (uint32_t)recv->buffer->stream;
-				recv = list_remove(paquete_recv, 0);
-				valor = (uint32_t)recv->buffer->stream;
+				direccion = (intptr_t)list_remove(paquete_recv, 0);
+				valor = (intptr_t)list_remove(paquete_recv, 0);
 				if(valor != -1){
 					write_memory(direccion, valor);
 					t_paquete *paquete_send = crear_paquete(OK);
@@ -375,7 +367,7 @@ void *conexion_cpu(void* arg_cpu)
 			default:
 				log_warning(logger,"Operacion desconocida. No quieras meter la pata");
 				break;
-		}eliminar_paquete(handshake_send);
+		}
 	}
 		
 	close(server);
@@ -385,10 +377,7 @@ void *conexion_cpu(void* arg_cpu)
 void *cliente_conexion_filesystem(void * arg_fs){
 
 	argumentos_thread * args = arg_fs;
-	t_paquete* send_handshake;
 	protocolo_socket op;
-	char* valor = "conexion memoria";
-	int flag=1;
 	do
 	{
 		conexion_memoria_fs = crear_conexion(args->ip, args->puerto);
@@ -396,28 +385,5 @@ void *cliente_conexion_filesystem(void * arg_fs){
 
 	}while(conexion_memoria_fs == -1);
 	
-	send_handshake = crear_paquete(HANDSHAKE);
-	agregar_a_paquete (send_handshake, valor , strlen(valor)+1);
-	
-	while(flag){
-		enviar_paquete(send_handshake, conexion_memoria_fs);
-		sleep(1);
-		op = recibir_operacion(conexion_memoria_fs);
-		switch (op)
-		{
-		case HANDSHAKE:
-			log_info(logger, "recibi handshake de filesystem");
-			break;
-		case TERMINATE:
-			flag = 0;
-			break;
-
-		default:
-			break;
-		}
-	}
-
-	eliminar_paquete(send_handshake);
-	liberar_conexion(conexion_memoria_fs);
-    return (void *)EXIT_SUCCESS;
+	return (void *)EXIT_SUCCESS;
 }
