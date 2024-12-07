@@ -137,7 +137,8 @@ void traducir_direccion( uint32_t dir_logica, uint32_t *dir_fisica) {
     *dir_fisica = cpu->base + dir_logica; // Traducción a dirección física
     if (*dir_fisica >= cpu->base + cpu->limite) { // Validación de segmento
         log_info(logger,"Error: Segmentation Fault (Acceso fuera de límites)\n");
-        exit(SEGMENTATION_FAULT); // Sale por error
+        char* texto[1];
+        agregar_interrupcion(SEGMENTATION_FAULT,1,texto); // Sale por error
     }
 }
 
@@ -558,6 +559,7 @@ void devolver_motivo_a_kernel(protocolo_socket cod_op, char** texto) {
         break; 
     case MUTEX_CREATE_OP:
     case MUTEX_LOCK_OP: 
+    case MUTEX_UNLOCK_OP:
     case THREAD_JOIN_OP: 
     case THREAD_CANCEL_OP:
         send_handshake = crear_paquete(cod_op);
