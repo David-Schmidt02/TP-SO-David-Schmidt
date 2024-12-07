@@ -4,14 +4,8 @@
 #include "pcb.h"
 
 int pid=0;
-<<<<<<< HEAD
-int pc=0;
-int pid_counter = 0;
-int ultimo_tid = 0;
-extern quantum;
-=======
 int ultimo_tid=0;
->>>>>>> 57fcc844cc2faa2a487b70b10dcafb577a83a10e
+extern quantum;
 
 t_pcb* crear_pcb(int pid, int prioridadTID)
 {

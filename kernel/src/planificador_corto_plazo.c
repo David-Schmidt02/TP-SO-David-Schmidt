@@ -33,6 +33,9 @@ extern int quantum;
 extern pthread_mutex_t * mutex_socket_cpu_dispatch;
 extern pthread_mutex_t * mutex_socket_cpu_interrupt;
 
+extern struct timeval tiempo_inicio_quantum; 
+extern pthread_mutex_t mutex_tiempo_inicio = PTHREAD_MUTEX_INITIALIZER;
+
 void* planificador_corto_plazo_hilo(void* arg) {
     if (strcmp(algoritmo, "FIFO") == 0) {
         corto_plazo_fifo();
@@ -216,7 +219,8 @@ void ejecutar_round_robin(t_tcb * hilo_a_ejecutar) {
 // Función para contar el quantum y enviar una interrupción si se agota
 void contar_quantum(void *hilo_void) {
     t_tcb* hilo = (t_tcb*) hilo_void;
-    //usleep(hilo->quantum);
+
+    usleep(hilo->quantum_restante);
     // Si el quantum se agotó, enviamos una interrupción al CPU por el canal de interrupt
     // Si el hilo finalizó, igual se manda la interrupcion por Fin de Quantum, pero la CPU chequea que ese hilo ya terminó y la desestima
     pthread_mutex_lock(mutex_socket_cpu_interrupt);

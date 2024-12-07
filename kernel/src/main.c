@@ -77,6 +77,10 @@ t_cola_IO *colaIO;
 pthread_mutex_t * mutex_colaIO;
 sem_t * sem_estado_colaIO;
 
+struct timeval tiempo_inicio_quantum; 
+pthread_mutex_t mutex_tiempo_inicio = PTHREAD_MUTEX_INITIALIZER;
+
+
 int main(int argc, char* argv[]) {
 	
 	if (argc < 4) {
