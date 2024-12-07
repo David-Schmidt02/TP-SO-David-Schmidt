@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
 	int prioridad_proceso_inicial = atoi(argv[3]);
 
 	PROCESS_CREATE(archivo_pseudocodigo_proceso_inicial, tamanio_proceso_proceso_inicial, prioridad_proceso_inicial);
-
+	
     pthread_t tid_memoria;
     pthread_t tid_cpu_dispatch;
     pthread_t tid_cpu_interrupt;

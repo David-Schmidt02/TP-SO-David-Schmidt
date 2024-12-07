@@ -20,8 +20,6 @@
 //
 //#define DUMP_MEMORY_OP 10
 
-#define OK 11
-#define FIN_PROCESO 12
 
 extern t_list* lista_mutexes;
 extern int ultimo_tid;

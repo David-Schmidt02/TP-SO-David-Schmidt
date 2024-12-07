@@ -734,7 +734,7 @@ void manejar_finalizacion(protocolo_socket tipo, char** texto){
     // Notificar al Kernel que el hilo finalizó
     devolver_motivo_a_kernel(tipo,texto);
     
-    detener_ejecucion()
+    detener_ejecucion();
 
 }
 
