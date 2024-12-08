@@ -24,7 +24,7 @@ typedef struct {
 } t_cola_procesos_a_crear;
 
 t_cola_proceso* inicializar_cola_procesos_ready();
-t_cola_procesos_a_crear* inicializar_cola_procesos_a_crear();
+void inicializar_cola_procesos_a_crear();
 void inicializar_semaforos_largo_plazo();
 void largo_plazo_fifo();
 t_pcb* desencolar_proceso_a_crear();

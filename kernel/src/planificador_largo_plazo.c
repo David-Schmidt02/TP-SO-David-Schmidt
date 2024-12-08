@@ -44,7 +44,7 @@ t_cola_proceso* inicializar_cola_procesos_ready(){
     return procesos_cola_ready;
 }
 
-t_cola_procesos_a_crear* inicializar_cola_procesos_a_crear(){
+void inicializar_cola_procesos_a_crear(){
     procesos_a_crear = malloc(sizeof(t_cola_procesos_a_crear));
     if (procesos_a_crear == NULL) {
         perror("Error al asignar memoria para cola de NEW");
@@ -57,7 +57,6 @@ t_cola_procesos_a_crear* inicializar_cola_procesos_a_crear(){
         perror("Error al crear lista de procesos en NEW");
         exit(EXIT_FAILURE);
     }
-    return procesos_a_crear;
 }
 
 void inicializar_semaforos_largo_plazo(){

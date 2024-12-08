@@ -400,7 +400,7 @@ void inicializar_semaforos_peticiones(){
 
 void inicializar_colas_largo_plazo(){
 	procesos_cola_ready = inicializar_cola_procesos_ready();
-	procesos_a_crear = inicializar_cola_procesos_a_crear();
+	inicializar_cola_procesos_a_crear();
 }
 
 void inicializar_colas_corto_plazo(){
