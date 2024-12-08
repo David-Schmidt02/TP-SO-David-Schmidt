@@ -373,7 +373,6 @@ void inicializar_semaforos_conexion_cpu(){
     pthread_mutex_init(mutex_socket_cpu_interrupt, NULL);
 	log_info(logger,"Mutex para la conexion con cpu interrupt y cpu dispatch creados\n");
 
-    sem_t * sem_estado_conexion_cpu_dispatch;
     sem_estado_conexion_cpu_dispatch = malloc(sizeof(sem_t));
     if (sem_estado_conexion_cpu_dispatch == NULL) {
         perror("Error al asignar memoria para semáforo de cola");

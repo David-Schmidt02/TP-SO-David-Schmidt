@@ -386,7 +386,7 @@ void recibir_motivo_devolucion_cpu() {
 
         case FIN_QUANTUM:
             log_info(logger, "El hilo %d fue desalojado por FIN DE QUANTUM\n", tid);
-            actualizar_quantum(int tiempo_transcurrido);
+            actualizar_quantum(tiempo_transcurrido);
             encolar_corto_plazo_multinivel(hilo_actual);
             break;
 
@@ -394,7 +394,7 @@ void recibir_motivo_devolucion_cpu() {
             log_info(logger, "El hilo %d fue bloqueado por THREAD JOIN\n", tid);
             tid = (intptr_t)list_remove(paquete_respuesta, 0);
             // Transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
-            actualizar_quantum(int tiempo_transcurrido);
+            actualizar_quantum(tiempo_transcurrido);
             THREAD_JOIN(tid);
             //esperar_desbloqueo_ejecutar_hilo(tid); -> ya no se usá la lógica está en finalizacion, desbloquear hilos
             break;
@@ -402,35 +402,35 @@ void recibir_motivo_devolucion_cpu() {
         case MUTEX_CREATE_OP:
             nombre_mutex = list_remove(paquete_respuesta, 0);
             log_info(logger, "El hilo %d está creando un nuevo mutex\n", tid);
-            actualizar_quantum(int tiempo_transcurrido);
+            actualizar_quantum(tiempo_transcurrido);
             MUTEX_CREATE(nombre_mutex);
             break;
 
         case MUTEX_LOCK_OP:
             nombre_mutex = list_remove(paquete_respuesta, 0);
             log_info(logger, "El hilo %d está intentando adquirir un mutex\n", tid);
-            actualizar_quantum(int tiempo_transcurrido);
+            actualizar_quantum(tiempo_transcurrido);
             MUTEX_LOCK(nombre_mutex);
             break;
 
         case MUTEX_UNLOCK_OP:
             nombre_mutex = list_remove(paquete_respuesta, 0);
             log_info(logger, "El hilo %d está intentando liberar un mutex\n", tid);
-            actualizar_quantum(int tiempo_transcurrido);
+            actualizar_quantum(tiempo_transcurrido);
             MUTEX_UNLOCK(nombre_mutex);
             break;
 
         case IO_SYSCALL:
             tiempo = (intptr_t)list_remove(paquete_respuesta, 0);
             log_info(logger, "El hilo %d ejecuta un IO\n", tid);
-            actualizar_quantum(int tiempo_transcurrido);
+            actualizar_quantum(tiempo_transcurrido);
             IO(tiempo, hilo_actual->tid);
             break;   
 
         case DUMP_MEMORY_OP:
             log_info(logger, "El hilo %d lanza un dump del proceso padre\n", tid);
             pid = proceso_actual->pid;
-            actualizar_quantum(int tiempo_transcurrido);
+            actualizar_quantum(tiempo_transcurrido);
             DUMP_MEMORY(pid);
             break;   
 
@@ -441,7 +441,7 @@ void recibir_motivo_devolucion_cpu() {
             prioridad = (intptr_t)list_remove(paquete_respuesta, 0);
             log_info(logger, "El hilo %d inició un PROCESS CREATE\n", tid);
             pid = proceso_actual->pid;
-            actualizar_quantum(int tiempo_transcurrido);
+            actualizar_quantum(tiempo_transcurrido);
             PROCESS_CREATE(archivo, tamanio, prioridad);
             break;   
         

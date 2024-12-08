@@ -54,6 +54,7 @@ void corto_plazo_colas_multinivel();
 t_cola_hilo* buscar_cola_menor_prioridad(t_colas_multinivel *multinivel, t_nivel_prioridad **nivel_a_ejecutar);
 void ejecutar_round_robin(t_tcb * hilo_a_ejecutar);
 void enviar_interrupcion_fin_quantum(void *hilo_void);
+void actualizar_quantum(int tiempo_transcurrido);
 void encolar_corto_plazo_multinivel(t_tcb* hilo);
 bool nivel_existe_por_prioridad(void* elemento, void* contexto);
 void enviar_a_cpu_dispatch(int tid, int pid);
