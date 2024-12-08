@@ -293,13 +293,8 @@ void THREAD_JOIN(int tid_a_esperar) {
     //agregar una interrupcion a CPU para que deje de ejecutarlo y ejecute el siguiente hilo de la cola
 
     // Obtengo el PCB correspondiente al hilo actual
-    t_pcb* pcb_hilo_actual = obtener_pcb_por_pid(hilo_actual->pid);
-    if (pcb_hilo_actual != NULL) {
-        log_info(logger, "## (%d:%d) - Bloqueado por: THREAD_JOIN", pcb_hilo_actual->pid, hilo_actual->tid);
-    } else {
-        log_warning(logger, "No se encontró el PCB para el TID %d.", hilo_actual->tid);
-    }
-
+    log_info(logger, "## (%d:%d) - Bloqueado por: THREAD_JOIN", hilo_actual->pid, hilo_actual->tid);
+    encolar_en_block(hilo_actual);
     log_info(logger, "THREAD_JOIN: Hilo TID %d se bloquea esperando a Hilo TID %d.", hilo_actual->tid, tid_a_esperar);
     //free(pcb_hilo_actual);/
 }

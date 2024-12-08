@@ -31,6 +31,7 @@ extern char* algoritmo;
 extern int quantum;
 
 extern pthread_mutex_t * mutex_socket_cpu_dispatch;
+extern sem_t * sem_estado_conexion_cpu_dispatch;
 extern pthread_mutex_t * mutex_socket_cpu_interrupt;
 
 extern struct timeval tiempo_inicio_quantum; 
@@ -70,6 +71,19 @@ void encolar_hilo_corto_plazo(t_tcb * hilo){
         printf("Error: Algoritmo no reconocido.\n");
     }
 }
+
+void encolar_hilo_ya_creado_corto_plazo(t_tcb * hilo){
+    if (strcmp(algoritmo, "FIFO") == 0) {
+        encolar_corto_plazo_fifo(hilo);
+    } else if (strcmp(algoritmo, "PRIORIDADES") == 0) {
+        encolar_corto_plazo_prioridades(hilo);
+    } else if (strcmp(algoritmo, "CMN") == 0) {
+        encolar_corto_plazo_multinivel(hilo);
+    } else {
+        printf("Error: Algoritmo no reconocido.\n");
+    }
+}
+
 
 void corto_plazo_fifo(){
     while (1){   
@@ -305,7 +319,7 @@ bool nivel_existe_por_prioridad(void* elemento, void* contexto) {
 }
 
 void enviar_a_cpu_dispatch(int tid, int pid)
-{
+{   sem_wait(sem_estado_conexion_cpu_dispatch);
     t_paquete * send_handshake = crear_paquete(INFO_HILO);
     agregar_a_paquete(send_handshake, &tid, sizeof(tid)); 
     agregar_a_paquete(send_handshake, &pid, sizeof(pid)); 
@@ -314,6 +328,7 @@ void enviar_a_cpu_dispatch(int tid, int pid)
     eliminar_paquete(send_handshake);
     //Se espera la respuesta, primero el tid y luego el motivo
     recibir_motivo_devolucion_cpu();
+    sem_post(sem_estado_conexion_cpu_dispatch);
 }
 
 void enviar_a_cpu_interrupt(int tid, protocolo_socket motivo) {
@@ -366,6 +381,7 @@ void recibir_motivo_devolucion_cpu() {
         case FINALIZACION:
             log_info(logger, "El hilo %d ha FINALIZADO correctamente\n", tid);
             desbloquear_hilos(tid);
+            //eliminar el hilo de las estructuras.
             break;
 
         case FIN_QUANTUM:
@@ -380,7 +396,7 @@ void recibir_motivo_devolucion_cpu() {
             // Transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
             actualizar_quantum(int tiempo_transcurrido);
             THREAD_JOIN(tid);
-            esperar_desbloqueo_ejecutar_hilo(tid);
+            //esperar_desbloqueo_ejecutar_hilo(tid); -> ya no se usá la lógica está en finalizacion, desbloquear hilos
             break;
 
         case MUTEX_CREATE_OP:
@@ -463,14 +479,13 @@ void actualizar_quantum(int tiempo_transcurrido){
 }
 
 void desbloquear_hilos(int tid) {
-    t_tcb* hilo_finalizado = obtener_tcb_por_tid(tid);
-    if (!hilo_finalizado) {
+    if (!hilo_actual) {
         log_warning(logger,"Error: No se encontró el hilo con TID %d\n", tid);
         return;
     }
     // Iterar sobre los hilos en la lista de espera
-    for (int i = 0; i < list_size(hilo_finalizado->lista_espera); i++) {
-        t_tcb* hilo_bloqueado = list_get(hilo_finalizado->lista_espera, i);
+    for (int i = 0; i < list_size(hilo_actual->lista_espera); i++) {
+        t_tcb* hilo_bloqueado = list_get(hilo_actual->lista_espera, i);
 
         if (!hilo_bloqueado) {
             log_warning(logger,"El hilo TID %d no bloquea ningún hilo\n", tid);
@@ -482,9 +497,12 @@ void desbloquear_hilos(int tid) {
 
         if (sem_valor == 1) {
             printf("Hilo TID %d listo para ejecutar.\n", hilo_bloqueado->tid);
+            cambiar_estado(hilo_bloqueado, READY);
+            encolar_hilo_ya_creado_corto_plazo(hilo_bloqueado);// se encola el hilo nuevamente sin generar una peticion a memoria
         }
     }
-    list_clean(hilo_finalizado->lista_espera);
+    //free(hilo_actual);
+    list_clean(hilo_actual->lista_espera);
 }
 
 void esperar_desbloqueo_ejecutar_hilo(int tid){

@@ -42,6 +42,7 @@ typedef struct {
 
 void* planificador_corto_plazo_hilo(void* arg);
 void encolar_hilo_corto_plazo(t_tcb * hilo);
+void encolar_hilo_ya_creado_corto_plazo(t_tcb * hilo);
 void corto_plazo_fifo();
 void encolar_corto_plazo_fifo(t_tcb * hilo);
 t_tcb* desencolar_hilos_fifo();

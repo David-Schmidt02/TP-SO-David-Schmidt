@@ -31,6 +31,7 @@ pthread_mutex_t * mutex_respuesta_desde_memoria;
 
 //Conexion con CPU
 int conexion_kernel_cpu_dispatch;
+sem_t * sem_estado_conexion_cpu_dispatch;
 int conexion_kernel_cpu_interrupt;
 
 pthread_mutex_t *mutex_socket_cpu_dispatch;
@@ -158,6 +159,7 @@ void *conexion_cpu_dispatch(void * arg_cpu){
 	{
 		conexion_kernel_cpu_dispatch = crear_conexion(args->ip, args->puerto);
 		sleep(1);
+        sem_post(sem_estado_conexion_cpu_dispatch);
 
 	}while(conexion_kernel_cpu_dispatch == -1);
 	
@@ -370,6 +372,16 @@ void inicializar_semaforos_conexion_cpu(){
     }
     pthread_mutex_init(mutex_socket_cpu_interrupt, NULL);
 	log_info(logger,"Mutex para la conexion con cpu interrupt y cpu dispatch creados\n");
+
+    sem_t * sem_estado_conexion_cpu_dispatch;
+    sem_estado_conexion_cpu_dispatch = malloc(sizeof(sem_t));
+    if (sem_estado_conexion_cpu_dispatch == NULL) {
+        perror("Error al asignar memoria para semáforo de cola");
+        exit(EXIT_FAILURE);
+    }
+	log_info(logger,"Semáforo de estado la conexion con cpu dispatch creado\n");
+	sem_init(sem_estado_conexion_cpu_dispatch, 0, 0);
+
 }
 
 void inicializar_semaforos_peticiones(){
