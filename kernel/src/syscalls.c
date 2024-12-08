@@ -286,7 +286,6 @@ void THREAD_JOIN(int tid_a_esperar) {
     cambiar_estado(hilo_actual, BLOCK);
     agregar_hilo_a_lista_de_espera(hilo_a_esperar, hilo_actual);
     //agregar una interrupcion a CPU para que deje de ejecutarlo y ejecute el siguiente hilo de la cola
-    enviar_a_cpu_interrupt(hilo_actual->tid, THREAD_JOIN_OP);
 
     // Obtengo el PCB correspondiente al hilo actual
     t_pcb* pcb_hilo_actual = obtener_pcb_por_pid(hilo_actual->pid);
@@ -297,6 +296,7 @@ void THREAD_JOIN(int tid_a_esperar) {
     }
 
     log_info(logger, "THREAD_JOIN: Hilo TID %d se bloquea esperando a Hilo TID %d.", hilo_actual->tid, tid_a_esperar);
+    //free(pcb_hilo_actual);/
 }
 
 void finalizar_hilo(t_tcb* hilo) {
@@ -527,6 +527,7 @@ void MUTEX_UNLOCK(char* nombre_mutex) {
             if (list_size(mutex_encontrado->hilos_esperando) > 0) {
                 t_tcb* hilo_despertar = list_remove(mutex_encontrado->hilos_esperando, 0); // Quitar el primer hilo
                 cambiar_estado(hilo_despertar, READY); // Cambiar su estado a READY
+                encolar_hilo_corto_plazo(hilo_despertar);
                 enviar_a_cpu_dispatch(hilo_despertar->pid, hilo_despertar->tid);
                 log_info(logger, "Hilo TID %d ha sido despertado y ahora tiene el mutex %s.", hilo_despertar->tid, nombre_mutex);
             }
@@ -565,6 +566,7 @@ void element_destroyer(void* elemento)
 }
 
 // interpretar un archivo y crear una lista de instrucciones
+/*
 t_list* interpretarArchivo(FILE* archivo) 
 {
     if (archivo == NULL) {
@@ -591,6 +593,39 @@ t_list* interpretarArchivo(FILE* archivo)
 
     return instrucciones;
 }
+*/
+t_list* interpretarArchivo(FILE* archivo) {
+    if (archivo == NULL) {
+        perror("Error al abrir el archivo");
+        return NULL;
+    }
+
+    t_list* instrucciones = list_create();
+    if (instrucciones == NULL) {
+        perror("Error de asignación de memoria");
+        return NULL;
+    }
+
+    char linea[512]; // Tamaño máximo de una línea
+    while (fgets(linea, sizeof(linea), archivo) != NULL) {
+        // Eliminar el carácter de nueva línea si está presente
+        linea[strcspn(linea, "\n")] = 0;
+
+        // Crear una copia dinámica de la línea para agregar a la lista
+        char* instruccion = strdup(linea);
+        if (instruccion == NULL) {
+            perror("Error de asignación de memoria para la instrucción");
+            list_destroy_and_destroy_elements(instrucciones, free);
+            return NULL;
+        }
+
+        // Agregar la instrucción a la lista
+        list_add(instrucciones, instruccion);
+    }
+
+    return instrucciones;
+}
+
 
 void liberarInstrucciones(t_list* instrucciones) {
     if (instrucciones != NULL) {

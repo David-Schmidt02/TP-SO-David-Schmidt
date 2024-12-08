@@ -371,7 +371,7 @@ void recibir_motivo_devolucion_cpu() {
         case FIN_QUANTUM:
             log_info(logger, "El hilo %d fue desalojado por FIN DE QUANTUM\n", tid);
             actualizar_quantum(int tiempo_transcurrido);
-            encolar_corto_plazo_multinivel(obtener_tcb_por_tid(tid));
+            encolar_corto_plazo_multinivel(hilo_actual);
             break;
 
         case THREAD_JOIN_OP:
@@ -379,6 +379,7 @@ void recibir_motivo_devolucion_cpu() {
             tid = (intptr_t)list_remove(paquete_respuesta, 0);
             // Transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
             actualizar_quantum(int tiempo_transcurrido);
+            THREAD_JOIN(tid);
             esperar_desbloqueo_ejecutar_hilo(tid);
             break;
 
