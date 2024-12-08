@@ -115,8 +115,8 @@ void largo_plazo_fifo()
         peticion->tipo = PROCESS_CREATE_OP;
         peticion->proceso = proceso;
         peticion->hilo = NULL; // No aplica en este caso
-        //encolar_peticion_memoria(peticion);
-        //sem_wait(sem_estado_respuesta_desde_memoria);
+        encolar_peticion_memoria(peticion);
+        sem_wait(sem_estado_respuesta_desde_memoria);
         if (peticion->respuesta_exitosa) {
             log_info(logger,"Memoria respondió con éxito la peticion, se encola en ready el proceso %d", proceso->pid);
             proceso->estado = READY;
