@@ -71,7 +71,6 @@ sem_t * sem_estado_multinivel;
 t_list* lista_global_tcb; // lista para manipular los hilos
 t_list* lista_mutexes;
 
-
 //Colas y semáforos de IO
 t_cola_IO *colaIO;
 pthread_mutex_t * mutex_colaIO;

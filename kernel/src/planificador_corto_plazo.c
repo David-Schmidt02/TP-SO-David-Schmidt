@@ -71,8 +71,7 @@ void encolar_hilo_corto_plazo(t_tcb * hilo){
     }
 }
 
-void corto_plazo_fifo()
-{
+void corto_plazo_fifo(){
     while (1){   
         log_info(logger, "Entraste al While del planificador corto plazo FIFO");
         sem_wait(sem_estado_hilos_cola_ready);
@@ -114,9 +113,9 @@ void corto_plazo_prioridades()
         pthread_mutex_unlock(mutex_hilos_cola_ready);
         pthread_mutex_lock(mutex_socket_cpu_dispatch);
         log_info(logger, "Se envía el hilo al cpu dispatch");
-        //enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
+        enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
         log_info(logger,"Cola de PRIORIDADES %d: Ejecutando hilo TID=%d, PID=%d\n", hilo->prioridad,hilo->tid, hilo->pid);
-        //recibir_motivo_devolucion_cpu();
+        recibir_motivo_devolucion_cpu();
         pthread_mutex_unlock(mutex_socket_cpu_dispatch);
     }
 }
@@ -210,15 +209,19 @@ void ejecutar_round_robin(t_tcb * hilo_a_ejecutar) {
 
     // Lanzamos un nuevo hilo que cuente el quantum y envíe una interrupción si se agota
     pthread_t thread_contador_quantum;
-    pthread_create(&thread_contador_quantum, NULL, (void *)contar_quantum, (void *)hilo_a_ejecutar);
+    pthread_create(&thread_contador_quantum, NULL, (void *)enviar_interrupcion_fin_quantum, (void *)hilo_a_ejecutar);
     //algo que cuente el quantum y que haga una resta
     recibir_motivo_devolucion_cpu(); 
     pthread_join(thread_contador_quantum, NULL); // Esperamos que el hilo del quantum termine
 }
 
 // Función para contar el quantum y enviar una interrupción si se agota
-void contar_quantum(void *hilo_void) {
+void enviar_interrupcion_fin_quantum(void *hilo_void) {
     t_tcb* hilo = (t_tcb*) hilo_void;
+
+    pthread_mutex_lock(&mutex_tiempo_inicio);
+    gettimeofday(&tiempo_inicio_quantum, NULL); // Marcar el inicio del quantum
+    pthread_mutex_unlock(&mutex_tiempo_inicio);
 
     usleep(hilo->quantum_restante);
     // Si el quantum se agotó, enviamos una interrupción al CPU por el canal de interrupt
@@ -338,6 +341,17 @@ void enviar_a_cpu_interrupt(int tid, protocolo_socket motivo) {
 }
 
 void recibir_motivo_devolucion_cpu() {
+    struct timeval actual;
+    int tiempo_transcurrido;
+    
+    pthread_mutex_lock(&mutex_tiempo_inicio);
+    gettimeofday(&actual, NULL);
+
+    // Calcular tiempo transcurrido en milisegundos
+    tiempo_transcurrido = (actual.tv_sec - tiempo_inicio_quantum.tv_sec) * 1000
+                        + (actual.tv_usec - tiempo_inicio_quantum.tv_usec) / 1000;
+    pthread_mutex_unlock(&mutex_tiempo_inicio);
+    
     t_list *paquete_respuesta = recibir_paquete(conexion_kernel_cpu_interrupt);
     int tid;
     protocolo_socket * motivo;
@@ -356,6 +370,7 @@ void recibir_motivo_devolucion_cpu() {
 
         case FIN_QUANTUM:
             log_info(logger, "El hilo %d fue desalojado por FIN DE QUANTUM\n", tid);
+            actualizar_quantum(int tiempo_transcurrido);
             encolar_corto_plazo_multinivel(obtener_tcb_por_tid(tid));
             break;
 
@@ -363,36 +378,42 @@ void recibir_motivo_devolucion_cpu() {
             log_info(logger, "El hilo %d fue bloqueado por THREAD JOIN\n", tid);
             tid = (intptr_t)list_remove(paquete_respuesta, 0);
             // Transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
+            actualizar_quantum(int tiempo_transcurrido);
             esperar_desbloqueo_ejecutar_hilo(tid);
             break;
 
         case MUTEX_CREATE_OP:
             nombre_mutex = list_remove(paquete_respuesta, 0);
             log_info(logger, "El hilo %d está creando un nuevo mutex\n", tid);
+            actualizar_quantum(int tiempo_transcurrido);
             MUTEX_CREATE(nombre_mutex);
             break;
 
         case MUTEX_LOCK_OP:
             nombre_mutex = list_remove(paquete_respuesta, 0);
             log_info(logger, "El hilo %d está intentando adquirir un mutex\n", tid);
+            actualizar_quantum(int tiempo_transcurrido);
             MUTEX_LOCK(nombre_mutex);
             break;
 
         case MUTEX_UNLOCK_OP:
             nombre_mutex = list_remove(paquete_respuesta, 0);
             log_info(logger, "El hilo %d está intentando liberar un mutex\n", tid);
+            actualizar_quantum(int tiempo_transcurrido);
             MUTEX_UNLOCK(nombre_mutex);
             break;
 
         case IO_SYSCALL:
             tiempo = (intptr_t)list_remove(paquete_respuesta, 0);
             log_info(logger, "El hilo %d ejecuta un IO\n", tid);
+            actualizar_quantum(int tiempo_transcurrido);
             IO(tiempo, hilo_actual->tid);
             break;   
 
         case DUMP_MEMORY_OP:
             log_info(logger, "El hilo %d lanza un dump del proceso padre\n", tid);
             pid = proceso_actual->pid;
+            actualizar_quantum(int tiempo_transcurrido);
             DUMP_MEMORY(pid);
             break;   
 
@@ -403,6 +424,7 @@ void recibir_motivo_devolucion_cpu() {
             prioridad = (intptr_t)list_remove(paquete_respuesta, 0);
             log_info(logger, "El hilo %d inició un PROCESS CREATE\n", tid);
             pid = proceso_actual->pid;
+            actualizar_quantum(int tiempo_transcurrido);
             PROCESS_CREATE(archivo, tamanio, prioridad);
             break;   
         
@@ -430,6 +452,13 @@ void recibir_motivo_devolucion_cpu() {
             log_warning(logger, "Motivo desconocido para el hilo %d\n", tid);
             break;
     }
+}
+
+void actualizar_quantum(int tiempo_transcurrido){
+    hilo_actual->quantum_restante -= tiempo_transcurrido;
+    if (hilo_actual->quantum_restante < 0) {
+                hilo_actual->quantum_restante = quantum;
+            }
 }
 
 void desbloquear_hilos(int tid) {
