@@ -87,21 +87,25 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     t_tcb* tcb_principal = crear_tcb(pid, 0, prioridadTID);
     tcb_principal->estado = NEW;
 
+
     log_info(logger, "Creación del hilo principal para el proceso PID: %d", nuevo_pcb->pid);
 
     nuevo_pcb->listaTCB = list_create();
     nuevo_pcb->listaMUTEX = list_create();
+
 
     list_add(nuevo_pcb->listaTCB, tcb_principal);
     
     t_list* lista_instrucciones = interpretarArchivo(archivo_instrucciones);
     
     if (lista_instrucciones == NULL) {
-    log_error(logger, "Error al interpretar el archivo de instrucciones.");
-    return; // O maneja el error de otra forma
-}
+        log_error(logger, "Error al interpretar el archivo de instrucciones.");
+        return; // O maneja el error de otra forma
+    }
+
     tcb_principal->instrucciones = lista_instrucciones;
     
+
     pthread_mutex_lock(mutex_procesos_a_crear);
     list_add(procesos_a_crear->lista_procesos, nuevo_pcb);
     sem_post(sem_estado_procesos_a_crear);
@@ -110,6 +114,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     log_info(logger, "Proceso PID %d agregado a la lista de procesos.", nuevo_pcb->pid);
     
     log_info(logger, "## (<PID>:<TID>) - Solicitó syscall: PROCESS_CREATE");
+    
     
 }
 
@@ -572,21 +577,21 @@ t_list* interpretarArchivo(FILE* archivo)
         return NULL;
     }
 
-    char *linea;
+    char *lineas[1000];
+    char *instruccion=malloc(100);
     t_list* instrucciones = list_create();
     if (instrucciones == NULL) {
         perror("Error de asignación de memoria");
         return NULL;
     }
     
-
-    while (fgets(linea, sizeof(linea), archivo) != NULL) {
-        linea[strcspn(linea, "\n")] = 0; 
-
-        if (linea != NULL) {
-            
-            list_add(instrucciones, linea);
-        }
+    for (int i=0;fgets(instruccion, 100, archivo) != NULL;i++){
+        instruccion[strcspn(instruccion, "\n")] = 0;
+        lineas[i]=malloc(100);
+        strcpy(lineas[i], instruccion);
+    }
+    for(int j=0;j<string_array_size(lineas);j++){
+        list_add(instrucciones, lineas[j]);
     }
 
     return instrucciones;
