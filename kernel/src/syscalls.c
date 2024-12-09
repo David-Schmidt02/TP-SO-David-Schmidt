@@ -594,33 +594,29 @@ t_list* interpretarArchivo(FILE* archivo)
     return instrucciones;
 }
 */
-t_list* interpretarArchivo(FILE* archivo) {
+// interpretar un archivo y crear una lista de instrucciones
+t_list* interpretarArchivo(FILE* archivo) 
+{
     if (archivo == NULL) {
         perror("Error al abrir el archivo");
         return NULL;
     }
 
+    char *lineas[1000];
+    char *instruccion=malloc(100);
     t_list* instrucciones = list_create();
     if (instrucciones == NULL) {
         perror("Error de asignación de memoria");
         return NULL;
     }
-
-    char linea[512]; // Tamaño máximo de una línea
-    while (fgets(linea, sizeof(linea), archivo) != NULL) {
-        // Eliminar el carácter de nueva línea si está presente
-        linea[strcspn(linea, "\n")] = 0;
-
-        // Crear una copia dinámica de la línea para agregar a la lista
-        char* instruccion = strdup(linea);
-        if (instruccion == NULL) {
-            perror("Error de asignación de memoria para la instrucción");
-            list_destroy_and_destroy_elements(instrucciones, free);
-            return NULL;
-        }
-
-        // Agregar la instrucción a la lista
-        list_add(instrucciones, instruccion);
+    
+    for (int i=0;fgets(instruccion, 100, archivo) != NULL;i++){
+        instruccion[strcspn(instruccion, "\n")] = 0;
+        lineas[i]=malloc(100);
+        strcpy(lineas[i], instruccion);
+    }
+    for(int j=0;j<string_array_size(lineas);j++){
+        list_add(instrucciones, lineas[j]);
     }
 
     return instrucciones;
