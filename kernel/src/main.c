@@ -159,10 +159,10 @@ void *conexion_cpu_dispatch(void * arg_cpu){
 	{
 		conexion_kernel_cpu_dispatch = crear_conexion(args->ip, args->puerto);
 		sleep(1);
-        sem_post(sem_estado_conexion_cpu_dispatch);
+        
 
 	}while(conexion_kernel_cpu_dispatch == -1);
-	
+	sem_post(sem_estado_conexion_cpu_dispatch);
     return (void *)EXIT_SUCCESS;
 }
 

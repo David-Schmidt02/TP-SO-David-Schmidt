@@ -95,6 +95,7 @@ void corto_plazo_fifo(){
         pthread_mutex_unlock(mutex_hilos_cola_ready);
         pthread_mutex_lock(mutex_socket_cpu_dispatch);
         log_info(logger, "Se envía el hilo al cpu dispatch");
+        hilo_actual = hilo;
         enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
         log_info(logger,"Cola de FIFO: Ejecutando hilo TID=%d, PID=%d\n", hilo->tid, hilo->pid);
         recibir_motivo_devolucion_cpu();
@@ -127,6 +128,7 @@ void corto_plazo_prioridades()
         pthread_mutex_unlock(mutex_hilos_cola_ready);
         pthread_mutex_lock(mutex_socket_cpu_dispatch);
         log_info(logger, "Se envía el hilo al cpu dispatch");
+        hilo_actual = hilo;
         enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
         log_info(logger,"Cola de PRIORIDADES %d: Ejecutando hilo TID=%d, PID=%d\n", hilo->prioridad,hilo->tid, hilo->pid);
         recibir_motivo_devolucion_cpu();
@@ -218,6 +220,7 @@ void ejecutar_round_robin(t_tcb * hilo_a_ejecutar) {
     // Enviamos el hilo a la CPU mediante el canal de dispatch
     pthread_mutex_lock(mutex_socket_cpu_dispatch);
     log_info(logger, "Se envía el hilo al cpu dispatch");
+    hilo_actual = hilo_a_ejecutar;
     enviar_a_cpu_dispatch(hilo_a_ejecutar->tid, hilo_a_ejecutar->pid); // Envía el TID y PID al CPU
     pthread_mutex_unlock(mutex_socket_cpu_dispatch);
 
@@ -323,11 +326,9 @@ void enviar_a_cpu_dispatch(int tid, int pid)
     t_paquete * send_handshake = crear_paquete(INFO_HILO);
     agregar_a_paquete(send_handshake, &tid, sizeof(tid)); 
     agregar_a_paquete(send_handshake, &pid, sizeof(pid)); 
-    hilo_actual = obtener_tcb_por_tid(tid);
     enviar_paquete(send_handshake, conexion_kernel_cpu_dispatch); 
     eliminar_paquete(send_handshake);
     //Se espera la respuesta, primero el tid y luego el motivo
-    recibir_motivo_devolucion_cpu();
     sem_post(sem_estado_conexion_cpu_dispatch);
 }
 
@@ -396,7 +397,7 @@ void recibir_motivo_devolucion_cpu() {
             // Transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
             actualizar_quantum(tiempo_transcurrido);
             THREAD_JOIN(tid);
-            //esperar_desbloqueo_ejecutar_hilo(tid); -> ya no se usá la lógica está en finalizacion, desbloquear hilos
+            //esperar_desbloqueo_ejecutar_hilo(tid); -> ya no se usá, la lógica está en finalizacion -> "desbloquear hilos"
             break;
 
         case MUTEX_CREATE_OP:
