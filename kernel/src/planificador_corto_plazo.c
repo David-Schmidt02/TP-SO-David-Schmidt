@@ -359,7 +359,7 @@ void enviar_a_cpu_interrupt(int tid, protocolo_socket motivo) {
 void recibir_motivo_devolucion_cpu() {
     struct timeval actual;
     int tiempo_transcurrido;
-    
+    protocolo_socket motivo;
     pthread_mutex_lock(&mutex_tiempo_inicio);
     gettimeofday(&actual, NULL);
 
@@ -368,17 +368,18 @@ void recibir_motivo_devolucion_cpu() {
                         + (actual.tv_usec - tiempo_inicio_quantum.tv_usec) / 1000;
     pthread_mutex_unlock(&mutex_tiempo_inicio);
     
+
+    motivo = recibir_operacion(conexion_kernel_cpu_interrupt);
+
     t_list *paquete_respuesta = recibir_paquete(conexion_kernel_cpu_interrupt);
     int tid;
-    protocolo_socket * motivo;
-    motivo  = list_remove(paquete_respuesta, 0);
     char* nombre_mutex;
     int tiempo;
     int pid;
     char * nombre_archivo;
     int prioridad;
     int tamanio;
-    switch (*motivo) {
+    switch (motivo) {
         case FINALIZACION:
             log_info(logger, "El hilo %d ha FINALIZADO correctamente\n", tid);
             desbloquear_hilos(tid);
