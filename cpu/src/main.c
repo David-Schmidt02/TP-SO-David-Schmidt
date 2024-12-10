@@ -3,7 +3,10 @@
 t_log *logger;
 RegistroCPU *cpu;
 int conexion_cpu_memoria;
+sem_t * sem_conexion_memoria;
 int conexion_cpu_interrupt;
+sem_t * sem_conexion_cpu_interrupt;
+sem_t * sem_conexion_cpu_dispatch;
 int pid;
 int tid;
 int flag_hay_contexto;
@@ -15,6 +18,8 @@ int tid_actual;
 //hay que inicializar
 t_list* lista_interrupciones;
 sem_t * sem_lista_interrupciones;
+sem_t * sem_hay_contexto;
+
 pthread_mutex_t *mutex_lista_interrupciones;
 //hay que inicializar
 
@@ -48,12 +53,17 @@ int main(int argc, char* argv[]) {
 	inicializar_cpu_contexto();
 	inicializar_lista_interrupciones();
 
-	while(flag){
+	sem_wait(sem_conexion_cpu_dispatch);
+	sem_wait(sem_conexion_cpu_interrupt);
+	sem_wait(sem_conexion_memoria);
 
-		if (pid == 0 || flag_hay_contexto)
-            checkInterrupt();
-		else
-			fetch();
+	while(flag){
+		if(pid == 0){
+			sem_wait(sem_lista_interrupciones);
+			sem_post(sem_lista_interrupciones);
+			checkInterrupt();
+		}
+		fetch();
 	}
     //espero fin conexiones
 	
@@ -77,6 +87,9 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 	log_info(logger, "Servidor listo para recibir al cliente Kernel");
 	
 	int socket_cliente_kernel = esperar_cliente(server);
+
+	sem_post(sem_conexion_cpu_dispatch);
+
 	//HANDSHAKE
 	handshake_send = crear_paquete(HANDSHAKE);
 	agregar_a_paquete (handshake_send, handshake_texto , strlen(handshake_texto)+1);
@@ -127,6 +140,8 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 	log_info(logger, "Servidor listo para recibir al cliente Kernel");
 	
 	int socket_cliente_kernel = esperar_cliente(server);
+
+	sem_post(sem_conexion_cpu_interrupt);
 	//HANDSHAKE
 	handshake_send = crear_paquete(HANDSHAKE);
 	agregar_a_paquete (handshake_send, handshake_texto , strlen(handshake_texto)+1);
@@ -184,7 +199,8 @@ void *cliente_conexion_memoria(void * arg_memoria){
 		sleep(1);
 
 	}while(conexion_cpu_memoria == -1);
-	
+	sem_post(sem_conexion_memoria);
+
 	/*
 	send_handshake = crear_paquete(HANDSHAKE);
 	agregar_a_paquete (send_handshake, valor , strlen(valor)+1); 

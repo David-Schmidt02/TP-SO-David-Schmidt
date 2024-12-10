@@ -4,6 +4,9 @@ extern t_log *logger;
 extern int conexion_cpu_memoria;
 extern int conexion_cpu_dispatch;
 extern int conexion_cpu_interrupt;
+extern sem_t * sem_conexion_memoria;
+extern sem_t * sem_conexion_cpu_interrupt;
+extern sem_t * sem_conexion_cpu_dispatch;
 extern int pid;
 extern int tid;
 extern int tid_actual;
@@ -16,6 +19,7 @@ extern int flag_hay_contexto;
 //hay que inicializar
 extern t_list* lista_interrupciones;
 extern sem_t * sem_lista_interrupciones;
+extern sem_t * sem_hay_contexto;
 extern pthread_mutex_t *mutex_lista_interrupciones;
 //
 
@@ -44,6 +48,34 @@ void inicializar_lista_interrupciones(){
     }
     pthread_mutex_init(mutex_lista_interrupciones, NULL);
 
+    sem_hay_contexto = malloc(sizeof(sem_t));
+    if (sem_hay_contexto == NULL) {
+        perror("Error al asignar memoria para semáforo de cola");
+        exit(EXIT_FAILURE);
+    }
+    sem_init(sem_hay_contexto, 0, 0);
+
+    sem_conexion_memoria = malloc(sizeof(sem_t));
+    if (sem_conexion_memoria == NULL) {
+        perror("Error al asignar memoria para semáforo de cola");
+        exit(EXIT_FAILURE);
+    }
+    sem_init(sem_conexion_memoria, 0, 0);
+
+    sem_conexion_cpu_interrupt = malloc(sizeof(sem_t));
+    if (sem_conexion_cpu_interrupt == NULL) {
+        perror("Error al asignar memoria para semáforo de cola");
+        exit(EXIT_FAILURE);
+    }
+    sem_init(sem_conexion_cpu_interrupt, 0, 0);
+
+    sem_conexion_cpu_dispatch = malloc(sizeof(sem_t));
+    if (sem_conexion_cpu_dispatch == NULL) {
+        perror("Error al asignar memoria para semáforo de cola");
+        exit(EXIT_FAILURE);
+    }
+    sem_init(sem_conexion_cpu_dispatch, 0, 0);
+
     sem_lista_interrupciones = malloc(sizeof(sem_t));
     if (sem_lista_interrupciones == NULL) {
         perror("Error al asignar memoria para semáforo de cola");
@@ -62,21 +94,23 @@ void obtener_contexto_de_memoria() {
     t_list *paquete_respuesta;
     // Crear un paquete de solicitud para obtener el contexto
     t_paquete *send_handshake = crear_paquete(CONTEXTO_RECEIVE); 
-    agregar_a_paquete(send_handshake, &pid, sizeof(pid)); // Agregar TID
-    agregar_a_paquete(send_handshake, &tid, sizeof(tid));
+    agregar_a_paquete(send_handshake, &pid, sizeof(int)); // Agregar TID
+    agregar_a_paquete(send_handshake, &tid, sizeof(int));
 
     // Enviar la solicitud para obtener el contexto
     enviar_paquete(send_handshake, conexion_cpu_memoria);
+    log_info(logger, "Pido contexto de memoria");
     eliminar_paquete(send_handshake); // elimina el paquete después de enviarlo
 
     // Recibir la respuesta
     if (recibir_operacion(conexion_cpu_memoria) == ERROR_MEMORIA){
         paquete_respuesta = recibir_paquete(conexion_cpu_memoria);
-        msjerror = list_remove(paquete_respuesta, 0);
-        char *error;
-        memcpy(error, msjerror->buffer, sizeof(msjerror->buffer->size));
-        log_error(logger, error);
-        free(error);
+        log_info(logger, "Error de memoria recibido");
+        // msjerror = list_remove(paquete_respuesta, 0);
+        // char *error;
+        // memcpy(error, msjerror->buffer, sizeof(msjerror->buffer->size));
+        // log_error(logger, error);
+        // free(error);
         agregar_interrupcion(SEGMENTATION_FAULT,1, texto);
         return;
     }
@@ -84,7 +118,7 @@ void obtener_contexto_de_memoria() {
     if (paquete_respuesta != NULL) 
     {
         cpu = list_remove(paquete_respuesta, 0);
-        flag_hay_contexto = 1;
+        sem_post(sem_hay_contexto);
 
         log_info(logger, "## PID: %d - Contexto inicializado", pid);
 
@@ -376,7 +410,8 @@ void checkInterrupt() { //el checkInterrupt se corre siempre -> interrupcion -> 
 
 
     t_interrupcion* interrupcion_actual = obtener_interrupcion_mayor_prioridad();
-    
+    log_info(logger, "Se recibio una interrupcion");
+
     if (interrupcion_actual == NULL)
         return;
     switch (interrupcion_actual->tipo) {
@@ -428,6 +463,7 @@ void checkInterrupt() { //el checkInterrupt se corre siempre -> interrupcion -> 
             manejar_motivo(interrupcion_actual->tipo,interrupcion_actual->parametro);
             break;    
         case INFO_HILO:
+            log_info(logger, "Se recibio la info de un nuevo hilo");
             tid = atoi(interrupcion_actual->parametro[1]);
             pid = atoi(interrupcion_actual->parametro[2]);
             obtener_contexto_de_memoria();
@@ -742,5 +778,4 @@ void manejar_finalizacion(protocolo_socket tipo, char** texto){
 
 void detener_ejecucion(){
     pid = 0;
-    flag_hay_contexto = 0;
 }

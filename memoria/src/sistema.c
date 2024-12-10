@@ -23,12 +23,13 @@ bool obtener_pcb_y_tcb(int pid, int tid, t_pcb *pcb_out, t_tcb *tcb_out) {
     pcb_out = list_get(memoria_usuario->lista_pcb, index_pcb);
 
     // Buscar el TCB dentro del PCB
-    int index_tcb = buscar_tid((pcb_out)->listaTCB, tid);
+    int index_tcb = buscar_tid(memoria_usuario->lista_tcb, tid);
     if (index_tcb == -1) {
         log_error(logger, "TID %d no encontrado en el proceso PID %d.", tid, pid);
         return false;
     }
-    tcb_out = list_get((pcb_out)->listaTCB, index_tcb);
+    tcb_out = list_get(memoria_usuario->lista_tcb, index_tcb);
+    
     
     return true;
 } // TODO: verificar manejo de list_get con Santi
@@ -42,10 +43,10 @@ bool recibir_pid_tid(t_list *paquete_recv, int *pid, int *tid) {
     }
 
     // Extraer PID
-    pid = list_remove(paquete_recv, 0);
+    *pid = (int)list_remove(paquete_recv, 0);
 
     // Extraer TID
-    tid = list_remove(paquete_recv, 0);
+    *tid = (int)list_remove(paquete_recv, 0);
 
     list_destroy(paquete_recv);  // Liberar lista de paquetes
     return true;
@@ -56,8 +57,6 @@ void enviar_contexto(int pid, int tid) {
     t_tcb *tcb;
 
     // Busco el PCB y TCB
-    pthread_mutex_lock(mutex_tcb);
-    pthread_mutex_lock(mutex_pcb);
     if (!obtener_pcb_y_tcb(pid, tid, pcb, tcb)) {
         log_error(logger, "No se pudo obtener el contexto para PID %d, TID %d.", pid, tid);
         return; // Si no se encuentran, se registra el error y se termina
@@ -69,11 +68,8 @@ void enviar_contexto(int pid, int tid) {
     // Agrego los registros del TCB al paquete
     //agregar_a_paquete(paquete, &tcb->registro, sizeof(tcb->registro));
 
-    // Agrego el registro entero del PCB
+    // Agrego el registro entero del TCB
     agregar_a_paquete(paquete, tcb->registro, sizeof(tcb->registro));
-
-    pthread_mutex_unlock(mutex_tcb);
-    pthread_mutex_unlock(mutex_pcb);
 
     // Envio el paquete al cliente (CPU)
     enviar_paquete(paquete, socket_cliente_cpu);
@@ -540,9 +536,10 @@ void crear_thread(t_tcb *tcb){
     pcb_aux = list_get(memoria_usuario->lista_pcb, index_pid);
     list_add(pcb_aux->listaTCB, tcb);
     list_add(memoria_usuario->lista_tcb, tcb);
-
-    pthread_mutex_unlock(mutex_pcb);
+    
     pthread_mutex_unlock(mutex_tcb);
+    pthread_mutex_unlock(mutex_pcb);
+    
 
 }
 

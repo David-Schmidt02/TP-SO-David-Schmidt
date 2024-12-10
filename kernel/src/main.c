@@ -236,7 +236,7 @@ void *peticion_kernel(void *args) {
             char *aux_instruccion;
             while(list_iterator_has_next(iterator)){
                 aux_instruccion = list_iterator_next(iterator);
-                agregar_a_paquete(send_protocolo, &aux_instruccion, strlen(aux_instruccion)+1);
+                agregar_a_paquete(send_protocolo, aux_instruccion, strlen(aux_instruccion)+1);
             }
 			log_info(logger, "Se crea la peticion de THREAD CREATE");
             break;

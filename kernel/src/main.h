@@ -7,6 +7,9 @@
 #include <string.h>
 #include <commons/log.h>
 #include <utils/utils.h>
+#include <time.h>
+#include <sys/time.h>
+
 typedef struct 
 {
     protocolo_socket tipo;

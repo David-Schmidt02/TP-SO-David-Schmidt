@@ -368,7 +368,7 @@ void recibir_motivo_devolucion_cpu() {
                         + (actual.tv_usec - tiempo_inicio_quantum.tv_usec) / 1000;
     pthread_mutex_unlock(&mutex_tiempo_inicio);
     
-
+    log_info(logger, "Esperando motivo de devolucion de CPU");
     motivo = recibir_operacion(conexion_kernel_cpu_interrupt);
 
     t_list *paquete_respuesta = recibir_paquete(conexion_kernel_cpu_interrupt);

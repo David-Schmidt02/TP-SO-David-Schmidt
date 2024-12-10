@@ -138,17 +138,17 @@ void *server_multihilo_kernel(void* arg_server){
 			case PROCESS_EXIT_OP:
 				pthread_create(&aux_thread, NULL, peticion_kernel_END_PROCESS, (void *)&socket_cliente_kernel);
 				list_add(lista_t_peticiones, &aux_thread);
-				log_info(logger, "nueva peticion");
+				log_info(logger, "nueva de Process Exit");
 				break;
 			case THREAD_EXIT_OP:
 				pthread_create(&aux_thread, NULL, peticion_kernel_END_THREAD, (void *)&socket_cliente_kernel);
 				list_add(lista_t_peticiones, &aux_thread);
-				log_info(logger, "nueva peticion");
+				log_info(logger, "nueva peticion de Thread Exit");
 				break;
 			case DUMP_MEMORY_OP:
 				pthread_create(&aux_thread, NULL, peticion_kernel_DUMP, (void *)&socket_cliente_kernel);
 				list_add(lista_t_peticiones, &aux_thread);
-				log_info(logger, "nueva peticion");
+				log_info(logger, "nueva peticion de Dump Memory");
 				break;
 			case TERMINATE:
 				log_error(logger, "TERMINATE recibido de KERNEL");
@@ -181,6 +181,7 @@ void *peticion_kernel_NEW_PROCESS(void* arg_peticion){
 	pcb = list_remove(paquete_list, 0);
 
 	crear_proceso(pcb);
+	log_info(logger, "Se creo un nuevo proceso PID: %d", pcb->pid);
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
@@ -213,6 +214,7 @@ void *peticion_kernel_NEW_THREAD(void* arg_peticion){
 	}
 	tcb->instrucciones = instrucciones;
 	crear_thread(tcb);
+	log_info(logger, "Se creo un nuevo thread TID: %d y PID: %d", tcb->tid, tcb->tid);
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
@@ -235,6 +237,7 @@ void *peticion_kernel_END_PROCESS(void* arg_peticion){
 	pid = (intptr_t)list_remove(paquete_list, 0);
 
 	fin_proceso(pid);
+	log_info(logger, "Se finalizo el proceso PID: %d", pid);
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
@@ -256,6 +259,7 @@ void *peticion_kernel_END_THREAD(void* arg_peticion){
 	tid = (intptr_t)list_remove(paquete_list, 0);
 
 	fin_thread(tid);
+	log_info(logger, "Se finalizo el Thread TID: %d", tid);
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
@@ -282,9 +286,12 @@ void *peticion_kernel_DUMP(void* arg_peticion){
 		
 	if(send_dump(pid, tid) == -1){
 		respuesta = ERROR;
+		log_info(logger, "Dump Exitoso");
 	}else{
 		respuesta = OK;
+		log_info(logger, "Error Dump");
 	}
+
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(respuesta);
@@ -307,11 +314,12 @@ void *conexion_cpu(void* arg_cpu)
 	int server = iniciar_servidor(args->puerto);
 	log_info(logger, "Servidor listo para recibir al cliente CPU");
 	socket_cliente_cpu = esperar_cliente(server);
+	log_info(logger, "CPU");
 
 	uint32_t direccion;
 	uint32_t valor;
 	int PC;
-	int tid;
+	int pid, tid;
 	t_paquete *recv;
 	while(true){
 		protocolo_socket cod_op = (protocolo_socket)recibir_operacion(socket_cliente_cpu);
@@ -320,20 +328,26 @@ void *conexion_cpu(void* arg_cpu)
 		{
 			case CONTEXTO_RECEIVE:
 				// Recibo el paquete y extraigo pid y tid
+				log_info(logger, "Solicitud de contexto recibida (context_receive)");
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
 
-				int pid, tid;
-				if (recibir_pid_tid(paquete_recv, &pid, &tid)) {
-					enviar_contexto(pid, tid);
-    			}
+				// Extraer PID
+				pid = *(int *)list_remove(paquete_recv, 0);
+
+				// Extraer TID
+				tid = *(int *)list_remove(paquete_recv, 0);
+				enviar_contexto(pid, tid);
+
 				break;
 			case CONTEXTO_SEND:
+				log_info(logger, "Solicitud de actualizacion de contexto recibida (context_send)");
 				actualizar_contexto_ejecucion();
 				break;
 			case OBTENER_INSTRUCCION:
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
 				PC = *(int *)list_remove(paquete_recv, 0);
 				tid = *(int *)list_remove(paquete_recv, 0);
+				log_info(logger, "Solicitud de instruccion recibida TID: %d, PC: %d", tid, PC);
 				obtener_instruccion(PC, tid);
 				list_destroy(paquete_recv);
 				break;
@@ -341,14 +355,16 @@ void *conexion_cpu(void* arg_cpu)
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
 				direccion = *(int *)list_remove(paquete_recv, 0);
 				valor = read_memory(direccion);
+				log_info(logger, "Pedido de lectura, direccion: %d", direccion);
 				if(valor != -1){
 					t_paquete *paquete_send = crear_paquete(OK);
 					agregar_a_paquete(paquete_send, &valor, sizeof(uint32_t));
 					enviar_paquete(paquete_send, socket_cliente_cpu);
+					log_info(logger, "Envio valor: %d", valor);
 					eliminar_paquete(paquete_send);
 				}else {
 					t_paquete *paquete_send = crear_paquete(SEGMENTATION_FAULT);
-					log_error(logger, "Error escribiendo en memoria");
+					log_error(logger, "Error leyendo en memoria");
 					enviar_paquete(paquete_send, socket_cliente_cpu);
 					eliminar_paquete(paquete_send);
 				}
@@ -357,6 +373,7 @@ void *conexion_cpu(void* arg_cpu)
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
 				direccion = *(int *)list_remove(paquete_recv, 0);
 				valor = *(int *)list_remove(paquete_recv, 0);
+				log_info(logger, "Pedido de escritura, direccion: %d, valor: %d", direccion, valor);
 				if(valor != -1){
 					write_memory(direccion, valor);
 					t_paquete *paquete_send = crear_paquete(OK);
@@ -394,6 +411,7 @@ void *cliente_conexion_filesystem(void * arg_fs){
 		sleep(1);
 
 	}while(conexion_memoria_fs == -1);
+	log_info(logger, "Filesystem");
 
 	return (void *)EXIT_SUCCESS;
 }
