@@ -202,6 +202,8 @@ void *peticion_kernel_NEW_THREAD(void* arg_peticion){
 	t_list * paquete_list;
 	t_paquete * paquete_send;
 
+	log_info(logger, "ME CONECTO CON KERNEL DESDE EL SOCKET: %d", *socket);
+
 	paquete_list = recibir_paquete(*socket);
 	tcb = list_remove(paquete_list, 0);
 	
@@ -214,7 +216,7 @@ void *peticion_kernel_NEW_THREAD(void* arg_peticion){
 	}
 	tcb->instrucciones = instrucciones;
 	crear_thread(tcb);
-	log_info(logger, "Se creo un nuevo thread TID: %d y PID: %d", tcb->tid, tcb->tid);
+	log_info(logger, "Se creo un nuevo thread TID: %d y PID: %d", tcb->tid, tcb->pid);
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);

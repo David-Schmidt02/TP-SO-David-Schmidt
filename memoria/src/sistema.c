@@ -13,14 +13,14 @@ extern pthread_mutex_t * mutex_espacio;
 
 // Funcion auxiliar para buscar y validar el proceso (PCB) y el hilo (TCB) asociados al PID y TID
 // t_pcb **pcb_out y t_tcb **tcb_out: Son punteros de salida. Al encontrar el PCB y el TCB, la función los almacena en estas variables para que la función que llama a obtener_pcb_y_tcb pueda utilizarlos.
-bool obtener_pcb_y_tcb(int pid, int tid, t_pcb *pcb_out, t_tcb *tcb_out) {
+bool obtener_pcb_y_tcb(int pid, int tid, t_pcb **pcb_out, t_tcb **tcb_out) {
     // Buscar el PCB
     int index_pcb = buscar_pid(memoria_usuario->lista_pcb, pid);
     if (index_pcb == -1) {
         log_error(logger, "PID %d no encontrado en memoria.", pid);
         return false;
     }
-    pcb_out = list_get(memoria_usuario->lista_pcb, index_pcb);
+    *pcb_out = list_get(memoria_usuario->lista_pcb, index_pcb);
 
     // Buscar el TCB dentro del PCB
     int index_tcb = buscar_tid(memoria_usuario->lista_tcb, tid);
@@ -28,7 +28,7 @@ bool obtener_pcb_y_tcb(int pid, int tid, t_pcb *pcb_out, t_tcb *tcb_out) {
         log_error(logger, "TID %d no encontrado en el proceso PID %d.", tid, pid);
         return false;
     }
-    tcb_out = list_get(memoria_usuario->lista_tcb, index_tcb);
+    *tcb_out = list_get(memoria_usuario->lista_tcb, index_tcb);
     
     
     return true;
@@ -53,11 +53,11 @@ bool recibir_pid_tid(t_list *paquete_recv, int *pid, int *tid) {
 }
 
 void enviar_contexto(int pid, int tid) {
-    t_pcb *pcb;
-    t_tcb *tcb;
+    t_pcb *pcb = NULL; 
+    t_tcb *tcb = NULL;
 
     // Busco el PCB y TCB
-    if (!obtener_pcb_y_tcb(pid, tid, pcb, tcb)) {
+    if (!obtener_pcb_y_tcb(pid, tid, &pcb, &tcb)) {
         log_error(logger, "No se pudo obtener el contexto para PID %d, TID %d.", pid, tid);
         return; // Si no se encuentran, se registra el error y se termina
     }

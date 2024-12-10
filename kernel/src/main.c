@@ -217,6 +217,7 @@ void *peticion_kernel(void *args) {
     t_paquete *send_protocolo;
     protocolo_socket op;
 	log_info(logger, "Se envía la peticion a memoria");
+    log_info(logger, "ME CONECTO CON MEMORIA DESDE EL SOCKET: %d", args_peticion->socket);
     switch (peticion->tipo) {
         case PROCESS_CREATE_OP:
             send_protocolo = crear_paquete(PROCESS_CREATE_OP);
@@ -239,7 +240,7 @@ void *peticion_kernel(void *args) {
             char *aux_instruccion;
             while(list_iterator_has_next(iterator)){
                 aux_instruccion = list_iterator_next(iterator);
-                agregar_a_paquete(send_protocolo, &aux_instruccion, strlen(aux_instruccion)+1);
+                agregar_a_paquete(send_protocolo, aux_instruccion, strlen(aux_instruccion)+1);
             }
 			log_info(logger, "Se crea la peticion de THREAD CREATE");
             break;
