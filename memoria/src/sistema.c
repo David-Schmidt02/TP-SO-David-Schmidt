@@ -10,6 +10,7 @@ extern pthread_mutex_t * mutex_huecos;
 extern pthread_mutex_t * mutex_procesos_din;
 extern pthread_mutex_t * mutex_espacio;
 
+extern pthread_mutex_t * mutex_conexion_cpu;
 
 // Funcion auxiliar para buscar y validar el proceso (PCB) y el hilo (TCB) asociados al PID y TID
 // t_pcb **pcb_out y t_tcb **tcb_out: Son punteros de salida. Al encontrar el PCB y el TCB, la función los almacena en estas variables para que la función que llama a obtener_pcb_y_tcb pueda utilizarlos.
@@ -654,8 +655,11 @@ int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu.
 	instruccion = list_get(tcb_aux->instrucciones, PC);
     pthread_mutex_unlock(mutex_tcb);
 	paquete_send = crear_paquete(OBTENER_INSTRUCCION);
+
+    pthread_mutex_lock(mutex_conexion_cpu);
 	agregar_a_paquete(paquete_send, instruccion, sizeof(instruccion));
 	enviar_paquete(paquete_send, socket_cliente_cpu);
+    pthread_mutex_unlock(mutex_conexion_cpu);
     log_info(logger, "Se envia instruccion %d a CPU", PC);
 	eliminar_paquete(paquete_send);
 

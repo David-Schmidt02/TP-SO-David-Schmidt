@@ -5,6 +5,11 @@ RegistroCPU *cpu;
 int conexion_cpu_memoria;
 sem_t * sem_conexion_memoria;
 int conexion_cpu_interrupt;
+
+int socket_kernel_interrupt;
+int socket_kernel_dispatch;
+
+
 sem_t * sem_conexion_cpu_interrupt;
 sem_t * sem_conexion_cpu_dispatch;
 int pid;
@@ -22,6 +27,12 @@ sem_t * sem_hay_contexto;
 
 pthread_mutex_t *mutex_lista_interrupciones;
 //hay que inicializar
+
+pthread_mutex_t *mutex_kernel_interrupt;
+
+pthread_mutex_t *mutex_kernel_dispatch;
+
+pthread_mutex_t *mutex_conexion_memoria;
 
 int main(int argc, char* argv[]) {
 
@@ -44,14 +55,15 @@ int main(int argc, char* argv[]) {
     arg_kernelD.puerto = config_get_string_value(config, "PUERTO_ESCUCHA_DISPATCH");
 	arg_kernelI.puerto = config_get_string_value(config, "PUERTO_ESCUCHA_INTERRUPT");
     
+	//conexiones
+	inicializar_cpu_contexto();
+	inicializar_lista_interrupciones();
 
     //conexiones
 	pthread_create(&tid_kernelI, NULL, conexion_kernel_interrupt, (void *)&arg_kernelI);
 	pthread_create(&tid_kernelD, NULL, conexion_kernel_dispatch, (void *)&arg_kernelD);
 	pthread_create(&tid_memoria, NULL, cliente_conexion_memoria, (void *)&arg_memoria);
-	//conexiones
-	inicializar_cpu_contexto();
-	inicializar_lista_interrupciones();
+
 
 	sem_wait(sem_conexion_cpu_dispatch);
 	sem_wait(sem_conexion_cpu_interrupt);
@@ -86,8 +98,10 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 	int server = iniciar_servidor(args->puerto);
 	log_info(logger, "Servidor listo para recibir al cliente Kernel");
 	
-	int socket_cliente_kernel = esperar_cliente(server);
-
+	pthread_mutex_lock(mutex_kernel_dispatch);
+	socket_kernel_dispatch = esperar_cliente(server);
+	log_info(logger, "Se realizó la conexion kernel-cpu dipatch");
+	pthread_mutex_unlock(mutex_kernel_dispatch);
 	sem_post(sem_conexion_cpu_dispatch);
 
 	//HANDSHAKE
@@ -97,10 +111,12 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 
 
 		while(true){
-			int cod_op = recibir_operacion(socket_cliente_kernel);
+			pthread_mutex_lock(mutex_kernel_dispatch);
+			int cod_op = recibir_operacion(socket_kernel_dispatch);
 			switch (cod_op){
 				case INFO_HILO:
-					t_list *paquete = recibir_paquete(socket_cliente_kernel);
+					t_list *paquete = recibir_paquete(socket_kernel_dispatch);
+					pthread_mutex_unlock(mutex_kernel_dispatch);
 					tid = *(int *)list_remove(paquete, 0);
 					pid = *(int *)list_remove(paquete, 0);
 					list_destroy(paquete);
@@ -114,16 +130,18 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 					break;
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
+					pthread_mutex_unlock(mutex_kernel_dispatch);
 					return (void *)EXIT_FAILURE;
 					break;
 				default:
 					log_warning(logger,"Operacion desconocida. No quieras meter la pata");
+					pthread_mutex_unlock(mutex_kernel_dispatch);
 					break;
 				}
 			}
 		
 	close(server);
-	close(socket_cliente_kernel);
+	close(socket_kernel_dispatch);
     return (void *)EXIT_SUCCESS;
 }
 
@@ -139,7 +157,10 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 	int server = iniciar_servidor(args->puerto);
 	log_info(logger, "Servidor listo para recibir al cliente Kernel");
 	
-	int socket_cliente_kernel = esperar_cliente(server);
+	pthread_mutex_lock(mutex_kernel_interrupt);
+	socket_kernel_interrupt = esperar_cliente(server);
+	log_info(logger, "Se realizó la conexion kernel-cpu interrupt");
+	pthread_mutex_unlock(mutex_kernel_interrupt);
 
 	sem_post(sem_conexion_cpu_interrupt);
 	//HANDSHAKE
@@ -149,20 +170,23 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 
 
 		while(true){
-			int cod_op = recibir_operacion(socket_cliente_kernel);
+			pthread_mutex_lock(mutex_kernel_interrupt);
+			int cod_op = recibir_operacion(socket_kernel_interrupt);
 			switch (cod_op)
 			{
 				case HANDSHAKE:
-					handshake_recv = recibir_paquete(socket_cliente_kernel);
+					handshake_recv = recibir_paquete(socket_kernel_interrupt);
 					log_info(logger, "me llego: kernel interrupt\n");
 					list_iterate(handshake_recv, (void*) iterator);
-					enviar_paquete(handshake_send, socket_cliente_kernel);
+					enviar_paquete(handshake_send, socket_kernel_interrupt);
+					pthread_mutex_unlock(mutex_kernel_interrupt);
 					break;
 				case FIN_QUANTUM:
-					paquete = recibir_paquete(socket_cliente_kernel);
+					paquete = recibir_paquete(socket_kernel_interrupt);
 					tid = *(int *)list_remove(paquete, 0);
 					list_destroy_and_destroy_elements(paquete, free);
 					char* texto[1];
+					pthread_mutex_unlock(mutex_kernel_interrupt);
 					agregar_interrupcion(FIN_QUANTUM,3,texto);
 
 					log_info(logger, "Se recibió interrupción FIN_QUANTUM");
@@ -170,16 +194,18 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 				
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
+					pthread_mutex_unlock(mutex_kernel_interrupt);
 					return (void *)EXIT_FAILURE;
 					break;
 				default:
 					log_warning(logger,"Operacion desconocida. No quieras meter la pata");
+					pthread_mutex_unlock(mutex_kernel_interrupt);
 					break;
 			}
 		}
 		
 	close(server);
-	close(socket_cliente_kernel);
+	close(socket_kernel_interrupt);
     return (void *)EXIT_SUCCESS;
 }
 
