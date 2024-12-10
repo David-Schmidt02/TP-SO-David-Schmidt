@@ -23,6 +23,8 @@ sem_t * sem_lista_t_peticiones;
 pthread_mutex_t *mutex_lista_t_peticiones;
 sem_t * sem_estado_respuesta_desde_memoria;
 
+pthread_mutex_t *mutex_socket_memoria;
+
 sem_t * sem_proceso_finalizado; // utilizado para reintentar crear procesos
 
 pthread_mutex_t * mutex_respuesta_desde_memoria;
@@ -207,6 +209,7 @@ void *administrador_peticiones_memoria(void* arg_server){
 }
 
 void *peticion_kernel(void *args) {
+    pthread_mutex_lock(mutex_socket_memoria);
     t_paquete_peticion *args_peticion = args;
     t_peticion *peticion = args_peticion->peticion;
     t_pcb *proceso = peticion->proceso;
@@ -236,7 +239,7 @@ void *peticion_kernel(void *args) {
             char *aux_instruccion;
             while(list_iterator_has_next(iterator)){
                 aux_instruccion = list_iterator_next(iterator);
-                agregar_a_paquete(send_protocolo, aux_instruccion, strlen(aux_instruccion)+1);
+                agregar_a_paquete(send_protocolo, &aux_instruccion, strlen(aux_instruccion)+1);
             }
 			log_info(logger, "Se crea la peticion de THREAD CREATE");
             break;
@@ -295,6 +298,8 @@ void *peticion_kernel(void *args) {
 	log_info(logger, "Actualizo el valor de respuesta recibida a true");
     eliminar_paquete(send_protocolo);
     liberar_conexion(args_peticion->socket);
+    pthread_mutex_unlock(mutex_socket_memoria);
+
     return NULL;
 }
 
@@ -323,6 +328,7 @@ void inicializar_estructuras(){
 	log_info(logger, "Se inicializa la lista de peticiones con list_create");
 	lista_t_peticiones = list_create();
 	log_info(logger, "Lista de peticiones inicializada");
+
 	inicializar_semaforos();
 	inicializar_colas_largo_plazo();
 	inicializar_colas_corto_plazo();
@@ -350,6 +356,14 @@ void inicializar_semaforos(){
     }
 	sem_init(sem_estado_colaIO, 0, 0);
 	log_info(logger,"Mutex y semáforo de estado para la lista de peticiones creados\n");
+
+    mutex_socket_memoria = malloc(sizeof(pthread_mutex_t));
+    if (mutex_socket_memoria == NULL) {
+        perror("Error al asignar memoria para mutex de cola IO");
+        exit(EXIT_FAILURE);
+    }
+	pthread_mutex_init(mutex_socket_memoria, NULL);
+
 
 	inicializar_semaforos_conexion_cpu();
 	inicializar_semaforos_corto_plazo(); 
