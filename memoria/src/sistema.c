@@ -12,30 +12,26 @@ extern pthread_mutex_t * mutex_espacio;
 
 extern pthread_mutex_t * mutex_conexion_cpu;
 
-// Funcion auxiliar para buscar y validar el proceso (PCB) y el hilo (TCB) asociados al PID y TID
-// t_pcb **pcb_out y t_tcb **tcb_out: Son punteros de salida. Al encontrar el PCB y el TCB, la función los almacena en estas variables para que la función que llama a obtener_pcb_y_tcb pueda utilizarlos.
-bool obtener_pcb_y_tcb(int pid, int tid, t_pcb **pcb_out, t_tcb **tcb_out) {
-    // Buscar el PCB
+bool obtener_pcb_y_tcb(int pid, int tid, t_pcb *pcb_out, t_tcb *tcb_out) {
+
     int index_pcb = buscar_pid(memoria_usuario->lista_pcb, pid);
     if (index_pcb == -1) {
         log_error(logger, "PID %d no encontrado en memoria.", pid);
         return false;
     }
-    *pcb_out = list_get(memoria_usuario->lista_pcb, index_pcb);
+    pcb_out = list_get(memoria_usuario->lista_pcb, index_pcb);
 
-    // Buscar el TCB dentro del PCB
     int index_tcb = buscar_tid(memoria_usuario->lista_tcb, tid);
     if (index_tcb == -1) {
         log_error(logger, "TID %d no encontrado en el proceso PID %d.", tid, pid);
         return false;
     }
-    *tcb_out = list_get(memoria_usuario->lista_tcb, index_tcb);
+    tcb_out = list_get(memoria_usuario->lista_tcb, index_tcb);
     
     
     return true;
-} // TODO: verificar manejo de list_get con Santi
+}
 
-// Función que recibe el paquete y extrae PID y TID
 bool recibir_pid_tid(t_list *paquete_recv, int *pid, int *tid) {
     if (list_size(paquete_recv) < 2) {
         log_error(logger, "Paquete incompleto recibido para CONTEXTO_RECEIVE.");
@@ -57,29 +53,21 @@ void enviar_contexto(int pid, int tid) {
     t_pcb *pcb = NULL; 
     t_tcb *tcb = NULL;
 
-    // Busco el PCB y TCB
     if (!obtener_pcb_y_tcb(pid, tid, &pcb, &tcb)) {
         log_error(logger, "No se pudo obtener el contexto para PID %d, TID %d.", pid, tid);
-        return; // Si no se encuentran, se registra el error y se termina
+        return;
     }
 
-    // Creo un paquete para enviar el contexto de ejecución
     t_paquete *paquete = crear_paquete(CONTEXTO_SEND);
 
-    // Agrego los registros del TCB al paquete
     //agregar_a_paquete(paquete, &tcb->registro, sizeof(tcb->registro));
 
-    // Agrego el registro entero del TCB
     agregar_a_paquete(paquete, tcb->registro, sizeof(tcb->registro));
-
-    // Envio el paquete al cliente (CPU)
     enviar_paquete(paquete, socket_cliente_cpu);
-
-    // Libero memoria del paquete
     eliminar_paquete(paquete);
 
-    // Registramos en el log que se envió el contexto
-    log_info(logger, "Contexto enviado para PID %d, TID %d.", pid, tid);
+    log_info(logger, "## Contexto Solicitado - (PID:TID) - (%d:%d)", pid, tid);
+
 }
 
 /// @brief Read memory
@@ -87,6 +75,9 @@ void enviar_contexto(int pid, int tid) {
 /// @return devuelve el contenido de la direccion, o -1 para error
 uint32_t read_memory(uint32_t direccion){
     uint32_t * aux;
+    t_pcb *pcb = NULL;
+    t_tcb *tcb = NULL;
+    int pid = -1, tid = -1;
 
     if(direccion < 0 || direccion > memoria_usuario->size){
         log_error(logger, "Direccion %d invalida", direccion);
@@ -94,14 +85,26 @@ uint32_t read_memory(uint32_t direccion){
     }
 
     aux = memoria_usuario->espacio;
+
+    if (obtener_pcb_y_tcb(pid, tid, &pcb, &tcb)) {
+        pid = tcb->pid;
+        tid = tcb->tid;
+    }
+
+    log_info(logger, "## Lectura - (PID:TID) - (%d:%d) - Dir. Física: %d - Tamaño: %d", pid, tid, direccion, sizeof(uint32_t));
+
     return aux[direccion];
 }
+
 /// @brief Write memory
 /// @param direccion
 /// @param valor
 /// @return devuelve 0 para ok o -1 para error
 int write_memory(uint32_t direccion, uint32_t valor){
     uint32_t * aux;
+    t_pcb *pcb = NULL;
+    t_tcb *tcb = NULL;
+    int pid = -1, tid = -1;
     
     if(direccion < 0 || direccion > memoria_usuario->size){
         log_error(logger, "Direccion %d invalida", direccion);
@@ -109,6 +112,13 @@ int write_memory(uint32_t direccion, uint32_t valor){
     }
     aux = memoria_usuario->espacio;
     aux[direccion] = valor;
+
+    if (obtener_pcb_y_tcb(pid, tid, &pcb, &tcb)) {
+        pid = tcb->pid;
+        tid = tcb->tid;
+    }
+    
+    log_info(logger, "## Escritura - (PID:TID) - (%d:%d) - Dir. Física: %d - Tamaño: %d", pid, tid, direccion, sizeof(uint32_t));
 
     return 0;
 }
@@ -120,10 +130,8 @@ void actualizar_contexto_ejecucion() {
     int pid, tid;
     RegistroCPU *registros_actualizados;
 
-    // Recibo el paquete de la CPU
     paquete_recv_list = recibir_paquete(socket_cliente_cpu);
 
-    // Valido que el paquete contiene los elementos necesarios
     if (!paquete_recv_list || list_size(paquete_recv_list) < 3) {
         log_error(logger, "Paquete incompleto recibido para actualizar contexto.");
         liberar_lista_paquetes(paquete_recv_list);
@@ -131,16 +139,12 @@ void actualizar_contexto_ejecucion() {
         return;
     }
 
-    // Obtengo el PID
     pid = (intptr_t)list_remove(paquete_recv_list, 0);
    
-    // Obtengo el TID
     tid = (intptr_t)list_remove(paquete_recv_list, 0);
 
-    // Obtengo los registros actualizados
     registros_actualizados = list_remove(paquete_recv_list, 0);
     
-    // Libero lista de paquetes
     list_destroy(paquete_recv_list);
 
     // Validar PID y TID
@@ -166,7 +170,6 @@ void actualizar_contexto_ejecucion() {
     log_info(logger, "Registros actualizados para PID %d, TID %d.", pid, tid);
     pthread_mutex_unlock(mutex_tcb);
 
-    // Respondemos a la CPU con un paquete de confirmación
     t_paquete *paquete_ok = crear_paquete(OK_MEMORIA);
     const char *mensaje_ok = "Actualización exitosa";
     //agregar_a_paquete(paquete_ok, mensaje_ok, strlen(mensaje_ok) + 1);
@@ -174,6 +177,8 @@ void actualizar_contexto_ejecucion() {
     enviar_paquete(paquete_ok, socket_cliente_cpu);
     eliminar_paquete(paquete_ok);
     log_info(logger, "Recibi contexto de CPU");
+    log_info(logger, "## Contexto Actualizado - (PID:TID) - (%d:%d)", pid, tid);
+
 }
 
 void enviar_error_actualizacion() {
@@ -467,7 +472,8 @@ int send_dump(int pid, int tid){
 
     respuesta = recibir_operacion(conexion_memoria_fs);
     
-    
+    log_info(logger, "## Memory Dump solicitado - (PID:TID) - (%d:%d)", pid, tid);
+
     if(respuesta == OK){
         return 0;
     }
@@ -481,14 +487,12 @@ void crear_proceso(t_pcb *pcb) {
         case FIJAS:
             int index_fija = agregar_a_tabla_particion_fija(pcb);
             elemento_particiones_fijas *aux_fija = list_get(memoria_usuario->tabla_particiones_fijas, index_fija);
-            pcb->base = aux_fija->base;  // Guardo la dirección de inicio en el registro base
+            pcb->base = aux_fija->base;
             pcb->limite = aux_fija->size;
             
-            // Agrego el PCB a la lista global
             pthread_mutex_lock(mutex_pcb);
             list_add(memoria_usuario->lista_pcb, pcb);
             
-            // Agrego TCBs de este PCB a la lista global
             t_list_iterator *iterator_fija = list_iterator_create(pcb->listaTCB);
             t_tcb *tcb_aux_fija;
             while (list_iterator_has_next(iterator_fija)) {
@@ -503,14 +507,12 @@ void crear_proceso(t_pcb *pcb) {
             int index_dinamica = agregar_a_dinamica(pcb);
             if (index_dinamica == -1) {
                 log_error(logger, "No se pudo asignar memoria para el proceso PID %d en memoria dinámica.", pcb->pid);
-                return; // Si no se pudo asignar, finaliza
+                return;
             }
 
-            // Agrego PCB a la lista global
             pthread_mutex_lock(mutex_pcb);
             list_add(memoria_usuario->lista_pcb, pcb);
 
-            // Agrego TCBs de este PCB a la lista global
             t_list_iterator *iterator_dinamica = list_iterator_create(pcb->listaTCB);
             t_tcb *tcb_aux_dinamica;
             while (list_iterator_has_next(iterator_dinamica)) {
@@ -525,6 +527,9 @@ void crear_proceso(t_pcb *pcb) {
             log_error(logger, "Tipo de memoria no reconocido.");
             break;
     }
+
+    log_info(logger, "## Proceso Creado - PID: %d - Tamaño: %d", pcb->pid, pcb->memoria_necesaria);
+
 }
 
 void crear_thread(t_tcb *tcb){
@@ -541,6 +546,7 @@ void crear_thread(t_tcb *tcb){
     pthread_mutex_unlock(mutex_tcb);
     pthread_mutex_unlock(mutex_pcb);
     
+    log_info(logger, "## Hilo Creado - (PID:TID) - (%d:%d)", tcb->pid, tcb->tid);
 
 }
 
@@ -548,6 +554,7 @@ void fin_proceso(int pid) {
     int index_pid, index_tid;
     t_pcb *pcb_aux;
     t_tcb *tcb_aux;
+     int memoria_liberada = 0;
 
     switch(memoria_usuario->tipo_particion) {
         case FIJAS:
@@ -556,6 +563,7 @@ void fin_proceso(int pid) {
             pthread_mutex_lock(mutex_part_fijas);
             if(index_pid!=(-1)){
                 aux = list_get(memoria_usuario->tabla_particiones_fijas, index_pid);
+                memoria_liberada = aux->size;
                 aux->libre_ocupado = 0;
             }
             pthread_mutex_unlock(mutex_part_fijas);
@@ -585,6 +593,7 @@ void fin_proceso(int pid) {
             
             pthread_mutex_lock(mutex_pcb);
             t_pcb * pcb = list_remove(memoria_usuario->lista_pcb, index_pcb); // saco el pid de la tabla_pcb
+            memoria_liberada = pcb_aux->memoria_necesaria;
             free(pcb);
             pthread_mutex_unlock(mutex_pcb);
             //
@@ -607,6 +616,8 @@ void fin_proceso(int pid) {
             log_error(logger, "Tipo de memoria no reconocido.");
             break;
     }
+
+    log_info(logger, "## Proceso Destruido - PID: %d - Tamaño: %d", pid, memoria_liberada);
 }
 
 void fin_thread(int tid){
@@ -634,7 +645,10 @@ void fin_thread(int tid){
     list_remove(memoria_usuario->lista_tcb, index_tid);
     free(tcb_aux);
     pthread_mutex_unlock(mutex_tcb);
+
+    log_info(logger, "## Hilo Destruido - (PID:TID) - (%d:%d)", pid, tid);
 }
+
 int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu. Si falla, retorna -1
 	if(PC<0){
         log_error(logger, "PC invalido");
@@ -662,6 +676,8 @@ int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu.
     pthread_mutex_unlock(mutex_conexion_cpu);
     log_info(logger, "Se envia instruccion %d a CPU", PC);
 	eliminar_paquete(paquete_send);
+
+    log_info(logger, "## Obtener instrucción - (PID:TID) - (%d:%d) - Instrucción: %s", tcb_aux->pid, tcb_aux->tid, instruccion);
 
     return 0;
 }

@@ -118,6 +118,7 @@ void cargar_lista_particiones(t_list * particiones, char **particiones_array){
 	}
 	//lo que dolio esta funcion no se puede explicar
 }
+
 void *server_multihilo_kernel(void* arg_server){
 
 	argumentos_thread * args = arg_server;
@@ -129,11 +130,13 @@ void *server_multihilo_kernel(void* arg_server){
 
 	int server = iniciar_servidor(args->puerto); //abro server
 	log_info(logger, "Servidor listo para recibir nueva peticion");
+
+	int socket_cliente_kernel;
 	
 	while (flag)
 	{
 		log_info(logger, "esperando nueva peticion de kernel");
-		int socket_cliente_kernel = esperar_cliente(server); //pausado hasta que llegue una peticion nueva (nuevo cliente)
+		socket_cliente_kernel = esperar_cliente(server); //pausado hasta que llegue una peticion nueva (nuevo cliente)
 		pthread_mutex_lock(mutex_conexion_kernel);
 		cod_op = recibir_operacion(socket_cliente_kernel);
 		pthread_mutex_unlock(mutex_conexion_kernel);
@@ -186,8 +189,13 @@ void *server_multihilo_kernel(void* arg_server){
 	}
 
 	close(server);
+
+	log_info(logger, "## Kernel Conectado - FD del socket: %d", socket_cliente_kernel);
+
     pthread_exit(EXIT_SUCCESS);
+
 }
+
 void *peticion_kernel_NEW_PROCESS(void* arg_peticion){
 	int *socket = arg_peticion;
 	t_pcb *pcb;
