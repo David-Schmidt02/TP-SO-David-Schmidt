@@ -42,6 +42,7 @@ typedef struct {
 
 void* planificador_corto_plazo_hilo(void* arg);
 void encolar_hilo_corto_plazo(t_tcb * hilo);
+void encolar_hilo_ya_creado_corto_plazo(t_tcb * hilo);
 void corto_plazo_fifo();
 void encolar_corto_plazo_fifo(t_tcb * hilo);
 t_tcb* desencolar_hilos_fifo();
@@ -52,7 +53,8 @@ int comparar_prioridades(t_tcb *a, t_tcb *b);
 void corto_plazo_colas_multinivel();
 t_cola_hilo* buscar_cola_menor_prioridad(t_colas_multinivel *multinivel, t_nivel_prioridad **nivel_a_ejecutar);
 void ejecutar_round_robin(t_tcb * hilo_a_ejecutar);
-void contar_quantum(void *hilo_void);
+void enviar_interrupcion_fin_quantum(void *hilo_void);
+void actualizar_quantum(int tiempo_transcurrido);
 void encolar_corto_plazo_multinivel(t_tcb* hilo);
 bool nivel_existe_por_prioridad(void* elemento, void* contexto);
 void enviar_a_cpu_dispatch(int tid, int pid);

@@ -44,7 +44,7 @@ t_cola_proceso* inicializar_cola_procesos_ready(){
     return procesos_cola_ready;
 }
 
-t_cola_procesos_a_crear* inicializar_cola_procesos_a_crear(){
+void inicializar_cola_procesos_a_crear(){
     procesos_a_crear = malloc(sizeof(t_cola_procesos_a_crear));
     if (procesos_a_crear == NULL) {
         perror("Error al asignar memoria para cola de NEW");
@@ -57,7 +57,6 @@ t_cola_procesos_a_crear* inicializar_cola_procesos_a_crear(){
         perror("Error al crear lista de procesos en NEW");
         exit(EXIT_FAILURE);
     }
-    return procesos_a_crear;
 }
 
 void inicializar_semaforos_largo_plazo(){
@@ -166,13 +165,14 @@ void encolar_proceso_en_ready(t_pcb * proceso){
 
 void encolar_hilo_principal_corto_plazo(t_pcb * proceso){
 
-    t_tcb* hilo = (t_tcb*) proceso->listaTCB->head->data;
+    t_tcb * hilo = list_get(proceso->listaTCB, 0);
     t_peticion *peticion = malloc(sizeof(t_peticion));
     peticion->tipo = THREAD_CREATE_OP;
     peticion->proceso = NULL;
     peticion->hilo = hilo;
-    sem_wait(sem_estado_respuesta_desde_memoria);
     encolar_peticion_memoria(peticion);
+    sem_wait(sem_estado_respuesta_desde_memoria);
+    
     if (strcmp(algoritmo, "FIFO") == 0) {
         log_info(logger, "Se encola el hilo según el algoritmo de FIFO");
         encolar_corto_plazo_fifo(hilo);

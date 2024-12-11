@@ -29,7 +29,7 @@ void agregar_interrupcion(protocolo_socket tipo, int prioridad,char**texto);
 t_interrupcion* obtener_interrupcion_mayor_prioridad();
 void liberar_interrupcion(t_interrupcion* interrupcion);
 
-void inicializar_cpu_contexto(RegistroCPU * cpu);
+void inicializar_cpu_contexto();
 void inicializar_lista_interrupciones();
 
 

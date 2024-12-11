@@ -23,6 +23,8 @@ sem_t * sem_lista_t_peticiones;
 pthread_mutex_t *mutex_lista_t_peticiones;
 sem_t * sem_estado_respuesta_desde_memoria;
 
+pthread_mutex_t *mutex_socket_memoria;
+
 sem_t * sem_proceso_finalizado; // utilizado para reintentar crear procesos
 
 pthread_mutex_t * mutex_respuesta_desde_memoria;
@@ -31,6 +33,7 @@ pthread_mutex_t * mutex_respuesta_desde_memoria;
 
 //Conexion con CPU
 int conexion_kernel_cpu_dispatch;
+sem_t * sem_estado_conexion_cpu_dispatch;
 int conexion_kernel_cpu_interrupt;
 
 pthread_mutex_t *mutex_socket_cpu_dispatch;
@@ -70,7 +73,6 @@ sem_t * sem_estado_multinivel;
 
 t_list* lista_global_tcb; // lista para manipular los hilos
 t_list* lista_mutexes;
-
 
 //Colas y semáforos de IO
 t_cola_IO *colaIO;
@@ -155,92 +157,27 @@ int main(int argc, char* argv[]) {
 void *conexion_cpu_dispatch(void * arg_cpu){
 
 	argumentos_thread * args = arg_cpu;
-	t_paquete* send_handshake;
-	protocolo_socket op;
-	int flag=1;
-	char* valor = "conexion kernel->cpu dispatch";
 	do
 	{
 		conexion_kernel_cpu_dispatch = crear_conexion(args->ip, args->puerto);
 		sleep(1);
+        
 
 	}while(conexion_kernel_cpu_dispatch == -1);
-	
-	
-	send_handshake = crear_paquete(HANDSHAKE);
-	agregar_a_paquete (send_handshake, valor , strlen(valor)+1); 
-
-	while(flag){
-		enviar_paquete(send_handshake, conexion_kernel_cpu_dispatch);
-		sleep(1);
-		op = recibir_operacion(conexion_kernel_cpu_dispatch);
-		switch (op)
-		{
-		case HANDSHAKE:
-			log_info(logger, "recibi handshake de cpu_dispatch");
-			break;
-		case INSTRUCCIONES:
-			log_info(logger, "Recibi el archivo de instruccciones de memoria");
-			break;
-		case SEGMENTATION_FAULT:
-			log_info(logger, "El hilo %d es finalizado por SEGMENTATION FAULT\n", hilo_actual->tid);
-			PROCESS_EXIT();
-			break;
-		case TERMINATE:
-			flag = 0;
-			break;
-		default:
-			break;
-		}
-	}
-
-	eliminar_paquete(send_handshake);
-	liberar_conexion(conexion_kernel_cpu_dispatch);
+	sem_post(sem_estado_conexion_cpu_dispatch);
     return (void *)EXIT_SUCCESS;
 }
 
 void *conexion_cpu_interrupt(void * arg_cpu){
 
 	argumentos_thread * args = arg_cpu;
-	t_paquete* send_handshake;
-	int conexion_kernel_cpu_interrupt;
-	protocolo_socket op;
-	char* valor = "conexion kernel->cpu interrupt";
-	int flag=1;
 	do
 	{
 		conexion_kernel_cpu_interrupt = crear_conexion(args->ip, args->puerto);
 		sleep(1);
 
 	}while(conexion_kernel_cpu_interrupt == -1);
-	
-	
-	send_handshake = crear_paquete(HANDSHAKE);
-	agregar_a_paquete (send_handshake, valor , strlen(valor)+1); 
-	
-	while(flag){
-		enviar_paquete(send_handshake, conexion_kernel_cpu_interrupt);
-		sleep(1);
-		op = recibir_operacion(conexion_kernel_cpu_interrupt);
-		switch (op)
-		{
-		case HANDSHAKE:
-			log_info(logger, "recibi handshake de cpu_interrupt");
-			break;
-		case INSTRUCCIONES:
-			log_info(logger, "Recibi el archivo de instruccciones de memoria");
-			break;
-		case TERMINATE:
-			flag = 0;
-			break;
-
-		default:
-			break;
-		}
-	}
-
-	eliminar_paquete(send_handshake);
-	liberar_conexion(conexion_kernel_cpu_interrupt);
+		
     return (void *)EXIT_SUCCESS;
 }
 
@@ -272,6 +209,7 @@ void *administrador_peticiones_memoria(void* arg_server){
 }
 
 void *peticion_kernel(void *args) {
+    pthread_mutex_lock(mutex_socket_memoria);
     t_paquete_peticion *args_peticion = args;
     t_peticion *peticion = args_peticion->peticion;
     t_pcb *proceso = peticion->proceso;
@@ -279,6 +217,7 @@ void *peticion_kernel(void *args) {
     t_paquete *send_protocolo;
     protocolo_socket op;
 	log_info(logger, "Se envía la peticion a memoria");
+    log_info(logger, "ME CONECTO CON MEMORIA DESDE EL SOCKET: %d", args_peticion->socket);
     switch (peticion->tipo) {
         case PROCESS_CREATE_OP:
             send_protocolo = crear_paquete(PROCESS_CREATE_OP);
@@ -296,6 +235,13 @@ void *peticion_kernel(void *args) {
         case THREAD_CREATE_OP:
             send_protocolo = crear_paquete(THREAD_CREATE_OP);
             agregar_a_paquete(send_protocolo, hilo, sizeof(t_tcb));
+            
+            t_list_iterator * iterator = list_iterator_create(hilo->instrucciones);
+            char *aux_instruccion;
+            while(list_iterator_has_next(iterator)){
+                aux_instruccion = list_iterator_next(iterator);
+                agregar_a_paquete(send_protocolo, aux_instruccion, strlen(aux_instruccion)+1);
+            }
 			log_info(logger, "Se crea la peticion de THREAD CREATE");
             break;
 
@@ -353,6 +299,8 @@ void *peticion_kernel(void *args) {
 	log_info(logger, "Actualizo el valor de respuesta recibida a true");
     eliminar_paquete(send_protocolo);
     liberar_conexion(args_peticion->socket);
+    pthread_mutex_unlock(mutex_socket_memoria);
+
     return NULL;
 }
 
@@ -381,6 +329,7 @@ void inicializar_estructuras(){
 	log_info(logger, "Se inicializa la lista de peticiones con list_create");
 	lista_t_peticiones = list_create();
 	log_info(logger, "Lista de peticiones inicializada");
+
 	inicializar_semaforos();
 	inicializar_colas_largo_plazo();
 	inicializar_colas_corto_plazo();
@@ -409,6 +358,14 @@ void inicializar_semaforos(){
 	sem_init(sem_estado_colaIO, 0, 0);
 	log_info(logger,"Mutex y semáforo de estado para la lista de peticiones creados\n");
 
+    mutex_socket_memoria = malloc(sizeof(pthread_mutex_t));
+    if (mutex_socket_memoria == NULL) {
+        perror("Error al asignar memoria para mutex de cola IO");
+        exit(EXIT_FAILURE);
+    }
+	pthread_mutex_init(mutex_socket_memoria, NULL);
+
+
 	inicializar_semaforos_conexion_cpu();
 	inicializar_semaforos_corto_plazo(); 
 	inicializar_semaforos_largo_plazo(); 
@@ -430,6 +387,15 @@ void inicializar_semaforos_conexion_cpu(){
     }
     pthread_mutex_init(mutex_socket_cpu_interrupt, NULL);
 	log_info(logger,"Mutex para la conexion con cpu interrupt y cpu dispatch creados\n");
+
+    sem_estado_conexion_cpu_dispatch = malloc(sizeof(sem_t));
+    if (sem_estado_conexion_cpu_dispatch == NULL) {
+        perror("Error al asignar memoria para semáforo de cola");
+        exit(EXIT_FAILURE);
+    }
+	log_info(logger,"Semáforo de estado la conexion con cpu dispatch creado\n");
+	sem_init(sem_estado_conexion_cpu_dispatch, 0, 0);
+
 }
 
 void inicializar_semaforos_peticiones(){
@@ -460,7 +426,7 @@ void inicializar_semaforos_peticiones(){
 
 void inicializar_colas_largo_plazo(){
 	procesos_cola_ready = inicializar_cola_procesos_ready();
-	procesos_a_crear = inicializar_cola_procesos_a_crear();
+	inicializar_cola_procesos_a_crear();
 }
 
 void inicializar_colas_corto_plazo(){

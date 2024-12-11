@@ -87,21 +87,25 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     t_tcb* tcb_principal = crear_tcb(pid, 0, prioridadTID);
     tcb_principal->estado = NEW;
 
+
     log_info(logger, "Creación del hilo principal para el proceso PID: %d", nuevo_pcb->pid);
 
     nuevo_pcb->listaTCB = list_create();
     nuevo_pcb->listaMUTEX = list_create();
+
 
     list_add(nuevo_pcb->listaTCB, tcb_principal);
     
     t_list* lista_instrucciones = interpretarArchivo(archivo_instrucciones);
     
     if (lista_instrucciones == NULL) {
-    log_error(logger, "Error al interpretar el archivo de instrucciones.");
-    return; // O maneja el error de otra forma
-}
+        log_error(logger, "Error al interpretar el archivo de instrucciones.");
+        return; // O maneja el error de otra forma
+    }
+
     tcb_principal->instrucciones = lista_instrucciones;
     
+
     pthread_mutex_lock(mutex_procesos_a_crear);
     list_add(procesos_a_crear->lista_procesos, nuevo_pcb);
     sem_post(sem_estado_procesos_a_crear);
@@ -109,9 +113,8 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
 
     log_info(logger, "Proceso PID %d agregado a la lista de procesos.", nuevo_pcb->pid);
     
-    liberarInstrucciones(lista_instrucciones);
-
     log_info(logger, "## (<PID>:<TID>) - Solicitó syscall: PROCESS_CREATE");
+    
     
 }
 
@@ -288,17 +291,12 @@ void THREAD_JOIN(int tid_a_esperar) {
     cambiar_estado(hilo_actual, BLOCK);
     agregar_hilo_a_lista_de_espera(hilo_a_esperar, hilo_actual);
     //agregar una interrupcion a CPU para que deje de ejecutarlo y ejecute el siguiente hilo de la cola
-    enviar_a_cpu_interrupt(hilo_actual->tid, THREAD_JOIN_OP);
 
     // Obtengo el PCB correspondiente al hilo actual
-    t_pcb* pcb_hilo_actual = obtener_pcb_por_pid(hilo_actual->pid);
-    if (pcb_hilo_actual != NULL) {
-        log_info(logger, "## (%d:%d) - Bloqueado por: THREAD_JOIN", pcb_hilo_actual->pid, hilo_actual->tid);
-    } else {
-        log_warning(logger, "No se encontró el PCB para el TID %d.", hilo_actual->tid);
-    }
-
+    log_info(logger, "## (%d:%d) - Bloqueado por: THREAD_JOIN", hilo_actual->pid, hilo_actual->tid);
+    encolar_en_block(hilo_actual);
     log_info(logger, "THREAD_JOIN: Hilo TID %d se bloquea esperando a Hilo TID %d.", hilo_actual->tid, tid_a_esperar);
+    //free(pcb_hilo_actual);/
 }
 
 void finalizar_hilo(t_tcb* hilo) {
@@ -529,6 +527,7 @@ void MUTEX_UNLOCK(char* nombre_mutex) {
             if (list_size(mutex_encontrado->hilos_esperando) > 0) {
                 t_tcb* hilo_despertar = list_remove(mutex_encontrado->hilos_esperando, 0); // Quitar el primer hilo
                 cambiar_estado(hilo_despertar, READY); // Cambiar su estado a READY
+                encolar_hilo_corto_plazo(hilo_despertar);
                 enviar_a_cpu_dispatch(hilo_despertar->pid, hilo_despertar->tid);
                 log_info(logger, "Hilo TID %d ha sido despertado y ahora tiene el mutex %s.", hilo_despertar->tid, nombre_mutex);
             }
@@ -567,6 +566,7 @@ void element_destroyer(void* elemento)
 }
 
 // interpretar un archivo y crear una lista de instrucciones
+/*
 t_list* interpretarArchivo(FILE* archivo) 
 {
     if (archivo == NULL) {
@@ -574,53 +574,54 @@ t_list* interpretarArchivo(FILE* archivo)
         return NULL;
     }
 
-    char linea[100];
+    char *lineas[1000];
+    char *instruccion=malloc(100);
     t_list* instrucciones = list_create();
     if (instrucciones == NULL) {
         perror("Error de asignación de memoria");
         return NULL;
     }
     
-
-    while (fgets(linea, sizeof(linea), archivo) != NULL) {
-        linea[strcspn(linea, "\n")] = 0; 
-
-        t_instruccion* instruccion = malloc(sizeof(t_instruccion));
-        if (instruccion == NULL) {
-            perror("Error de asignación de memoria para la instrucción");
-            list_destroy_and_destroy_elements(instrucciones, element_destroyer);
-            return NULL;
-        }
-
-        char* token = strtok(linea, " ");
-        if (token != NULL) {
-            instruccion->ID_instruccion = strdup(token);
-
-            // Si la instrucción es "SALIR", no asignar parámetros
-            if (strcmp(instruccion->ID_instruccion, "SALIR") == 0) {
-                instruccion->parametros_validos = 0;
-                instruccion->parametros[0] = 0;
-                instruccion->parametros[1] = 0;
-            } else {
-                instruccion->parametros_validos = 1;
-                for (int i = 0; i < 2; i++) {
-                    token = strtok(NULL, " ");
-                    if (token != NULL) {
-                        instruccion->parametros[i] = token;
-                    } else {
-                        instruccion->parametros[i] = 0;
-                    }
-                }
-            }
-
-            list_add(instrucciones, instruccion);
-        } else {
-            free(instruccion);
-        }
+    for (int i=0;fgets(instruccion, 100, archivo) != NULL;i++){
+        instruccion[strcspn(instruccion, "\n")] = 0;
+        lineas[i]=malloc(100);
+        strcpy(lineas[i], instruccion);
+    }
+    for(int j=0;j<string_array_size(lineas);j++){
+        list_add(instrucciones, lineas[j]);
     }
 
     return instrucciones;
 }
+*/
+// interpretar un archivo y crear una lista de instrucciones
+t_list* interpretarArchivo(FILE* archivo) 
+{
+    if (archivo == NULL) {
+        perror("Error al abrir el archivo");
+        return NULL;
+    }
+
+    char *lineas[1000];
+    char *instruccion=malloc(100);
+    t_list* instrucciones = list_create();
+    if (instrucciones == NULL) {
+        perror("Error de asignación de memoria");
+        return NULL;
+    }
+    
+    for (int i=0;fgets(instruccion, 100, archivo) != NULL;i++){
+        instruccion[strcspn(instruccion, "\n")] = 0;
+        lineas[i]=malloc(100);
+        strcpy(lineas[i], instruccion);
+    }
+    for(int j=0;j<string_array_size(lineas);j++){
+        list_add(instrucciones, lineas[j]);
+    }
+
+    return instrucciones;
+}
+
 
 void liberarInstrucciones(t_list* instrucciones) {
     if (instrucciones != NULL) {
