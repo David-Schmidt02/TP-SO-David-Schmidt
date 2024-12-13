@@ -62,7 +62,9 @@ void enviar_contexto(int pid, int tid) {
 
     //agregar_a_paquete(paquete, &tcb->registro, sizeof(tcb->registro));
 
-    agregar_a_paquete(paquete, tcb->registro, sizeof(tcb->registro));
+    agregar_a_paquete(paquete, tcb->registro, sizeof(RegistroCPU));
+    agregar_a_paquete(paquete, &pcb->base, sizeof(uint32_t));
+    agregar_a_paquete(paquete, &pcb->limite, sizeof(uint32_t));
     enviar_paquete(paquete, socket_cliente_cpu);
     eliminar_paquete(paquete);
 
@@ -168,8 +170,18 @@ void actualizar_contexto_ejecucion() {
     // t_tcb *tcb = list_get(pcb->listaTCB, index_tcb);
 
     // Actualizar registros en el TCB
-    
-    memcpy((tcb->registro), registros_actualizados, sizeof(RegistroCPU));
+    tcb->registro->AX= registros_actualizados->AX;
+    tcb->registro->BX= registros_actualizados->BX;
+    tcb->registro->CX= registros_actualizados->CX;
+    tcb->registro->DX= registros_actualizados->DX;
+    tcb->registro->EX= registros_actualizados->EX;
+    tcb->registro->FX= registros_actualizados->FX;
+    tcb->registro->GX= registros_actualizados->GX;
+    tcb->registro->HX= registros_actualizados->HX;
+    tcb->registro->PC= registros_actualizados->PC;
+
+
+    //memcpy((tcb->registro), registros_actualizados, sizeof(RegistroCPU));
     log_info(logger, "Registros actualizados para PID %d, TID %d.", pid, tid);
     pthread_mutex_unlock(mutex_tcb);
 
@@ -248,7 +260,7 @@ int agregar_a_tabla_particion_fija(t_pcb *pcb){
     pthread_mutex_lock(mutex_part_fijas);
     while(list_iterator_has_next(iterator)) {
         aux = list_iterator_next(iterator);
-        if (aux->libre_ocupado==0){
+        if (aux->libre_ocupado==0 && aux->size>= pcb->memoria_necesaria){
             aux->libre_ocupado = pcb->pid; //no liberar aux, sino se pierde el elemento xd
             break;
         }
@@ -363,15 +375,13 @@ int buscar_en_tabla_fija(int pid){
     return -1;
 }
 void inicializar_tabla_particion_fija(t_list *particiones){
-    elemento_particiones_fijas * aux = malloc(sizeof(elemento_particiones_fijas));
-    aux->libre_ocupado = 0; // elemento libre
-    aux->base = 0;
-    aux->size = 0;
+
     uint32_t acumulador = 0;
     t_list_iterator *iterator_particiones = list_iterator_create(particiones);
     t_list_iterator *iterator_tabla = list_iterator_create(memoria_usuario->tabla_particiones_fijas);
 
     while(list_iterator_has_next(iterator_particiones)){
+        elemento_particiones_fijas * aux = malloc(sizeof(elemento_particiones_fijas));
         aux->libre_ocupado = 0;
         aux->base = acumulador;
         aux->size = (int)list_iterator_next(iterator_particiones);
@@ -489,7 +499,6 @@ void crear_proceso(t_pcb *pcb) {
             elemento_particiones_fijas *aux_fija = list_get(memoria_usuario->tabla_particiones_fijas, index_fija);
             pcb->base = aux_fija->base;
             pcb->limite = aux_fija->size;
-            
             pthread_mutex_lock(mutex_pcb);
             list_add(memoria_usuario->lista_pcb, pcb);
             

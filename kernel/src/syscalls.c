@@ -273,9 +273,9 @@ void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad) {
     cambiar_estado(nuevo_tcb, READY);
     nuevo_tcb->instrucciones = interpretarArchivo(archivo_instrucciones);
     list_add(proceso_actual->listaTCB, nuevo_tcb);
+    notificar_memoria_creacion_hilo(nuevo_tcb);
     encolar_hilo_corto_plazo(nuevo_tcb);
     pthread_mutex_unlock(mutex_procesos_cola_ready);
-    notificar_memoria_creacion_hilo(nuevo_tcb);
     log_info(logger, "## (%d:%d) Se crea el Hilo - Estado: READY", proceso_actual->pid, tid);
 }
 
@@ -354,7 +354,7 @@ void notificar_memoria_creacion_hilo(t_tcb* hilo) {
     } else {
         log_info(logger, "Error al informar sobre la creacion del hilo con TID %d a Memoria.", hilo->tid);
         }
-        }
+    }
 
 void notificar_memoria_fin_hilo(t_tcb* hilo) {
     t_peticion *peticion = malloc(sizeof(t_peticion));
@@ -565,35 +565,6 @@ void element_destroyer(void* elemento)
     free(instruccion);
 }
 
-// interpretar un archivo y crear una lista de instrucciones
-/*
-t_list* interpretarArchivo(FILE* archivo) 
-{
-    if (archivo == NULL) {
-        perror("Error al abrir el archivo");
-        return NULL;
-    }
-
-    char *lineas[1000];
-    char *instruccion=malloc(100);
-    t_list* instrucciones = list_create();
-    if (instrucciones == NULL) {
-        perror("Error de asignación de memoria");
-        return NULL;
-    }
-    
-    for (int i=0;fgets(instruccion, 100, archivo) != NULL;i++){
-        instruccion[strcspn(instruccion, "\n")] = 0;
-        lineas[i]=malloc(100);
-        strcpy(lineas[i], instruccion);
-    }
-    for(int j=0;j<string_array_size(lineas);j++){
-        list_add(instrucciones, lineas[j]);
-    }
-
-    return instrucciones;
-}
-*/
 // interpretar un archivo y crear una lista de instrucciones
 t_list* interpretarArchivo(FILE* archivo) 
 {

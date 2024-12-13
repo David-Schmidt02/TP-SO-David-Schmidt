@@ -114,9 +114,9 @@ void cargar_lista_particiones(t_list * particiones, char **particiones_array){
 	for (int i = 0; i < size; i++)
 	{
 		elemento = string_array_pop(particiones_array);
+
 		list_add_in_index(particiones, -1, (void*)atoi(elemento));
 	}
-	//lo que dolio esta funcion no se puede explicar
 }
 
 void *server_multihilo_kernel(void* arg_server){
@@ -243,6 +243,17 @@ void *peticion_kernel_NEW_THREAD(void* arg_peticion){
 		list_add(instrucciones, aux_instruccion);
 	}
 	tcb->instrucciones = instrucciones;
+	
+	tcb->registro->AX= 0;
+    tcb->registro->BX= 0;
+    tcb->registro->CX= 0;
+    tcb->registro->DX= 0;
+    tcb->registro->EX= 0;
+    tcb->registro->FX= 0;
+    tcb->registro->GX= 0;
+    tcb->registro->HX= 0;
+    tcb->registro->PC= 0;
+
 	crear_thread(tcb);
 	log_info(logger, "Se creo un nuevo thread TID: %d y PID: %d", tcb->tid, tcb->pid);
 	

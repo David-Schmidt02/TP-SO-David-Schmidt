@@ -9,6 +9,7 @@ int conexion_cpu_interrupt;
 int socket_kernel_interrupt;
 int socket_kernel_dispatch;
 
+uint32_t base,limite;
 
 sem_t * sem_conexion_cpu_interrupt;
 sem_t * sem_conexion_cpu_dispatch;
@@ -124,6 +125,8 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 					texto[2] = malloc(5);
 					strcpy(texto[1],string_itoa(tid)); 
 					strcpy(texto[2],string_itoa(pid)); 
+					tid_actual = tid;
+					
 					agregar_interrupcion(INFO_HILO,3,texto);
 					break;
 				case -1:
@@ -224,64 +227,5 @@ void *cliente_conexion_memoria(void * arg_memoria){
 
 	}while(conexion_cpu_memoria == -1);
 	sem_post(sem_conexion_memoria);
-
-	/*
-	send_handshake = crear_paquete(HANDSHAKE);
-	agregar_a_paquete (send_handshake, valor , strlen(valor)+1); 
-	
-	 while(flag){
-		enviar_paquete(send_handshake, conexion_cpu_memoria);
-		sleep(1);
-		op = recibir_operacion(conexion_cpu_memoria);
-		
-		switch (op){
-			case HANDSHAKE:
-				log_info(logger, "recibi handshake de memoria");
-				break;
-			case INSTRUCCIONES: 
-						log_info(logger, "Instrucción recibida de memoria");
-
-						// Recibir el TID, PID y la instrucción
-						t_list *paquete = recibir_paquete(conexion_cpu_memoria);
-						tid = *(int *)list_remove(paquete, 0);
-						pid = *(int *)list_remove(paquete, 0);
-						char *instruccion = (char *)list_remove(paquete, 0);
-						list_destroy_and_destroy_elements(paquete, free);
-
-						// Decodificar y ejecutar la instrucción
-						decode(&cpu, instruccion);
-
-						// Enviar el contexto actualizado a memoria
-						enviar_contexto_de_memoria(&cpu, pid);
-
-						break;
-			case TERMINATE:
-				flag = 0;
-				break;
-
-			case THREAD_JOIN_OP:
-					paquete = recibir_paquete(conexion_cpu_memoria);
-					tid = *(int *)list_remove(paquete, 0);
-					list_destroy_and_destroy_elements(paquete, free);
-					agregar_interrupcion(THREAD_JOIN_OP, 2, tid);
-					log_info(logger, "Se recibió interrupción THREAD_JOIN_OP");
-
-					break;
-				case IO_SYSCALL:
-					paquete = recibir_paquete(conexion_cpu_memoria);
-					tid = *(int *)list_remove(paquete, 0);
-					list_destroy_and_destroy_elements(paquete, free);
-					agregar_interrupcion(IO_SYSCALL, 2, tid);
-					log_info(logger, "Se recibió syscall de tipo IO");
-					break;
-			default:
-				break;
-			}
-		}
-
-		eliminar_paquete(send_handshake);
-		liberar_conexion(conexion_cpu_memoria);
-		return (void *)EXIT_SUCCESS;
-	}*/
 }
 

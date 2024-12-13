@@ -24,8 +24,6 @@ typedef struct{
     uint32_t FX; // Registro Numérico de propósito general
     uint32_t GX; // Registro Numérico de propósito general
     uint32_t HX; // Registro Numérico de propósito general
-    uint32_t base; // Indica la dirección base de la partición del proceso
-    uint32_t limite; // Indica el tamaño de la partición del proceso
 
 }RegistroCPU;
 

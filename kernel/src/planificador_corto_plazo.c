@@ -54,7 +54,6 @@ void* planificador_corto_plazo_hilo(void* arg) {
 void encolar_hilo_corto_plazo(t_tcb * hilo){
 
     log_info(logger,"Se crea la peticion para memoria del hilo %d", hilo->tid);
-
     if (strcmp(algoritmo, "FIFO") == 0) {
         encolar_corto_plazo_fifo(hilo);
     } else if (strcmp(algoritmo, "PRIORIDADES") == 0) {
@@ -449,7 +448,7 @@ void recibir_motivo_devolucion_cpu() {
             nombre_archivo = list_remove(paquete_respuesta, 0);
             archivo = fopen(nombre_archivo, "r");
             prioridad = *(int *)list_remove(paquete_respuesta, 0);
-            log_info(logger, "El hilo %d inició un PROCESS CREATE\n", tid);
+            log_info(logger, "El hilo %d inició un THREAD CREATE\n", tid);
             pid = proceso_actual->pid;
             actualizar_quantum(tiempo_transcurrido);
             THREAD_CREATE(archivo, prioridad);

@@ -10,6 +10,9 @@ extern sem_t * sem_conexion_cpu_dispatch;
 extern int pid;
 extern int tid;
 extern int tid_actual;
+extern uint32_t base;
+extern uint32_t limite;
+
 extern RegistroCPU *cpu;
 
 extern int flag_hay_contexto;
@@ -41,9 +44,7 @@ void inicializar_cpu_contexto() {
     cpu->FX = 0;
     cpu->GX = 0;
     cpu->HX = 0;
-    cpu->PC = 0;  
-    cpu->base = 0;
-    cpu->limite = 0;
+    cpu->PC = 0;
     log_info(logger, "Contexto de CPU inicializado");
 }
 
@@ -149,6 +150,8 @@ void obtener_contexto_de_memoria() {
     if (paquete_respuesta != NULL) 
     {
         cpu = list_remove(paquete_respuesta, 0);
+        base = *(int*)list_remove(paquete_respuesta, 0);
+        limite = *(int*)list_remove(paquete_respuesta, 0);
         sem_post(sem_hay_contexto);
 
         log_info(logger, "## PID: %d - Contexto inicializado", pid);
@@ -207,8 +210,8 @@ void fetch() {
 
 // Función para traducir direcciones lógicas a físicas
 void traducir_direccion( uint32_t dir_logica, uint32_t *dir_fisica) {
-    *dir_fisica = cpu->base + dir_logica; // Traducción a dirección física
-    if (*dir_fisica >= cpu->base + cpu->limite) { // Validación de segmento
+    *dir_fisica = base + dir_logica; // Traducción a dirección física
+    if (*dir_fisica >= base + limite) { // Validación de segmento
         log_info(logger,"Error: Segmentation Fault (Acceso fuera de límites)\n");
         char* texto[1];
         agregar_interrupcion(SEGMENTATION_FAULT,1,texto); // Sale por error

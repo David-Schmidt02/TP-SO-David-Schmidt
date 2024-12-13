@@ -283,11 +283,13 @@ void *peticion_kernel(void *args) {
 
         case ERROR:
             log_info(logger, "'ERROR' recibido desde memoria para operación %d", peticion->tipo);
+            	log_info(logger, "Actualizo el valor de respuesta recibida a true");
             peticion->respuesta_exitosa = false;
             break;
 
 		case OK:
             log_info(logger, "'OK' recibido desde memoria para operación %d", peticion->tipo);
+            log_info(logger, "Actualizo el valor de respuesta recibida a true");
             peticion->respuesta_exitosa = true;
             break;	
 
@@ -297,7 +299,6 @@ void *peticion_kernel(void *args) {
             break;
     }
 	sem_post(sem_estado_respuesta_desde_memoria);
-	log_info(logger, "Actualizo el valor de respuesta recibida a true");
     eliminar_paquete(send_protocolo);
     liberar_conexion(socket);
     pthread_mutex_unlock(mutex_socket_memoria);

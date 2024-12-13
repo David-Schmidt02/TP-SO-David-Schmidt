@@ -187,16 +187,3 @@ void encolar_hilo_principal_corto_plazo(t_pcb * proceso){
     }
 }
 
-/*
-Planificador Largo Plazo
-    -> Finalizacion de procesos
-        -> Se le avisa a memoria (que confirma), se libera el PCB asociado (donde se almacenan?) y 
-        se intenta inicializar otro proceso
-    -> Creación de hilos
-        -> Kernel avisa a memoria y lo ingresa a la cola de Ready según su prioridad 
-        (se una lista global de TCBs ordenada por prioridades)
-    -> Finalizar hilos
-        -> Se le informa a memoria se libera el TCB asociado (se tiene una lista global de TCBs) 
-            y se desbloquean todos los hilos bloqueados por este hilo
-            ahora finalizado
-*/

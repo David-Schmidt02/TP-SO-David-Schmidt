@@ -10,30 +10,6 @@ extern pthread_mutex_t * mutex_colaIO;
 extern sem_t * sem_estado_colaIO;
 extern t_tcb * hilo_actual;
 
-/*void interfaz() {
-    
-    while(milisec)
-    {
-        char *linea;
-        while (1) {
-            linea = readline(">");
-            if (!linea) {
-                break;
-            }
-            if (linea) {
-                add_history(linea);
-            }
-            if (!strncmp(linea, "exit", 4)) {
-                free(linea);
-                break;
-            }
-            printf("%s\n", linea);
-            free(linea);
-        }
-    return 0;    
-    }
-    
-}*/
 
 //PASA EL PROCESO A BLOCKED, ESPERA EL TIEMPO Y DESBLOQUEA EL PROFCESO (READY)
 void* acceder_Entrada_Salida(void *arg) {
