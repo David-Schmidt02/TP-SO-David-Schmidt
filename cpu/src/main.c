@@ -72,10 +72,8 @@ int main(int argc, char* argv[]) {
 	while(flag){
 		if(pid == 0){
 			sem_wait(sem_lista_interrupciones);
-			sem_post(sem_lista_interrupciones);
 			checkInterrupt();
-		}
-		fetch();
+		}else fetch();
 	}
     //espero fin conexiones
 	

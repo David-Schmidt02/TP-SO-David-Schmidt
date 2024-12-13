@@ -211,13 +211,14 @@ void *administrador_peticiones_memoria(void* arg_server){
 void *peticion_kernel(void *args) {
     pthread_mutex_lock(mutex_socket_memoria);
     t_paquete_peticion *args_peticion = args;
+    int socket = args_peticion->socket;
     t_peticion *peticion = args_peticion->peticion;
     t_pcb *proceso = peticion->proceso;
     t_tcb *hilo = peticion->hilo;
     t_paquete *send_protocolo;
     protocolo_socket op;
 	log_info(logger, "Se envía la peticion a memoria");
-    log_info(logger, "ME CONECTO CON MEMORIA DESDE EL SOCKET: %d", args_peticion->socket);
+    log_info(logger, "ME CONECTO CON MEMORIA DESDE EL SOCKET: %d", socket);
     switch (peticion->tipo) {
         case PROCESS_CREATE_OP:
             send_protocolo = crear_paquete(PROCESS_CREATE_OP);
@@ -269,11 +270,11 @@ void *peticion_kernel(void *args) {
             return NULL;
     }
 
-    enviar_paquete(send_protocolo, args_peticion->socket);
+    enviar_paquete(send_protocolo, socket);
     log_info(logger, "Petición enviada a memoria, esperando respuesta...");
 
     // Esperar respuesta bloqueante -> esta es la respuesta esperada desde memoria
-    op = recibir_operacion(args_peticion->socket);
+    op = recibir_operacion(socket);
     switch (op) {
         case SUCCESS:
             log_info(logger, "'SUCCESS' recibido desde memoria para operación %d", peticion->tipo);
@@ -298,7 +299,7 @@ void *peticion_kernel(void *args) {
 	sem_post(sem_estado_respuesta_desde_memoria);
 	log_info(logger, "Actualizo el valor de respuesta recibida a true");
     eliminar_paquete(send_protocolo);
-    liberar_conexion(args_peticion->socket);
+    liberar_conexion(socket);
     pthread_mutex_unlock(mutex_socket_memoria);
 
     return NULL;

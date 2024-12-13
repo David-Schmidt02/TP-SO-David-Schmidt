@@ -11,8 +11,6 @@ extern int pid;
 extern int tid;
 extern int tid_actual;
 extern RegistroCPU *cpu;
-t_paquete *send_handshake;
-t_paquete *paquete_respuesta;
 
 extern int flag_hay_contexto;
 
@@ -52,8 +50,6 @@ void inicializar_cpu_contexto() {
 void inicializar_lista_interrupciones(){
     lista_interrupciones = list_create();
 
-    socket_kernel_interrupt = malloc(sizeof(int));
-    socket_kernel_dispatch = malloc(sizeof(int));
     mutex_lista_interrupciones = malloc(sizeof(pthread_mutex_t));
     if (mutex_lista_interrupciones == NULL) {
         perror("Error al asignar memoria para mutex de cola");
@@ -170,6 +166,7 @@ void fetch() {
         // Obtención de la instrucción correspondiente al Program Counter
         
         t_list * paquete_lista = NULL;
+        t_paquete * send_handshake;
         protocolo_socket op;
 
         pthread_mutex_lock(mutex_conexion_memoria);
@@ -247,35 +244,37 @@ void decode( char *inst) {
         // Instrucción JNZ: Salta si el valor de un registro no es cero 
 
             execute(6,texto); // 6 = JNZ
-    else if (strcmp(texto[0], "MUTEX_CREATE_OP") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "MUTEX_CREATE") == 0 && texto[1]) 
             execute(7,texto); // 7 = MUTEX_CREATE
 
-    else if (strcmp(texto[0], "MUTEX_LOCK_OP") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "MUTEX_LOCK") == 0 && texto[1]) 
             execute(8,texto); // 8 = MUTEX_LOCK
 
-    else if (strcmp(texto[0], "DUMP_MEMORY_OP") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "DUMP_MEMORY") == 0) 
             execute(9,texto); // 9 = DUMP_MEMORY
 
-    else if (strcmp(texto[0], "PROCESS_CREATE_OP") == 0 && texto[1] && texto[2] && texto[3]) 
+    else if (strcmp(texto[0], "PROCESS_CREATE") == 0 && texto[1] && texto[2] && texto[3]) 
             execute(10,texto);// 10 = PROCESS_CREATE
 
-    else if (strcmp(texto[0], "THREAD_CREATE_OP") == 0 && texto[1] && texto[2] && texto[3]) 
+    else if (strcmp(texto[0], "THREAD_CREATE") == 0 && texto[1] && texto[2]) 
             execute(11,texto);// 11 = THREAD_CREATE
 
-    else if (strcmp(texto[0], "THREAD_CANCEL_OP") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "THREAD_CANCEL") == 0 && texto[1]) 
             execute(12,texto);// 12 = THREAD_CANCEL
 
-    else if (strcmp(texto[0], "THREAD_JOIN_OP") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "THREAD_JOIN") == 0 && texto[1]) 
             execute(13,texto);// 13 = THREAD_JOIN
 
-    else if (strcmp(texto[0], "THREAD_EXIT_OP") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "THREAD_EXIT") == 0) 
             execute(14,texto);// 14 = THREAD_EXIT
 
-    else if (strcmp(texto[0], "PROCESS_EXIT_OP") == 0 && texto[1] && texto[2]) 
+    else if (strcmp(texto[0], "PROCESS_EXIT") == 0) 
             execute(15,texto);// 15 = PROCESS_EXIT
 
-    else if (strcmp(texto[0], "MUTEX_LOCK") == 0 && texto[1] && texto[2]) 
-            execute(16,texto); // MUTEX_LOCK
+    else if (strcmp(texto[0], "MUTEX_LOCK") == 0 && texto[1]) 
+            execute(16,texto); // LOG
+    else if ((strcmp(texto[0], "LOG") == 0 && texto[1]))
+            execute(17, texto);
     else{
         log_info(logger, "Instrucción no reconocida: %s", texto[0]);
         exit(EXIT_FAILURE);
@@ -292,6 +291,7 @@ void execute( int instruccion, char **texto) {
     uint32_t *reg_direccion = NULL;
     uint32_t *reg_valor = NULL;
     uint32_t *reg_comparacion = NULL;
+    t_paquete * send_handshake;
 
     switch (instruccion)
     {
@@ -420,6 +420,9 @@ void execute( int instruccion, char **texto) {
         case 16: // MUTEX_UNLOCK
             agregar_interrupcion(MUTEX_UNLOCK_OP,6,texto);
         break;
+        case 17: // MUTEX_UNLOCK
+            agregar_interrupcion(LOG_OP,7,texto);
+        break;
         default:
             log_info(logger, "Error: Instrucción no reconocida");
         break;
@@ -453,10 +456,12 @@ void checkInterrupt() { //el checkInterrupt se corre siempre -> interrupcion -> 
 
 
     t_interrupcion* interrupcion_actual = obtener_interrupcion_mayor_prioridad();
-    log_info(logger, "Se recibio una interrupcion");
+    
 
     if (interrupcion_actual == NULL)
         return;
+
+    log_info(logger, "Se recibio una interrupcion");
     switch (interrupcion_actual->tipo) {
         case FIN_QUANTUM:
             log_info(logger, "## Interrupción FIN_QUANTUM recibida ");
@@ -472,6 +477,7 @@ void checkInterrupt() { //el checkInterrupt se corre siempre -> interrupcion -> 
             break;
         case THREAD_CREATE_OP:
             log_info(logger, "## syscall THREAD_CREATE_OP recibida");
+            manejar_motivo(interrupcion_actual->tipo, interrupcion_actual->parametro);
             break;
         case THREAD_CANCEL_OP:
             log_info(logger, "## syscall THREAD_CANCEL_OP recibida ");
@@ -577,41 +583,26 @@ void enviar_contexto_de_memoria() {
     enviar_paquete(paquete_send, conexion_cpu_memoria);
     eliminar_paquete(paquete_send); // Liberar el paquete enviado
 
-    // Verificar si hubo algún error en la operación
-    int operacion = recibir_operacion(conexion_cpu_memoria);
-    if (operacion == ERROR_MEMORIA) {
-        log_error(logger, "Error crítico: Memoria respondió con un error.");
-        agregar_interrupcion(SEGMENTATION_FAULT, 1,texto);
-        return; // Detener el flujo si ocurre un error crítico
-    }
-
     // Recibir la respuesta de memoria (paquete del tipo t_list)
     protocolo_socket respuesta = recibir_operacion(conexion_cpu_memoria);
-    t_list *paquete_respuesta = recibir_paquete(conexion_cpu_memoria);
-
 
     // Validar que el paquete contenga datos y extraerlos
-    if (paquete_respuesta != NULL && !list_is_empty(paquete_respuesta)) {
-            switch (respuesta){
-                case OK:
-                    log_info(logger, "Contexto de PID %d enviado correctamente a Memoria", pid);
-                    break;
-                case SEGMENTATION_FAULT:
-                    log_error(logger, "Segmentation Fault recibido desde Memoria.");
-                    agregar_interrupcion(SEGMENTATION_FAULT, 1,texto);
-                break;      
-            
-                default:  // Caso de respuesta inesperada
-                    log_warning(logger, "Respuesta inesperada de Memoria!");
-            }
-        }
-     else {
-        log_error(logger, "Error: No se recibió una respuesta válida desde Memoria.");
-        agregar_interrupcion(SEGMENTATION_FAULT, 1,texto);
+    switch (respuesta){
+        case OK:
+            log_info(logger, "Contexto de PID %d enviado correctamente a Memoria", pid);
+            break;
+        case SEGMENTATION_FAULT:
+            log_error(logger, "Segmentation Fault recibido desde Memoria.");
+            agregar_interrupcion(SEGMENTATION_FAULT, 1,texto);
+            break;      
+        case ERROR_MEMORIA:
+            log_error(logger, "Error crítico: Memoria respondió con un error.");
+            agregar_interrupcion(SEGMENTATION_FAULT, 1,texto);
+            break;
+        default:  // Caso de respuesta inesperada
+            log_warning(logger, "Respuesta inesperada de Memoria!");
+            break;
     }
-
-    // Liberar la memoria usada por la lista de respuesta
-    list_destroy_and_destroy_elements(paquete_respuesta, free);
 }
 
 
@@ -621,58 +612,45 @@ void devolver_motivo_a_kernel(protocolo_socket cod_op, char** texto) {
     // Enviamos el PID y TID para notificar al Kernel que el proceso fue interrumpido
     switch (cod_op)
     {
-    case FIN_QUANTUM:
-        agregar_a_paquete(paquete_notify, &pid, sizeof(int));  
-        agregar_a_paquete(paquete_notify, &tid, sizeof(int));  
-        // Enviamos la notificación al Kernel
-        enviar_paquete(paquete_notify, conexion_cpu_interrupt);  
-        eliminar_paquete(paquete_notify);  // Eliminamos el paquete tras enviarlo
-        log_info(logger, "Notificación enviada al Kernel por la interrupción del PID %d, TID %d", pid, tid);
-        break;
-    case PROCESS_EXIT_OP:
-    case THREAD_EXIT_OP:
+    //no mandan nada
     case DUMP_MEMORY_OP:
-        send_handshake = crear_paquete(cod_op);
-        agregar_a_paquete(send_handshake,texto[0], strlen(texto[0]) + 1); // cod_op
-        enviar_paquete(send_handshake,conexion_cpu_interrupt);
-        eliminar_paquete(send_handshake);  
-        log_info(logger, "Notificación enviada al Kernel por la interrupción del PID %d, TID %d", pid, tid);   
-        break; 
+    case PROCESS_EXIT_OP:
+        break;
+
+    //solo mandan el primer elemento
     case MUTEX_CREATE_OP:
+    case LOG_OP:
     case MUTEX_LOCK_OP: 
     case MUTEX_UNLOCK_OP:
     case THREAD_JOIN_OP: 
     case THREAD_CANCEL_OP:
-        send_handshake = crear_paquete(cod_op);
-        agregar_a_paquete(send_handshake,texto[0],strlen(texto[0]) + 1); // cod_op
-        agregar_a_paquete(send_handshake,texto[1],strlen(texto[1]) + 1); // tid texto[1]
-        enviar_paquete(send_handshake,conexion_cpu_interrupt);
-        eliminar_paquete(send_handshake);
-        log_info(logger, "Notificación enviada al Kernel por la interrupción del PID %d, TID %d", pid, tid);
+    case THREAD_EXIT_OP:
+        agregar_a_paquete(paquete_notify,texto[1],strlen(texto[1]) + 1); // tid texto[1]
         break;
-    case THREAD_CREATE_OP: 
+
+    //mandan 2 elementos
+    case THREAD_CREATE_OP:
     case PROCESS_CREATE_OP:
-        send_handshake = crear_paquete(cod_op);
-        agregar_a_paquete(send_handshake,texto[0],strlen(texto[0]) + 1);// cod_op
-        agregar_a_paquete(send_handshake,texto[1],strlen(texto[1]) + 1);// nombre archivo texto[1]
-        agregar_a_paquete(send_handshake,texto[2],strlen(texto[2]) + 1);// prioridad texto[2]
-        enviar_paquete(send_handshake,conexion_cpu_interrupt);
-        eliminar_paquete(send_handshake);
-        log_info(logger, "Notificación enviada al Kernel por la interrupción del PID %d, TID %d", pid, tid);
+        agregar_a_paquete(paquete_notify,texto[1],strlen(texto[1]) + 1);// nombre archivo texto[1]
+        agregar_a_paquete(paquete_notify,texto[2],strlen(texto[2]) + 1);// prioridad texto[2]
         break;
-    case SEGMENTATION_FAULT:
+        
+    //mandan tid y pid
+    case FIN_QUANTUM:
         agregar_a_paquete(paquete_notify, &pid, sizeof(int));  
         agregar_a_paquete(paquete_notify, &tid, sizeof(int));  
         // Enviamos la notificación al Kernel
-        enviar_paquete(paquete_notify, conexion_cpu_interrupt);  
-        eliminar_paquete(paquete_notify);  // Eliminamos el paquete tras enviarlo
-        log_info(logger, "Notificación enviada al Kernel por la interrupción del PID %d, TID %d", pid, tid);
-        break;    
+    case SEGMENTATION_FAULT:
+        break;
+
+
     default: 
         exit(EXIT_FAILURE);
         break;
     }
-    eliminar_paquete(paquete_respuesta);  // Limpiar el paquete de respuesta
+    log_info(logger, "Notificación enviada al Kernel por la interrupción del PID %d, TID %d", pid, tid);
+    enviar_paquete(paquete_notify, socket_kernel_interrupt);
+    eliminar_paquete(paquete_notify);  // Limpiar el paquete de respuesta
 }
 
 /*
@@ -769,7 +747,7 @@ void agregar_interrupcion(protocolo_socket tipo, int prioridad,char**texto) { //
 }
 
 t_interrupcion* obtener_interrupcion_mayor_prioridad() {
-    if (list_is_empty(lista_interrupciones)) 
+    if (list_is_empty(lista_interrupciones))
         return NULL;
 
     t_interrupcion* interrupcion_mayor_prioridad = list_get(lista_interrupciones, 0);  // Suponemos que hay al menos una interrupción
@@ -806,9 +784,7 @@ void manejar_motivo(protocolo_socket tipo, char** texto) {
     pthread_mutex_unlock(mutex_conexion_memoria);
 
     // Notificar al Kernel
-    pthread_mutex_lock(mutex_kernel_interrupt);
     devolver_motivo_a_kernel(tipo,texto);
-    pthread_mutex_unlock(mutex_kernel_interrupt);
 
     // Detener ejecución del hilo actual
     detener_ejecucion();

@@ -6,7 +6,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/bin/${workspaceFolderBasename}",
-      "args": ["PLANI_PROC.txt", 256, 0],
+      "args": ["PLANI_PROC", 256, 0],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],

@@ -50,16 +50,10 @@ void* planificador_corto_plazo_hilo(void* arg) {
 
 }
 
+
 void encolar_hilo_corto_plazo(t_tcb * hilo){
 
     log_info(logger,"Se crea la peticion para memoria del hilo %d", hilo->tid);
-    t_peticion *peticion = malloc(sizeof(t_peticion));
-    peticion->tipo = THREAD_CREATE_OP;
-    peticion->proceso = obtener_pcb_por_pid(hilo->pid);
-    peticion->hilo = hilo;
-    peticion->respuesta_recibida = false;
-    log_info(logger,"Se encola la peticion para memoria del hilo %d", hilo->tid);
-    encolar_peticion_memoria(peticion);
 
     if (strcmp(algoritmo, "FIFO") == 0) {
         encolar_corto_plazo_fifo(hilo);
@@ -96,6 +90,7 @@ void corto_plazo_fifo(){
         pthread_mutex_lock(mutex_socket_cpu_dispatch);
         log_info(logger, "Se envía el hilo al cpu dispatch");
         hilo_actual = hilo;
+        proceso_actual = obtener_pcb_por_tid(hilo_actual->tid);
         enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
         log_info(logger,"Cola de FIFO: Ejecutando hilo TID=%d, PID=%d\n", hilo->tid, hilo->pid);
         recibir_motivo_devolucion_cpu();
@@ -129,6 +124,7 @@ void corto_plazo_prioridades()
         pthread_mutex_lock(mutex_socket_cpu_dispatch);
         log_info(logger, "Se envía el hilo al cpu dispatch");
         hilo_actual = hilo;
+        proceso_actual = obtener_pcb_por_tid(hilo_actual->tid);
         enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
         log_info(logger,"Cola de PRIORIDADES %d: Ejecutando hilo TID=%d, PID=%d\n", hilo->prioridad,hilo->tid, hilo->pid);
         recibir_motivo_devolucion_cpu();
@@ -221,6 +217,7 @@ void ejecutar_round_robin(t_tcb * hilo_a_ejecutar) {
     pthread_mutex_lock(mutex_socket_cpu_dispatch);
     log_info(logger, "Se envía el hilo al cpu dispatch");
     hilo_actual = hilo_a_ejecutar;
+    proceso_actual = obtener_pcb_por_tid(hilo_actual->tid);
     enviar_a_cpu_dispatch(hilo_a_ejecutar->tid, hilo_a_ejecutar->pid); // Envía el TID y PID al CPU
     pthread_mutex_unlock(mutex_socket_cpu_dispatch);
 
@@ -372,13 +369,14 @@ void recibir_motivo_devolucion_cpu() {
     motivo = recibir_operacion(conexion_kernel_cpu_interrupt);
 
     t_list *paquete_respuesta = recibir_paquete(conexion_kernel_cpu_interrupt);
-    int tid;
+    int tid = hilo_actual->tid;
     char* nombre_mutex;
     int tiempo;
-    int pid;
+    int pid = hilo_actual->pid;
     char * nombre_archivo;
     int prioridad;
     int tamanio;
+    FILE * archivo;
     switch (motivo) {
         case FINALIZACION:
             log_info(logger, "El hilo %d ha FINALIZADO correctamente\n", tid);
@@ -438,15 +436,26 @@ void recibir_motivo_devolucion_cpu() {
 
         case PROCESS_CREATE_OP:
             nombre_archivo = list_remove(paquete_respuesta, 0);
-            FILE * archivo = fopen(nombre_archivo, "r");
-            tamanio = (intptr_t)list_remove(paquete_respuesta, 0);
-            prioridad = (intptr_t)list_remove(paquete_respuesta, 0);
+            archivo = fopen(nombre_archivo, "r");
+            tamanio = * (int *)list_remove(paquete_respuesta, 0);
+            prioridad = * (int *)list_remove(paquete_respuesta, 0);
             log_info(logger, "El hilo %d inició un PROCESS CREATE\n", tid);
             pid = proceso_actual->pid;
             actualizar_quantum(tiempo_transcurrido);
             PROCESS_CREATE(archivo, tamanio, prioridad);
             break;   
+
+        case THREAD_CREATE_OP:
+            nombre_archivo = list_remove(paquete_respuesta, 0);
+            archivo = fopen(nombre_archivo, "r");
+            prioridad = *(int *)list_remove(paquete_respuesta, 0);
+            log_info(logger, "El hilo %d inició un PROCESS CREATE\n", tid);
+            pid = proceso_actual->pid;
+            actualizar_quantum(tiempo_transcurrido);
+            THREAD_CREATE(archivo, prioridad);
+            break;   
         
+
         case PROCESS_EXIT_OP:
             log_info(logger, "El hilo %d inició un PROCESS EXIT\n", tid);
             pid = proceso_actual->pid;

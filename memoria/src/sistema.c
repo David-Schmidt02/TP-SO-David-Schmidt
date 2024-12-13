@@ -12,21 +12,21 @@ extern pthread_mutex_t * mutex_espacio;
 
 extern pthread_mutex_t * mutex_conexion_cpu;
 
-bool obtener_pcb_y_tcb(int pid, int tid, t_pcb *pcb_out, t_tcb *tcb_out) {
+bool obtener_pcb_y_tcb(int pid, int tid, t_pcb **pcb_out, t_tcb **tcb_out) {
 
     int index_pcb = buscar_pid(memoria_usuario->lista_pcb, pid);
     if (index_pcb == -1) {
         log_error(logger, "PID %d no encontrado en memoria.", pid);
         return false;
     }
-    pcb_out = list_get(memoria_usuario->lista_pcb, index_pcb);
+    *pcb_out = list_get(memoria_usuario->lista_pcb, index_pcb);
 
     int index_tcb = buscar_tid(memoria_usuario->lista_tcb, tid);
     if (index_tcb == -1) {
         log_error(logger, "TID %d no encontrado en el proceso PID %d.", tid, pid);
         return false;
     }
-    tcb_out = list_get(memoria_usuario->lista_tcb, index_tcb);
+    *tcb_out = list_get(memoria_usuario->lista_tcb, index_tcb);
     
     
     return true;
@@ -139,22 +139,24 @@ void actualizar_contexto_ejecucion() {
         return;
     }
 
-    pid = (intptr_t)list_remove(paquete_recv_list, 0);
+    pid = *(int *)list_remove(paquete_recv_list, 0);
    
-    tid = (intptr_t)list_remove(paquete_recv_list, 0);
+    tid = *(int *)list_remove(paquete_recv_list, 0);
 
     registros_actualizados = list_remove(paquete_recv_list, 0);
     
     list_destroy(paquete_recv_list);
 
     // Validar PID y TID
-    pthread_mutex_lock(mutex_tcb);
-    int index_tcb = buscar_pid(memoria_usuario->lista_tcb, tid);
+    
+    int index_tcb = buscar_tid(memoria_usuario->lista_tcb, tid);
     if (index_tcb == -1) {
         log_error(logger, "No se encontró el TID %d en memoria para actualizar contexto.", tid);
         enviar_error_actualizacion();
         return;
     }
+    
+    pthread_mutex_lock(mutex_tcb);
     tcb = list_get(memoria_usuario->lista_tcb, index_tcb);
 
     // int index_tcb = buscar_tid(pcb->listaTCB, tid);
@@ -166,14 +168,12 @@ void actualizar_contexto_ejecucion() {
     // t_tcb *tcb = list_get(pcb->listaTCB, index_tcb);
 
     // Actualizar registros en el TCB
+    
     memcpy((tcb->registro), registros_actualizados, sizeof(RegistroCPU));
     log_info(logger, "Registros actualizados para PID %d, TID %d.", pid, tid);
     pthread_mutex_unlock(mutex_tcb);
 
-    t_paquete *paquete_ok = crear_paquete(OK_MEMORIA);
-    const char *mensaje_ok = "Actualización exitosa";
-    //agregar_a_paquete(paquete_ok, mensaje_ok, strlen(mensaje_ok) + 1);
-    agregar_a_paquete(paquete_ok, (void *)mensaje_ok, strlen(mensaje_ok) + 1);
+    t_paquete *paquete_ok = crear_paquete(OK);
     enviar_paquete(paquete_ok, socket_cliente_cpu);
     eliminar_paquete(paquete_ok);
     log_info(logger, "Recibi contexto de CPU");
@@ -671,7 +671,8 @@ int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu.
 	paquete_send = crear_paquete(OBTENER_INSTRUCCION);
 
     pthread_mutex_lock(mutex_conexion_cpu);
-	agregar_a_paquete(paquete_send, instruccion, sizeof(instruccion));
+	agregar_a_paquete(paquete_send, instruccion, strlen(instruccion)+1);
+    log_info(logger, "Size instruccion: %d", strlen(instruccion)+1);
 	enviar_paquete(paquete_send, socket_cliente_cpu);
     pthread_mutex_unlock(mutex_conexion_cpu);
     log_info(logger, "Se envia instruccion %d a CPU", PC);

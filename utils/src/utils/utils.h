@@ -68,6 +68,7 @@ typedef enum
     MUTEX_LOCK_OP,
     MUTEX_UNLOCK_OP,
     DUMP_MEMORY_OP,
+    LOG_OP,
     ERROR,
     SUCCESS,
     //para comunicar kernel y cpu
