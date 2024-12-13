@@ -135,15 +135,9 @@ void obtener_contexto_de_memoria() {
     eliminar_paquete(send_handshake); // elimina el paquete después de enviarlo
 
     // Recibir la respuesta
-    if (recibir_operacion(conexion_cpu_memoria) == ERROR_MEMORIA){
-        paquete_respuesta = recibir_paquete(conexion_cpu_memoria);
-        log_info(logger, "Error de memoria recibido");
-        // msjerror = list_remove(paquete_respuesta, 0);
-        // char *error;
-        // memcpy(error, msjerror->buffer, sizeof(msjerror->buffer->size));
-        // log_error(logger, error);
-        // free(error);
-        agregar_interrupcion(SEGMENTATION_FAULT,1, texto);
+    protocolo_socket cod_op = recibir_operacion(conexion_cpu_memoria);
+    if(cod_op == ERROR_MEMORIA){
+        log_error(logger, "Error de memoria al enviar contexto");
         return;
     }
     paquete_respuesta = recibir_paquete(conexion_cpu_memoria); // Recibir el contexto de ejecución
@@ -529,49 +523,6 @@ void checkInterrupt() { //el checkInterrupt se corre siempre -> interrupcion -> 
        free(interrupcion_actual);
 }
 
-
-/*void enviar_contexto_de_memoria(RegistroCPU *registro, int pid) {
-    t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
-    
-    // Agregar los registros de la CPU al paquete para enviarlos a la memoria
-    agregar_a_paquete(paquete_send, registro, sizeof(RegistroCPU));  
-    agregar_a_paquete(paquete_send, &pid, sizeof(int));  // Agregamos el PID del proceso
-
-    // Enviar el paquete a la memoria
-    enviar_paquete(paquete_send, conexion_cpu_memoria);
-    eliminar_paquete(paquete_send);  // Eliminar el paquete después de enviarlo
-
-    // Recibir confirmación de la memoria
-    t_paquete *paquete_respuesta = recibir_paquete(conexion_cpu_memoria);
-    if (paquete_respuesta != NULL && strcmp(paquete_respuesta->buffer, "OK") == 0) {
-        log_info(logger, "Contexto de PID %d enviado correctamente a Memoria", pid);
-    } else 
-        log_error(logger, "Error al enviar contexto de PID %d a Memoria", pid);
-
-    eliminar_paquete(paquete_respuesta);  // Limpiar paquete de respuesta
-}
-void enviar_contexto_de_memoria (RegistroCPU *registro, int pid){
-    t_paquete *msjerror;
-    t_list *paquete_respuesta;
-    t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
-    agregar_a_paquete(paquete_send, registro, sizeof(registro));
-    agregar_a_paquete(paquete_send, pid, sizeof(pid));
-    enviar_paquete(paquete_send, conexion_cpu_memoria);
-    eliminar_paquete(paquete_send);
-
-    if (recibir_operacion(conexion_cpu_memoria)==ERROR_MEMORIA){
-        paquete_respuesta = recibir_paquete(conexion_cpu_memoria);
-        msjerror = list_remove(paquete_respuesta, 0);
-        char *error;
-        memcpy(error, msjerror->buffer, sizeof(msjerror->buffer));
-        log_error(logger, error);
-        agregar_interrupcion(SEGMENTATION_FAULT,1,tid);
-    }
-    else log_info(logger, "contexto de PID %d enviado correctamente", pid);
-    return;
-
-}*/
-
 void enviar_contexto_de_memoria() {
     // Crear el paquete a enviar
     char *texto[1];
@@ -655,81 +606,6 @@ void devolver_motivo_a_kernel(protocolo_socket cod_op, char** texto) {
     enviar_paquete(paquete_notify, socket_kernel_interrupt);
     eliminar_paquete(paquete_notify);  // Limpiar el paquete de respuesta
 }
-
-/*
-
-void *peticion_kernel(void *args) {
-    t_paquete_peticion *args_peticion = args;
-    t_peticion *peticion = args_peticion->peticion;
-    t_pcb *proceso = peticion->proceso;
-    t_tcb *hilo = peticion->hilo;
-    t_paquete *send_protocolo;
-    protocolo_socket op;
-
-    switch (peticion->tipo) {
-        case PROCESS_CREATE_OP:
-            send_protocolo = crear_paquete(PROCESS_CREATE_OP);
-            agregar_a_paquete(send_protocolo, proceso, sizeof(t_pcb));
-			log_info(logger, "Se crea la peticion de PROCESS CREATE");
-            break;
-
-        case PROCESS_EXIT_OP:
-            send_protocolo = crear_paquete(PROCESS_EXIT_OP);
-            agregar_a_paquete(send_protocolo, proceso, sizeof(t_pcb));
-			log_info(logger, "Se crea la peticion de PROCESS EXIT");
-            break;
-
-        case THREAD_CREATE_OP:
-            send_protocolo = crear_paquete(THREAD_CREATE_OP);
-            agregar_a_paquete(send_protocolo, hilo, sizeof(t_tcb));
-			log_info(logger, "Se crea la peticion de THREAD CREATE");
-            break;
-
-        case THREAD_EXIT_OP:
-            send_protocolo = crear_paquete(THREAD_EXIT_OP);
-            agregar_a_paquete(send_protocolo, hilo, sizeof(t_tcb));
-			log_info(logger, "Se crea la peticion de THREAD EXIT");
-            break;
-
-        case DUMP_MEMORY_OP:
-            send_protocolo = crear_paquete(DUMP_MEMORY_OP);
-            agregar_a_paquete(send_protocolo, proceso, sizeof(t_pcb));
-			log_info(logger, "Se crea la peticion de DUMP MEMORY");
-            break;
-
-        default:
-            log_error(logger, "Tipo de operación desconocido: %d", peticion->tipo);
-            return NULL;
-    }
-
-    enviar_paquete(send_protocolo, args_peticion->socket);
-    log_info(logger, "Petición enviada a memoria, esperando respuesta...");
-
-    // Esperar respuesta bloqueante
-    op = recibir_operacion(args_peticion->socket);
-    switch (op) {
-        case SUCCESS:
-            log_info(logger, "'SUCCESS' recibido desde memoria para operación %d", peticion->tipo);
-            peticion->respuesta_exitosa = true;
-            break;
-
-        case ERROR:
-            log_info(logger, "'ERROR' recibido desde memoria para operación %d", peticion->tipo);
-            peticion->respuesta_exitosa = false;
-            break;
-
-        default:
-            log_warning(logger, "Código de operación desconocido recibido: %d", op);
-            peticion->respuesta_exitosa = false;
-            break;
-    }
-	log_info(logger, "Actualizo el valor de respuesta recibida a true");
-    peticion->respuesta_recibida = true; // Actualizar el estado directamente
-    eliminar_paquete(send_protocolo);
-    liberar_conexion(args_peticion->socket);
-    return NULL;
-}
-*/
 
 void agregar_interrupcion(protocolo_socket tipo, int prioridad,char**texto) { // Las interrupciones se pueden generar tanto por la CPU como por el Kernel. Las añadimos a la lista de interrupciones con su respectiva prioridad.
     if (tid_actual != tid){

@@ -58,13 +58,13 @@ void enviar_contexto(int pid, int tid) {
         return;
     }
 
-    t_paquete *paquete = crear_paquete(CONTEXTO_SEND);
+    t_paquete *paquete = crear_paquete(CONTEXTO_RECEIVE);
 
     //agregar_a_paquete(paquete, &tcb->registro, sizeof(tcb->registro));
 
     agregar_a_paquete(paquete, tcb->registro, sizeof(RegistroCPU));
-    agregar_a_paquete(paquete, &pcb->base, sizeof(uint32_t));
-    agregar_a_paquete(paquete, &pcb->limite, sizeof(uint32_t));
+    agregar_a_paquete(paquete, &pcb->base, sizeof(pcb->base));
+    agregar_a_paquete(paquete, &pcb->limite, sizeof(pcb->limite));
     enviar_paquete(paquete, socket_cliente_cpu);
     eliminar_paquete(paquete);
 
