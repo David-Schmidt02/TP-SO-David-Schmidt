@@ -139,21 +139,23 @@ void obtener_contexto_de_memoria() {
     if(cod_op == ERROR_MEMORIA){
         log_error(logger, "Error de memoria al enviar contexto");
         return;
+    }if(cod_op == CONTEXTO_RECEIVE){
+        paquete_respuesta = recibir_paquete(conexion_cpu_memoria); // Recibir el contexto de ejecución
+        if (paquete_respuesta != NULL) 
+        {
+            cpu = list_remove(paquete_respuesta, 0);
+            base = *(int*)list_remove(paquete_respuesta, 0);
+            limite = *(int*)list_remove(paquete_respuesta, 0);
+            sem_post(sem_hay_contexto);
+
+            log_info(logger, "## PID: %d - Contexto inicializado", pid);
+
+        } else 
+            log_info(logger,"Error: No se recibió  el Contexto de Ejecución.");
+
+        log_info(logger, "## PID: %d - Se solicitó el Contexto Ejecución", pid); 
+
     }
-    paquete_respuesta = recibir_paquete(conexion_cpu_memoria); // Recibir el contexto de ejecución
-    if (paquete_respuesta != NULL) 
-    {
-        cpu = list_remove(paquete_respuesta, 0);
-        base = *(int*)list_remove(paquete_respuesta, 0);
-        limite = *(int*)list_remove(paquete_respuesta, 0);
-        sem_post(sem_hay_contexto);
-
-        log_info(logger, "## PID: %d - Contexto inicializado", pid);
-
-    } else 
-        log_info(logger,"Error: No se recibió  el Contexto de Ejecución.");
-
-    log_info(logger, "## PID: %d - Se solicitó el Contexto Ejecución", pid); 
 }
 
 

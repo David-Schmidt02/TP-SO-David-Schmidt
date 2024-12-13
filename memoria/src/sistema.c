@@ -60,8 +60,6 @@ void enviar_contexto(int pid, int tid) {
 
     t_paquete *paquete = crear_paquete(CONTEXTO_RECEIVE);
 
-    //agregar_a_paquete(paquete, &tcb->registro, sizeof(tcb->registro));
-
     agregar_a_paquete(paquete, tcb->registro, sizeof(RegistroCPU));
     agregar_a_paquete(paquete, &pcb->base, sizeof(pcb->base));
     agregar_a_paquete(paquete, &pcb->limite, sizeof(pcb->limite));
