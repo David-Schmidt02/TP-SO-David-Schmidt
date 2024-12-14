@@ -71,7 +71,7 @@ void inicializar_semaforos_cpu(){
         perror("Error al asignar memoria para semáforo de cola");
         exit(EXIT_FAILURE);
     }
-    sem_init(sem_hay_contexto, 0, 0);
+    sem_init(sem_hay_contexto, 0, 1);
 
     sem_conexion_memoria = malloc(sizeof(sem_t));
     if (sem_conexion_memoria == NULL) {
@@ -137,15 +137,16 @@ void obtener_contexto_de_memoria() {
     
     t_paquete *msjerror;
     t_list *paquete_respuesta;
+    log_info(logger, "LLEGA AL PRINCIPIO DE LA PETICION DEL CONTEXTO A MEMORIA");
     pthread_mutex_lock(mutex_conexion_memoria);
 
-    t_paquete *send_handshake = crear_paquete(CONTEXTO_RECEIVE); 
-    agregar_a_paquete(send_handshake, &pid_actual, sizeof(pid_actual));
-    agregar_a_paquete(send_handshake, &tid_actual, sizeof(tid_actual));
+    t_paquete *paquete = crear_paquete(CONTEXTO_RECEIVE); 
+    agregar_a_paquete(paquete, &pid_actual, sizeof(pid_actual));
+    agregar_a_paquete(paquete, &tid_actual, sizeof(tid_actual));
 
     log_info(logger, "Se le solicita el contexto a memoria del PID: %d TID: %d con el cod op %d", pid_actual, tid_actual, CONTEXTO_RECEIVE);
-    enviar_paquete(send_handshake, socket_conexion_memoria);
-    eliminar_paquete(send_handshake);
+    enviar_paquete(paquete, socket_conexion_memoria);
+    eliminar_paquete(paquete);
 
     protocolo_socket cod_op = recibir_operacion(socket_conexion_memoria);
     if(cod_op == ERROR_MEMORIA){
@@ -176,6 +177,8 @@ void fetch() {
         t_paquete * paquete;
         protocolo_socket op;
 
+        sem_wait(sem_hay_contexto);
+        log_info(logger,"## TID: %d PC: %d- FETCH ",tid_actual, cpu_actual->PC);
         pthread_mutex_lock(mutex_conexion_memoria);
         paquete = crear_paquete(OBTENER_INSTRUCCION); 
         agregar_a_paquete(paquete, &cpu_actual->PC , sizeof(uint32_t));
@@ -196,16 +199,16 @@ void fetch() {
 
         char *instruccion;
         instruccion = list_remove(paquete_lista,0);
-             
+        sem_post(sem_hay_contexto);
         
         if (instruccion == NULL) {
             log_error(logger, "No se pudo asignar memoria para la instrucción");
             return;
         }
               
-        log_info(logger,"## TID: %d - FETCH ", cpu_actual->PC);
         // Llamar a la función decode para procesar la instrucción
         pthread_mutex_unlock(mutex_conexion_memoria);
+        log_error(logger, "Se recibió la siguiente instruccion (PC:%d) a memoria", cpu_actual->PC);
         decode(instruccion);
         free(instruccion);
         
@@ -294,7 +297,7 @@ void execute(int instruccion, char **texto) {
     uint32_t *reg_direccion = NULL;
     uint32_t *reg_valor = NULL;
     uint32_t *reg_comparacion = NULL;
-    t_paquete * send_handshake;
+    t_paquete * paquete;
 
     switch (instruccion)
     {
@@ -340,11 +343,11 @@ void execute(int instruccion, char **texto) {
                 log_info(logger, "## LEER MEMORIA - Dirección Física: %u", direccion_fisica);
 
                 // iría la lógica de leer de la memoria real y asignar al registro destino
-                send_handshake = crear_paquete(READ_MEM);
-                agregar_a_paquete(send_handshake,reg_direccion,sizeof(uint32_t));
+                paquete = crear_paquete(READ_MEM);
+                agregar_a_paquete(paquete,reg_direccion,sizeof(uint32_t));
                 pthread_mutex_lock(mutex_conexion_memoria);
-                enviar_paquete(send_handshake,socket_conexion_memoria);
-                eliminar_paquete(send_handshake);
+                enviar_paquete(paquete,socket_conexion_memoria);
+                eliminar_paquete(paquete);
                 t_list* paquete_recv = recibir_paquete(socket_conexion_memoria);
                 pthread_mutex_unlock(mutex_conexion_memoria);
                 t_paquete* recv = list_remove(paquete_recv,0);
@@ -362,12 +365,12 @@ void execute(int instruccion, char **texto) {
             if (reg_direccion != NULL && reg_valor != NULL) {
                     uint32_t direccion_fisica = 0;
                     traducir_direccion( *reg_direccion, &direccion_fisica); // Traduce la dirección lógica a física
-                    send_handshake = crear_paquete(WRITE_MEM);
-                    agregar_a_paquete(send_handshake,reg_direccion,sizeof(uint32_t));
-                    agregar_a_paquete(send_handshake,reg_valor,sizeof(uint32_t));
+                    paquete = crear_paquete(WRITE_MEM);
+                    agregar_a_paquete(paquete,reg_direccion,sizeof(uint32_t));
+                    agregar_a_paquete(paquete,reg_valor,sizeof(uint32_t));
                     pthread_mutex_lock(mutex_conexion_memoria);
-                    enviar_paquete(send_handshake,socket_conexion_memoria);
-                    eliminar_paquete(send_handshake);
+                    enviar_paquete(paquete,socket_conexion_memoria);
+                    eliminar_paquete(paquete);
                     log_info(logger, "## ESCRIBIR MEMORIA - Dirección Física: %u, Valor: %u", direccion_fisica, *reg_valor);
                     protocolo_socket cod_op;
                     cod_op = recibir_operacion(socket_conexion_memoria);
@@ -465,7 +468,10 @@ void checkInterrupt() { //el checkInterrupt se corre siempre -> interrupcion -> 
     t_interrupcion* interrupcion_actual = obtener_interrupcion();
 
     if (interrupcion_actual == NULL)
+    {
+        log_info(logger, "No hay interrupciones para tratar");
         return;
+    }
 
     log_info(logger, "Se recibio una interrupcion");
     switch (interrupcion_actual->tipo) {
@@ -521,6 +527,7 @@ void checkInterrupt() { //el checkInterrupt se corre siempre -> interrupcion -> 
             log_info(logger, "Se recibio la info de un nuevo hilo");
             tid_actual = atoi(interrupcion_actual->parametro[1]);
             pid_actual = atoi(interrupcion_actual->parametro[2]);
+            log_info(logger, "EL PID ACTUAL A PARTIR DEL HILO RECIBIDO ES IGUAL A: ", pid_actual);
             obtener_contexto_de_memoria();
             break;
 
@@ -631,22 +638,22 @@ void encolar_interrupcion(protocolo_socket tipo, int prioridad, char** texto) {
     
     // Insertamos la interrupción en la lista
     list_add(lista_interrupciones, nueva_interrupcion);
-    sem_post(sem_lista_interrupciones);
     log_info(logger, "Interrupción agregada: %i con prioridad %d", tipo, prioridad);
+    pid_actual = 0;
+    sem_post(sem_lista_interrupciones);
 }
 
 t_interrupcion* obtener_interrupcion() {
     if (list_is_empty(lista_interrupciones))
     {
-        log_info(logger, "No hay interrupciones para tratar");
         return NULL;
     }
 
-    //t_interrupcion* interrupcion_mayor_prioridad = list_get(lista_interrupciones, 0);  // Suponemos que hay al menos una interrupción
-    //int indice_mayor_prioridad = 0;
+    t_interrupcion* interrupcion_mayor_prioridad = list_get(lista_interrupciones, 0);  // Suponemos que hay al menos una interrupción
+    int indice_mayor_prioridad = 0;
 
-    /*
-    // Recorrer la lista para encontrar la interrupción con mayor prioridad (menor valor numérico)
+    
+    //Recorrer la lista para encontrar la interrupción con mayor prioridad (menor valor numérico)
     for (int i = 0; i < list_size(lista_interrupciones); i++) {
         t_interrupcion* interrupcion_actual = list_get(lista_interrupciones, i);
         if (interrupcion_actual->prioridad < interrupcion_mayor_prioridad->prioridad) { 
@@ -656,14 +663,11 @@ t_interrupcion* obtener_interrupcion() {
         }
         log_info(logger, "La interrupcion actual es: %d", interrupcion_actual->tipo);
     }
-    */
+    
     // Una vez que encontramos la interrupción con mayor prioridad, la eliminamos de la lista
     pthread_mutex_lock(mutex_lista_interrupciones);
 
-    //Simulo que las interrupciones son tratadas por FIFO
-
-    //list_remove(lista_interrupciones, indice_mayor_prioridad);
-    t_interrupcion* interrupcion_mayor_prioridad = list_remove(lista_interrupciones, 0);
+    list_remove(lista_interrupciones, indice_mayor_prioridad);
     pthread_mutex_unlock(mutex_lista_interrupciones);
 
     return interrupcion_mayor_prioridad;

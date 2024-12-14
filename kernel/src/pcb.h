@@ -36,7 +36,6 @@ typedef struct {
 
 typedef struct {
     int pid;
-    int quantum;
     int memoria_necesaria;
     t_estado estado;
     t_list *listaTCB;

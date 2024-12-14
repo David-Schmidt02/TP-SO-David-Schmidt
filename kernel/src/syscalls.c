@@ -80,7 +80,6 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
 
     t_pcb* nuevo_pcb = crear_pcb(pid, prioridadTID);
     nuevo_pcb->memoria_necesaria = tam_proceso;
-    nuevo_pcb->quantum = prioridadTID;
 
     log_info(logger, "Creación de Proceso: ## (<pid>:<%d>) Se crea el Proceso - Estado: NEW", nuevo_pcb->pid);
 

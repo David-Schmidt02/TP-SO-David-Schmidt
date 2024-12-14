@@ -68,20 +68,24 @@ int main(int argc, char* argv[]) {
 	pthread_create(&tid_kernelD, NULL, conexion_kernel_dispatch, (void *)&arg_kernelD);
 	pthread_create(&tid_memoria, NULL, cliente_conexion_memoria, (void *)&arg_memoria);
 
-
+	int i=0;
 	sem_wait(sem_conexion_kernel_cpu_dispatch);
 	sem_wait(sem_conexion_kernel_interrupt);
 	sem_wait(sem_conexion_memoria);
 
 	while(flag){
+		log_info(logger, "EL PID ACTUAL ES IGUAL A: %d", pid_actual);
 		if(pid_actual == 0){
 			sem_wait(sem_lista_interrupciones);
 			checkInterrupt();
 		}
 		else 
-			{
+		{
+			log_info(logger, "SE BUSCA LA SIGUIENTE INSTRUCCION EN EL FECTH");
 			fetch();
-			}
+		}
+		log_info(logger, "Nro vuelta: %d",i);
+		i++;
 	}
     //espero fin conexiones
 	
@@ -115,6 +119,12 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 		pthread_mutex_lock(mutex_kernel_dispatch);
 		int cod_op = recibir_operacion(socket_conexion_kernel_dispatch);
 		switch (cod_op){
+			case HANDSHAKE:
+				handshake_recv = recibir_paquete(socket_conexion_kernel_interrupt);
+				log_info(logger, "me llego: kernel dispatch\n");
+				list_iterate(handshake_recv, (void*) iterator);
+				enviar_paquete(handshake_send, socket_conexion_kernel_interrupt);
+				break;
 			case INFO_HILO:
 				log_info(logger, "Recibí un hilo para ejecutar de parte de Kernel");
 				t_list *paquete = recibir_paquete(socket_conexion_kernel_dispatch);
@@ -128,7 +138,7 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 				strcpy(texto[1],string_itoa(tid_actual)); 
 				strcpy(texto[2],string_itoa(pid_actual)); 
 				pthread_mutex_lock(mutex_lista_interrupciones);
-				log_info(logger, "Encolo la interrupcion del hilo en la lista");
+				log_info(logger, "Encolo la interrupcion del hilo en la lista de interrupciones");
 				encolar_interrupcion(INFO_HILO,3,texto);
 				pthread_mutex_unlock(mutex_lista_interrupciones);
 				break;
@@ -153,7 +163,6 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 	argumentos_thread * args = arg_kernelI; 
 	t_paquete *handshake_send;
 	t_list *handshake_recv;
-	char * handshake_texto = "handshake";
 	t_list *paquete;
 	int tid;
 
@@ -203,13 +212,6 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 void *cliente_conexion_memoria(void * arg_memoria){
 
 	argumentos_thread * args = arg_memoria;
-	t_paquete* send_handshake;
-	char *valor = "conexion cpu";
-	protocolo_socket op;
-	int flag=1;
-	t_list *paquete;
-	int tid;
-	int pid;
 	do
 	{
 		socket_conexion_memoria = crear_conexion(args->ip, args->puerto);

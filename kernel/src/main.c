@@ -224,7 +224,9 @@ void *peticion_kernel(void *args) {
     switch (peticion->tipo) {
         case PROCESS_CREATE_OP:
             send_protocolo = crear_paquete(PROCESS_CREATE_OP);
-            agregar_a_paquete(send_protocolo, proceso, sizeof(t_pcb));
+            agregar_a_paquete(send_protocolo, &proceso->pid, sizeof(proceso->pid));
+            agregar_a_paquete(send_protocolo, &proceso->memoria_necesaria, sizeof(proceso->memoria_necesaria));
+            agregar_a_paquete(send_protocolo, &proceso->estado, sizeof(proceso->estado));
 			log_info(logger, "Se crea la peticion de PROCESS CREATE");
             break;
 
@@ -237,8 +239,12 @@ void *peticion_kernel(void *args) {
 
         case THREAD_CREATE_OP:
             send_protocolo = crear_paquete(THREAD_CREATE_OP);
-            agregar_a_paquete(send_protocolo, hilo, sizeof(t_tcb));
-            
+
+            agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(hilo->tid));
+            agregar_a_paquete(send_protocolo, &hilo->pid, sizeof(hilo->pid));
+            agregar_a_paquete(send_protocolo, &hilo->prioridad, sizeof(hilo->prioridad));
+            agregar_a_paquete(send_protocolo, &hilo->estado, sizeof(hilo->estado));
+            agregar_a_paquete(send_protocolo, &hilo->quantum_restante, sizeof(hilo->quantum_restante));
             t_list_iterator * iterator = list_iterator_create(hilo->instrucciones);
             char *aux_instruccion;
             while(list_iterator_has_next(iterator)){
@@ -259,7 +265,7 @@ void *peticion_kernel(void *args) {
 		case THREAD_CANCEL_OP:
             send_protocolo = crear_paquete(THREAD_CANCEL_OP);
             agregar_a_paquete(send_protocolo, hilo, sizeof(t_tcb));
-			log_info(logger, "Se crea la peticion de THREAD EXIT");
+			log_info(logger, "Se crea la peticion de THREAD CANCEL");
             break;
 
         case DUMP_MEMORY_OP:

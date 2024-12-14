@@ -66,7 +66,7 @@ void enviar_contexto(int pid, int tid) {
     enviar_paquete(paquete, socket_cliente_cpu);
     eliminar_paquete(paquete);
 
-    log_info(logger, "## Contexto Solicitado - (PID:TID) - (%d:%d)", pid, tid);
+    log_info(logger, "## Contexto solicitado enviado- (PID:TID) - (%d:%d)", pid, tid);
 
 }
 
@@ -177,7 +177,6 @@ void actualizar_contexto_ejecucion() {
     tcb->registro->GX= registros_actualizados->GX;
     tcb->registro->HX= registros_actualizados->HX;
     tcb->registro->PC= registros_actualizados->PC;
-
 
     //memcpy((tcb->registro), registros_actualizados, sizeof(RegistroCPU));
     log_info(logger, "Registros actualizados para PID %d, TID %d.", pid, tid);
@@ -499,6 +498,8 @@ void crear_proceso(t_pcb *pcb) {
             pcb->limite = aux_fija->size;
             pthread_mutex_lock(mutex_pcb);
             list_add(memoria_usuario->lista_pcb, pcb);
+            pcb->listaTCB = list_create();
+            pcb->listaMUTEX = list_create();
             
             t_list_iterator *iterator_fija = list_iterator_create(pcb->listaTCB);
             t_tcb *tcb_aux_fija;
@@ -681,10 +682,10 @@ int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu.
 	agregar_a_paquete(paquete_send, instruccion, strlen(instruccion)+1);
 	enviar_paquete(paquete_send, socket_cliente_cpu);
     pthread_mutex_unlock(mutex_conexion_cpu);
-    log_info(logger, "Se envia instruccion %d a CPU", PC);
 	eliminar_paquete(paquete_send);
 
     log_info(logger, "## Obtener instrucción - (PID:TID) - (%d:%d) - Instrucción: %s", tcb_aux->pid, tcb_aux->tid, instruccion);
+    log_info(logger, "Se envia instruccion %d a CPU", PC);
 
     return 0;
 }
