@@ -3,7 +3,7 @@
 #include <string.h>
 #include "pcb.h"
 
-int pid=0;
+int pid_actual=0;
 int ultimo_tid=0;
 extern int quantum;
 
@@ -52,5 +52,5 @@ void cambiar_estado(t_tcb* tcb, t_estado estado)
 }
 
 int generar_pid_unico() {
-    return ++pid;
+    return ++pid_actual;
 }

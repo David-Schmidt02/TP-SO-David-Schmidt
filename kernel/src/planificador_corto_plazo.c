@@ -339,13 +339,6 @@ void enviar_a_cpu_interrupt(int tid, protocolo_socket motivo) {
         log_info(logger, "## - Interrupción por FIN DE QUANTUM del hilo [%d] enviada a CPU", tid);
         eliminar_paquete(send_interrupt);
         break;
-    case THREAD_JOIN_OP:
-        send_interrupt = crear_paquete(THREAD_JOIN_OP);
-        agregar_a_paquete(send_interrupt, &tid, sizeof(tid)); 
-        enviar_paquete(send_interrupt, conexion_kernel_cpu_interrupt);
-        log_info(logger, "## - Interrupción por THREAD JOIN del hilo [%d] enviada a CPU", tid);
-        eliminar_paquete(send_interrupt);
-        break;
     default:
         log_warning(logger, "El motivo de envio del hilo con tid [%d] a CPU INTERRUPT es incorrecto.", tid);
         break;

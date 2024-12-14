@@ -1,4 +1,4 @@
-#include "sistema.h"
+#include "sistema.h"HAND
 
 extern int socket_cliente_cpu;
 extern int conexion_memoria_fs;
@@ -679,7 +679,6 @@ int obtener_instruccion(int PC, int tid){ // envia el paquete instruccion a cpu.
 
     pthread_mutex_lock(mutex_conexion_cpu);
 	agregar_a_paquete(paquete_send, instruccion, strlen(instruccion)+1);
-    log_info(logger, "Size instruccion: %d", strlen(instruccion)+1);
 	enviar_paquete(paquete_send, socket_cliente_cpu);
     pthread_mutex_unlock(mutex_conexion_cpu);
     log_info(logger, "Se envia instruccion %d a CPU", PC);

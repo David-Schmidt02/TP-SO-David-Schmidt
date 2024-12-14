@@ -14,7 +14,7 @@ typedef enum
     LOG
 }t_operaciones;  
 
-
+void inicializar_estructuras_cpu();
 void *conexion_kernel_dispatch(void * arg_kernelD);
 void *conexion_kernel_interrupt(void* arg_kernelI);
 void *cliente_conexion_memoria(void * arg_memoria);

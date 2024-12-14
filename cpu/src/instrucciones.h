@@ -17,6 +17,7 @@ uint32_t* registro_aux( char *reg);
 void enviar_contexto_de_memoria();
 void obtener_contexto_de_memoria ();
 
+
 void fetch();
 void traducir_direccion( uint32_t dir_logica, uint32_t *dir_fisica);
 void decode( char *inst);
@@ -25,12 +26,12 @@ void execute( int instruccion, char **texto);
 void checkInterrupt();
 int recibir_interrupcion();
 void devolver_motivo_a_kernel(protocolo_socket cod_op, char** texto) ;
-void agregar_interrupcion(protocolo_socket tipo, int prioridad,char**texto);
-t_interrupcion* obtener_interrupcion_mayor_prioridad();
+void encolar_interrupcion(protocolo_socket tipo, int prioridad,char**texto);
+t_interrupcion* obtener_interrupcion();
 void liberar_interrupcion(t_interrupcion* interrupcion);
 
-void inicializar_cpu_contexto();
-void inicializar_lista_interrupciones();
+void inicializar_registros_cpu();
+void inicializar_semaforos_cpu();
 
 
 void manejar_motivo(protocolo_socket tipo, char** texto);

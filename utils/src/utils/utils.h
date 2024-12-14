@@ -63,6 +63,7 @@ typedef enum
     PROCESS_EXIT_OP,
     THREAD_CREATE_OP,
     THREAD_CANCEL_OP,
+    THREAD_JOIN_OP,
     THREAD_EXIT_OP, 
     MUTEX_CREATE_OP,
     MUTEX_LOCK_OP,
@@ -74,25 +75,12 @@ typedef enum
     //para comunicar kernel y cpu
     FINALIZACION,
     FIN_QUANTUM,
-    THREAD_JOIN_OP,
     IO_SYSCALL,
     // para filesystem
     INIT_BITMAP
     
 }protocolo_socket;
 
-
-/*typedef enum  
-{
-    PROCESS_CREATE_OP,
-    PROCESS_EXIT_OP,
-    THREAD_CREATE_OP,
-    THREAD_EXIT_OP, // es el mismo para THREAD_CANCEL_OP,
-    DUMP_MEMORY_OP,
-    ERROR,
-    SUCCESS
-}protocolo_peticion;
-*/
 typedef struct
 {
 	int size;

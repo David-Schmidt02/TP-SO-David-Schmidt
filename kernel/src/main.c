@@ -79,6 +79,7 @@ t_cola_IO *colaIO;
 pthread_mutex_t * mutex_colaIO;
 sem_t * sem_estado_colaIO;
 
+
 struct timeval tiempo_inicio_quantum; 
 pthread_mutex_t mutex_tiempo_inicio = PTHREAD_MUTEX_INITIALIZER;
 
@@ -164,6 +165,7 @@ void *conexion_cpu_dispatch(void * arg_cpu){
         
 
 	}while(conexion_kernel_cpu_dispatch == -1);
+    log_info(logger, "Se realizó la conexion con CPU DISPATCH");
 	sem_post(sem_estado_conexion_cpu_dispatch);
     return (void *)EXIT_SUCCESS;
 }
@@ -177,7 +179,7 @@ void *conexion_cpu_interrupt(void * arg_cpu){
 		sleep(1);
 
 	}while(conexion_kernel_cpu_interrupt == -1);
-		
+	log_info(logger, "Se realizó la conexion con CPU INTERRUPT");
     return (void *)EXIT_SUCCESS;
 }
 
@@ -241,7 +243,9 @@ void *peticion_kernel(void *args) {
             char *aux_instruccion;
             while(list_iterator_has_next(iterator)){
                 aux_instruccion = list_iterator_next(iterator);
-                agregar_a_paquete(send_protocolo, aux_instruccion, strlen(aux_instruccion)+1);
+                log_info(logger, "instruccion: %s",aux_instruccion);
+                int tamanio2 = strnlen(aux_instruccion,40)+1;
+                agregar_a_paquete(send_protocolo, aux_instruccion, tamanio2);
             }
 			log_info(logger, "Se crea la peticion de THREAD CREATE");
             break;
@@ -388,14 +392,12 @@ void inicializar_semaforos_conexion_cpu(){
         exit(EXIT_FAILURE);
     }
     pthread_mutex_init(mutex_socket_cpu_interrupt, NULL);
-	log_info(logger,"Mutex para la conexion con cpu interrupt y cpu dispatch creados\n");
 
     sem_estado_conexion_cpu_dispatch = malloc(sizeof(sem_t));
     if (sem_estado_conexion_cpu_dispatch == NULL) {
         perror("Error al asignar memoria para semáforo de cola");
         exit(EXIT_FAILURE);
     }
-	log_info(logger,"Semáforo de estado la conexion con cpu dispatch creado\n");
 	sem_init(sem_estado_conexion_cpu_dispatch, 0, 0);
 
 }
