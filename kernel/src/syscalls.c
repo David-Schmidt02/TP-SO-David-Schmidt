@@ -189,12 +189,24 @@ void PROCESS_EXIT() {
     pthread_mutex_lock(mutex_procesos_cola_ready);
     // linea anterior porque no estoy seguro de como funciona//
     //list_remove_and_destroy_by_condition(procesos_cola_ready->lista_procesos, (void*) (pcb_encontrado->pid == pid_buscado), (void*) eliminar_pcb);
-    list_remove_and_destroy_by_condition(procesos_cola_ready->lista_procesos, (void*) (uintptr_t)(pcb_encontrado->pid == pid_buscado), (void*) eliminar_pcb);
+    t_list_iterator * iterator = list_iterator_create(procesos_cola_ready->lista_procesos);
+    t_pcb *aux;
+    log_info(logger, "Proceso con PID: %d ha sido eliminado.", pcb_encontrado->pid);
+    log_info(logger, "## Finaliza el proceso %d", pcb_encontrado->pid);
+    while (list_iterator_has_next(iterator))
+    {
+        aux = list_iterator_next(iterator);
+        if(aux->pid == pid_buscado){
+            list_iterator_remove(iterator);
+            free(aux);
+            break;
+        }
+    }
+    
     sem_wait(sem_estado_procesos_cola_ready);
     pthread_mutex_unlock(mutex_procesos_cola_ready);
 
-    log_info(logger, "Proceso con PID: %d ha sido eliminado.", pcb_encontrado->pid);
-    log_info(logger, "## Finaliza el proceso %d", pcb_encontrado->pid);
+    
 }
 
 void notificar_memoria_fin_proceso(int pid) {
@@ -312,9 +324,7 @@ void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad) {
     list_add(proceso_actual->listaTCB, nuevo_tcb);
     notificar_memoria_creacion_hilo(nuevo_tcb);
     encolar_hilo_corto_plazo(nuevo_tcb);
-    hilos_cola_ready->lista_hilos;
     encolar_hilo_corto_plazo(hilo_actual); //-> agrego esto
-    hilos_cola_ready->lista_hilos;
     pthread_mutex_unlock(mutex_procesos_cola_ready);
     log_info(logger, "## (%d:%d) Se crea el Hilo - Estado: READY", proceso_actual->pid, tid);
 }

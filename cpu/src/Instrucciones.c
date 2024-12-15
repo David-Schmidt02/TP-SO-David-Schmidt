@@ -361,10 +361,10 @@ void execute(int instruccion, char **texto) {
                 *reg_destino = *(uint32_t *)list_remove(paquete_recv,0);
                 log_info(logger, "Valor leido: %d", *reg_destino);
                 list_destroy(paquete_recv);
-            }    
-                else 
-                    log_info(logger, "Error: Registro no válido en READ_MEM");
-                    manejar_motivo(SEGMENTATION_FAULT,texto);
+            }else{ 
+                log_info(logger, "Error: Registro no válido en READ_MEM");
+                manejar_motivo(SEGMENTATION_FAULT,texto);
+            }
         break;
         case 5: // WRITE MEM
             reg_direccion = registro_aux(texto[1]); // Dirección lógica
@@ -449,7 +449,7 @@ void execute(int instruccion, char **texto) {
             encolar_interrupcion(MUTEX_UNLOCK_OP,6,texto);
         break;
         case 17: // LOG_OP
-            encolar_interrupcion(LOG_OP,7,texto);
+            log_info(logger, "Valor del registro: %s", texto[1]);
         break;
         case 18: // IO_SYSCALL
             encolar_interrupcion(IO_SYSCALL,2,texto);
@@ -548,13 +548,17 @@ void checkInterrupt() { //el checkInterrupt se corre siempre -> interrupcion -> 
             log_info(logger, "EL PID ACTUAL A PARTIR DEL HILO RECIBIDO ES IGUAL A: %d", pid_actual);
             obtener_contexto_de_memoria();
             break;
-
+        case IO_SYSCALL:
+            log_info(logger, "##syscall  Interrupción IO_SYSCALL recibida ");
+            manejar_motivo(interrupcion_actual->tipo, interrupcion_actual->parametro);
+            break;
         default:
-                exit(EXIT_FAILURE);
-           break;
-        }
-        // Verificar si la CPU generó alguna interrupción (ej: Segmentation Fault)
-       free(interrupcion_actual);
+            log_error(logger, "Instruccion invalida %d", interrupcion_actual->tipo);
+            manejar_motivo(ERROR, interrupcion_actual->parametro); // se envia un "ERROR"
+            break;
+    }
+    // Verificar si la CPU generó alguna interrupción (ej: Segmentation Fault)
+    free(interrupcion_actual);
 }
 
 void enviar_contexto_de_memoria() {
@@ -632,6 +636,7 @@ void devolver_motivo_a_kernel(protocolo_socket cod_op, char** texto) {
         case MUTEX_UNLOCK_OP:
         case THREAD_JOIN_OP: 
         case THREAD_CANCEL_OP:
+        case IO_SYSCALL:
             //agregar_a_paquete(paquete_notify,texto[1], strlen(texto[1]) + 1); // tid texto[1]
             texto1 = atoi(texto[1]);
             agregar_a_paquete(paquete_notify, &texto1, sizeof(int)); // tid texto[1]
@@ -655,7 +660,7 @@ void devolver_motivo_a_kernel(protocolo_socket cod_op, char** texto) {
             break;
         
         default: 
-            exit(EXIT_FAILURE);
+            log_error(logger, "Interrupcion invalida %d", cod_op);
             break;
     }
     log_info(logger, "Notificación enviada al Kernel por la interrupción del PID %d, TID %d", pid_actual, tid_actual);
