@@ -347,6 +347,7 @@ int buscar_en_tabla_fija(int pid){
     while(list_iterator_has_next(iterator)){
         aux = list_iterator_next(iterator);
         if(aux->libre_ocupado == pid){
+            pthread_mutex_unlock(mutex_part_fijas);
             return list_iterator_index(iterator);
         }
     }

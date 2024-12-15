@@ -137,10 +137,8 @@ void *server_multihilo_kernel(void* arg_server){
 	while (flag)
 	{
 		log_info(logger, "esperando nueva peticion de kernel");
-		pthread_mutex_lock(mutex_conexion_kernel);
+		//pthread_mutex_lock(mutex_conexion_kernel);
 		socket_cliente_kernel = esperar_cliente(server); //pausado hasta que llegue una peticion nueva (nuevo cliente)
-		int *socket_copia = malloc(sizeof(int));
-		*socket_copia = socket_cliente_kernel;
 
 		cod_op = recibir_operacion(socket_cliente_kernel);
 		log_info(logger, "SE RECIBIO UNA PETICION DESDE KERNEL CON EL CODIGO DE OPERACION: %i", cod_op);
@@ -148,18 +146,17 @@ void *server_multihilo_kernel(void* arg_server){
 		{
 			case PROCESS_CREATE_OP:
 				
-				pthread_create(&aux_thread, NULL, peticion_kernel_NEW_PROCESS, (void *)socket_copia);
+				pthread_create(&aux_thread, NULL, peticion_kernel_NEW_PROCESS, (void *)&socket_cliente_kernel);
 				sleep(1);
-				pthread_mutex_lock(mutex_lista_peticiones);
 				thread_copia = malloc(sizeof(pthread_t));
 				*thread_copia = aux_thread;
+				pthread_mutex_lock(mutex_lista_peticiones);
 				list_add(lista_t_peticiones, thread_copia);
 				pthread_mutex_unlock(mutex_lista_peticiones);
 				log_info(logger, "nueva peticion de process create");
 				break;
 			case THREAD_CREATE_OP:
-				*socket_copia = socket_cliente_kernel;
-				pthread_create(&aux_thread, NULL, peticion_kernel_NEW_THREAD, (void *)socket_copia);
+				pthread_create(&aux_thread, NULL, peticion_kernel_NEW_THREAD, (void *)&socket_cliente_kernel);
 				pthread_mutex_lock(mutex_lista_peticiones);
 				thread_copia = malloc(sizeof(pthread_t));
 				*thread_copia = aux_thread;
@@ -168,8 +165,7 @@ void *server_multihilo_kernel(void* arg_server){
 				log_info(logger, "nueva peticion de thread create");
 				break;
 			case PROCESS_EXIT_OP:
-				*socket_copia = socket_cliente_kernel;
-				pthread_create(&aux_thread, NULL, peticion_kernel_END_PROCESS, (void *)socket_copia);
+				pthread_create(&aux_thread, NULL, peticion_kernel_END_PROCESS, (void *)&socket_cliente_kernel);
 				pthread_mutex_lock(mutex_lista_peticiones);
 				thread_copia = malloc(sizeof(pthread_t));
 				*thread_copia = aux_thread;
@@ -178,8 +174,7 @@ void *server_multihilo_kernel(void* arg_server){
 				log_info(logger, "nueva de Process Exit");
 				break;
 			case THREAD_EXIT_OP:
-				*socket_copia = socket_cliente_kernel;
-				pthread_create(&aux_thread, NULL, peticion_kernel_END_THREAD, (void *)socket_copia);
+				pthread_create(&aux_thread, NULL, peticion_kernel_END_THREAD, (void *)&socket_cliente_kernel);
 				pthread_mutex_lock(mutex_lista_peticiones);
 				thread_copia = malloc(sizeof(pthread_t));
 				*thread_copia = aux_thread;
@@ -188,8 +183,7 @@ void *server_multihilo_kernel(void* arg_server){
 				log_info(logger, "nueva peticion de Thread Exit");
 				break;
 			case DUMP_MEMORY_OP:
-				*socket_copia = socket_cliente_kernel;
-				pthread_create(&aux_thread, NULL, peticion_kernel_DUMP, (void *)socket_copia);
+				pthread_create(&aux_thread, NULL, peticion_kernel_DUMP, (void *)&socket_cliente_kernel);
 				pthread_mutex_lock(mutex_lista_peticiones);
 				thread_copia = malloc(sizeof(pthread_t));
 				*thread_copia = aux_thread;
@@ -234,7 +228,6 @@ void *server_multihilo_kernel(void* arg_server){
 
 void *peticion_kernel_NEW_PROCESS(void* arg_peticion){
 	int socket = *((int*)arg_peticion);
-	free(arg_peticion);
 	t_pcb *pcb = malloc(sizeof(t_pcb));
 	//atender peticion
 	t_list * paquete_list;
@@ -317,6 +310,7 @@ void *peticion_kernel_END_PROCESS(void* arg_peticion){
 	//atender peticion
 	t_list * paquete_list;
 	t_paquete * paquete_send;
+	char * ok_respuesta = "OK";
 	//pthread_mutex_lock(mutex_conexion_kernel);
 
 	paquete_list = recibir_paquete(*socket);
@@ -327,6 +321,7 @@ void *peticion_kernel_END_PROCESS(void* arg_peticion){
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
+	agregar_a_paquete(paquete_send, ok_respuesta, strlen(ok_respuesta)+1);
 	enviar_paquete(paquete_send, *socket);
 	pthread_mutex_unlock(mutex_conexion_kernel);
 

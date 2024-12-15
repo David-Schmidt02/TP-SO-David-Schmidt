@@ -352,10 +352,14 @@ void execute(int instruccion, char **texto) {
                 pthread_mutex_lock(mutex_conexion_memoria);
                 enviar_paquete(paquete,socket_conexion_memoria);
                 eliminar_paquete(paquete);
-                t_list* paquete_recv = recibir_paquete(socket_conexion_memoria);
+                int cod_op = recibir_operacion(socket_conexion_memoria);
+                if(cod_op){
+                    paquete_recv = recibir_paquete(socket_conexion_memoria);
+                }
                 pthread_mutex_unlock(mutex_conexion_memoria);
 
                 *reg_destino = *(uint32_t *)list_remove(paquete_recv,0);
+                log_info(logger, "Valor leido: %d", *reg_destino);
                 list_destroy(paquete_recv);
             }    
                 else 
