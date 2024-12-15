@@ -239,7 +239,14 @@ void *peticion_kernel_NEW_PROCESS(void* arg_peticion){
 	pcb->memoria_necesaria = * (int *)list_remove(paquete_list, 0);
 	pcb->limite = * (int *)list_remove(paquete_list, 0);
 
-	crear_proceso(pcb);
+	if (crear_proceso(pcb)){
+		log_error(logger, "No se pudo agregar el proceso a memoria por falta de espacio");
+		paquete_send = crear_paquete(ERROR);
+		enviar_paquete(paquete_send, socket);
+		eliminar_paquete(paquete_send);
+		list_destroy(paquete_list);
+		return (void *)EXIT_FAILURE;
+	}
 	log_info(logger, "Se creo un nuevo proceso PID: %d", pcb->pid);
 	
 	//notificar resultado a kernel
@@ -310,7 +317,6 @@ void *peticion_kernel_END_PROCESS(void* arg_peticion){
 	//atender peticion
 	t_list * paquete_list;
 	t_paquete * paquete_send;
-	char * ok_respuesta = "OK";
 	//pthread_mutex_lock(mutex_conexion_kernel);
 
 	paquete_list = recibir_paquete(*socket);
@@ -321,7 +327,6 @@ void *peticion_kernel_END_PROCESS(void* arg_peticion){
 	
 	//notificar resultado a kernel
 	paquete_send = crear_paquete(OK);
-	agregar_a_paquete(paquete_send, ok_respuesta, strlen(ok_respuesta)+1);
 	enviar_paquete(paquete_send, *socket);
 	pthread_mutex_unlock(mutex_conexion_kernel);
 

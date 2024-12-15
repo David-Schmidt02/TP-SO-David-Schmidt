@@ -30,7 +30,7 @@ void* acceder_Entrada_Salida(void *arg) {
         pthread_mutex_unlock(mutex_colaIO);
 
         if (peticion != NULL) {
-            sleep(peticion->milisegundos / 1000);
+            usleep(peticion->milisegundos);
             free(peticion);
         }
     }

@@ -232,7 +232,7 @@ void *peticion_kernel(void *args) {
 
         case PROCESS_EXIT_OP:
             send_protocolo = crear_paquete(PROCESS_EXIT_OP);
-            agregar_a_paquete(send_protocolo, proceso, sizeof(t_pcb));
+            agregar_a_paquete(send_protocolo, &proceso->pid, sizeof(int));
 			log_info(logger, "Se crea la peticion de PROCESS EXIT");
 			sem_post(sem_proceso_finalizado);
             break;
@@ -250,7 +250,7 @@ void *peticion_kernel(void *args) {
             while(list_iterator_has_next(iterator)){
                 aux_instruccion = list_iterator_next(iterator);
                 log_info(logger, "instruccion: %s",aux_instruccion);
-                int tamanio2 = strnlen(aux_instruccion,40)+1;
+                int tamanio2 = strlen(aux_instruccion)+1;
                 agregar_a_paquete(send_protocolo, aux_instruccion, tamanio2);
             }
 			log_info(logger, "Se crea la peticion de THREAD CREATE");

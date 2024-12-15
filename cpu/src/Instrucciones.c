@@ -449,7 +449,8 @@ void execute(int instruccion, char **texto) {
             encolar_interrupcion(MUTEX_UNLOCK_OP,6,texto);
         break;
         case 17: // LOG_OP
-            log_info(logger, "Valor del registro: %s", texto[1]);
+            uint32_t * registro_a_leer = registro_aux(texto[1]);
+            log_info(logger, "Valor del registro %s: %d", texto[1], *registro_a_leer);
         break;
         case 18: // IO_SYSCALL
             encolar_interrupcion(IO_SYSCALL,2,texto);
@@ -656,7 +657,7 @@ void devolver_motivo_a_kernel(protocolo_socket cod_op, char** texto) {
             texto3 = atoi(texto[3]);
             agregar_a_paquete(paquete_notify, &texto2, sizeof(int));// prioridad texto[3]
             agregar_a_paquete(paquete_notify, &texto3, sizeof(int));// tamanio texto[2]
-            log_info(logger, "Agrega correctamente al paquete a enviar a kernel estos textos %s, %s", texto[1], texto[2]);
+            log_info(logger, "Agrega correctamente al paquete a enviar a kernel estos textos %s, %s, %s", texto[1], texto[2], texto[3]);
             break;
         
         default: 

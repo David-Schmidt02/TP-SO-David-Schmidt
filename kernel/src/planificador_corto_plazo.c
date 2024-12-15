@@ -408,6 +408,7 @@ void recibir_motivo_devolucion_cpu() {
             break;
 
         case IO_SYSCALL:
+            encolar_hilo_corto_plazo(hilo_actual);
             tiempo = *(int *)list_remove(paquete_respuesta, 0);
             log_info(logger, "El hilo %d ejecuta un IO\n", tid);
             actualizar_quantum(tiempo_transcurrido);
@@ -419,6 +420,7 @@ void recibir_motivo_devolucion_cpu() {
             pid = proceso_actual->pid;
             actualizar_quantum(tiempo_transcurrido);
             DUMP_MEMORY(pid);
+            encolar_hilo_corto_plazo(hilo_actual);
             break;   
 
         case PROCESS_CREATE_OP:
@@ -430,6 +432,7 @@ void recibir_motivo_devolucion_cpu() {
             pid = proceso_actual->pid;
             actualizar_quantum(tiempo_transcurrido);
             PROCESS_CREATE(archivo, tamanio, prioridad);
+            encolar_hilo_corto_plazo(hilo_actual);
             break;   
 
         case THREAD_CREATE_OP:
@@ -440,6 +443,7 @@ void recibir_motivo_devolucion_cpu() {
             pid = proceso_actual->pid;
             actualizar_quantum(tiempo_transcurrido);
             THREAD_CREATE(archivo, prioridad);
+            encolar_hilo_corto_plazo(hilo_actual);
             break;   
         
 

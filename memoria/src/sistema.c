@@ -235,16 +235,17 @@ int agregar_a_tabla_particion_fija(t_pcb *pcb){
     
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_particiones_fijas);
     elemento_particiones_fijas *aux;
-    
+    int index = -1;
+
     pthread_mutex_lock(mutex_part_fijas);
     while(list_iterator_has_next(iterator)) {
         aux = list_iterator_next(iterator);
         if (aux->libre_ocupado==0 && aux->size>= pcb->memoria_necesaria){
             aux->libre_ocupado = pcb->pid; //no liberar aux, sino se pierde el elemento xd
+            index = list_iterator_index(iterator);
             break;
         }
     }pthread_mutex_unlock(mutex_part_fijas);
-    int index = list_iterator_index(iterator);
     list_iterator_destroy(iterator);
     return index;
 }
@@ -472,10 +473,13 @@ int send_dump(int pid, int tid){
     }
     
 }
-void crear_proceso(t_pcb *pcb) {
+int crear_proceso(t_pcb *pcb) {
     switch(memoria_usuario->tipo_particion) {
         case FIJAS:
             int index_fija = agregar_a_tabla_particion_fija(pcb);
+            if (index_fija == -1){
+                return index_fija;
+            }
             elemento_particiones_fijas *aux_fija = list_get(memoria_usuario->tabla_particiones_fijas, index_fija);
             pcb->base = aux_fija->base;
             pcb->limite = aux_fija->size;
@@ -497,8 +501,7 @@ void crear_proceso(t_pcb *pcb) {
         case DINAMICAS:
             int index_dinamica = agregar_a_dinamica(pcb);
             if (index_dinamica == -1) {
-                log_error(logger, "No se pudo asignar memoria para el proceso PID %d en memoria dinámica.", pcb->pid);
-                return;
+                return index_dinamica;
             }
 
             pthread_mutex_lock(mutex_pcb);

@@ -324,7 +324,6 @@ void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad) {
     list_add(proceso_actual->listaTCB, nuevo_tcb);
     notificar_memoria_creacion_hilo(nuevo_tcb);
     encolar_hilo_corto_plazo(nuevo_tcb);
-    encolar_hilo_corto_plazo(hilo_actual); //-> agrego esto
     pthread_mutex_unlock(mutex_procesos_cola_ready);
     log_info(logger, "## (%d:%d) Se crea el Hilo - Estado: READY", proceso_actual->pid, tid);
 }
