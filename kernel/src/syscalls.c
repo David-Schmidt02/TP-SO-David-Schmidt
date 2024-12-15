@@ -168,10 +168,10 @@ void PROCESS_EXIT() {
         cambiar_estado(tcb_asociado, EXIT);
         //acá hay que hacer dos cosas, eliminarlos de la cola de hilos y moverlos a una cola de exit
         if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
-            eliminar_hilo_de_cola_fifo_prioridades(tcb_asociado);
+            eliminar_hilo_de_cola_fifo_prioridades_thread_exit(tcb_asociado);
             encolar_en_exit(tcb_asociado);//se agrega a la cola de exit
         } else if (strcmp(algoritmo, "CMN") == 0) {
-            eliminar_hilo_de_cola_multinivel(tcb_asociado);
+            eliminar_hilo_de_cola_multinivel_thread_exit(tcb_asociado);
             encolar_en_exit(tcb_asociado);//se agrega a la cola de exit
         } else {
             printf("Error: Algoritmo no reconocido.\n");
@@ -212,12 +212,27 @@ void notificar_memoria_fin_proceso(int pid) {
 }
 
 //Ademas de eliminar el hilo de acá me tengo que asegurar de que memoria destruya las estructuras de los mismos
-void eliminar_hilo_de_cola_fifo_prioridades(t_tcb* tcb_asociado) {
+void eliminar_hilo_de_cola_fifo_prioridades_thread_exit(t_tcb* tcb_asociado) {
     pthread_mutex_lock(mutex_hilos_cola_ready);
     
     for (int i = 0; i < list_size(hilos_cola_ready->lista_hilos); i++) {
         t_tcb *hilo = list_get(hilos_cola_ready->lista_hilos, i);
-        if (hilo->pid == tcb_asociado->pid) {
+        if (hilo->pid == tcb_asociado->pid && hilo->tid == tcb_asociado->tid) {
+            list_remove(hilos_cola_ready->lista_hilos, i);
+            i--;
+            //sem_wait(sem_estado_hilos_cola_ready);
+            break;
+        }
+    }
+    pthread_mutex_unlock(mutex_hilos_cola_ready);
+}
+
+void eliminar_hilo_de_cola_fifo_prioridades_thread_cancel(t_tcb* tcb_asociado) {
+    pthread_mutex_lock(mutex_hilos_cola_ready);
+    
+    for (int i = 0; i < list_size(hilos_cola_ready->lista_hilos); i++) {
+        t_tcb *hilo = list_get(hilos_cola_ready->lista_hilos, i);
+        if (hilo->pid == tcb_asociado->pid && hilo->tid == tcb_asociado->tid) {
             list_remove(hilos_cola_ready->lista_hilos, i);
             i--;
             sem_wait(sem_estado_hilos_cola_ready);
@@ -227,7 +242,29 @@ void eliminar_hilo_de_cola_fifo_prioridades(t_tcb* tcb_asociado) {
     pthread_mutex_unlock(mutex_hilos_cola_ready);
 }
 
-void eliminar_hilo_de_cola_multinivel(t_tcb* tcb_asociado) {
+void eliminar_hilo_de_cola_multinivel_thread_exit(t_tcb* tcb_asociado) {
+    pthread_mutex_lock(mutex_colas_multinivel);
+
+    // Iterar sobre cada nivel de prioridad
+    for (int i = 0; i < list_size(colas_multinivel->niveles_prioridad); i++) {
+        t_nivel_prioridad *nivel = list_get(colas_multinivel->niveles_prioridad, i);
+
+        pthread_mutex_lock(mutex_colas_multinivel);
+        for (int j = 0; j < list_size(nivel->cola_hilos->lista_hilos); j++) {
+            t_tcb *hilo = list_get(nivel->cola_hilos->lista_hilos, j);
+            if (hilo->pid == tcb_asociado->pid) {
+                list_remove(nivel->cola_hilos->lista_hilos, j);
+                j--;
+                //sem_wait(sem_estado_multinivel);
+                break;
+            }
+        }
+        pthread_mutex_unlock(mutex_colas_multinivel);
+    }
+    pthread_mutex_unlock(mutex_colas_multinivel);
+}
+
+void eliminar_hilo_de_cola_multinivel_cancel(t_tcb* tcb_asociado) {
     pthread_mutex_lock(mutex_colas_multinivel);
 
     // Iterar sobre cada nivel de prioridad
@@ -274,6 +311,9 @@ void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad) {
     list_add(proceso_actual->listaTCB, nuevo_tcb);
     notificar_memoria_creacion_hilo(nuevo_tcb);
     encolar_hilo_corto_plazo(nuevo_tcb);
+    hilos_cola_ready->lista_hilos;
+    encolar_hilo_corto_plazo(hilo_actual); //-> agrego esto
+    hilos_cola_ready->lista_hilos;
     pthread_mutex_unlock(mutex_procesos_cola_ready);
     log_info(logger, "## (%d:%d) Se crea el Hilo - Estado: READY", proceso_actual->pid, tid);
 }
@@ -330,9 +370,9 @@ void THREAD_CANCEL(int tid_hilo_a_cancelar) { // Esta sys recibe el tid solament
 
     // Elimina el hilo de la cola correspondiente y lo encola en la cola de EXIT
     if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
-            eliminar_hilo_de_cola_fifo_prioridades(hilo_a_cancelar);
+            eliminar_hilo_de_cola_fifo_prioridades_thread_cancel(hilo_a_cancelar);
         } else if (strcmp(algoritmo, "CMN") == 0) {
-            eliminar_hilo_de_cola_multinivel(hilo_a_cancelar);
+            eliminar_hilo_de_cola_multinivel_cancel(hilo_a_cancelar);
         } else {
             printf("Error: Algoritmo no reconocido.\n");
         }
@@ -398,9 +438,9 @@ void THREAD_EXIT() {// No recibe ningún parámetro, trabaja con hilo_actual
     }
     // Elimina el hilo de la cola correspondiente y lo encola en la cola de EXIT
     if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
-            eliminar_hilo_de_cola_fifo_prioridades(hilo_a_salir);
+            eliminar_hilo_de_cola_fifo_prioridades_thread_exit(hilo_a_salir);
         } else if (strcmp(algoritmo, "CMN") == 0) {
-            eliminar_hilo_de_cola_multinivel(hilo_a_salir);
+            eliminar_hilo_de_cola_multinivel_thread_exit(hilo_a_salir);
         } else {
             printf("Error: Algoritmo no reconocido.\n");
         }
@@ -474,10 +514,10 @@ void MUTEX_LOCK(char* nombre_mutex) {
         log_info(logger, "Mutex %s adquirido por el hilo TID %d que entra en espera.", nombre_mutex, hilo_actual->tid);
 
         if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
-            eliminar_hilo_de_cola_fifo_prioridades(hilo_actual);
+            eliminar_hilo_de_cola_fifo_prioridades_thread_exit(hilo_actual);
             encolar_en_exit(hilo_actual);//se agrega a la cola de exit
         } else if (strcmp(algoritmo, "CMN") == 0) {
-            eliminar_hilo_de_cola_multinivel(hilo_actual);
+            eliminar_hilo_de_cola_multinivel_thread_exit(hilo_actual);
             encolar_en_block(hilo_actual);//se agrega a la cola de exit
         } else {
             printf("Error: Algoritmo no reconocido.\n");
@@ -490,10 +530,10 @@ void MUTEX_LOCK(char* nombre_mutex) {
         log_info(logger, "Mutex %s ya está addquirido. El hilo TID %d entra en espera en la cola del mutex.", nombre_mutex, hilo_actual->tid);
 
         if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
-            eliminar_hilo_de_cola_fifo_prioridades(hilo_actual);
+            eliminar_hilo_de_cola_fifo_prioridades_thread_exit(hilo_actual);
             encolar_en_exit(hilo_actual);//se agrega a la cola de exit
         } else if (strcmp(algoritmo, "CMN") == 0) {
-            eliminar_hilo_de_cola_multinivel(hilo_actual);
+            eliminar_hilo_de_cola_multinivel_thread_exit(hilo_actual);
             encolar_en_block(hilo_actual);//se agrega a la cola de exit
         } else {
             printf("Error: Algoritmo no reconocido.\n");

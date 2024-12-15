@@ -52,8 +52,6 @@ void* planificador_corto_plazo_hilo(void* arg) {
 
 
 void encolar_hilo_corto_plazo(t_tcb * hilo){
-
-    log_info(logger,"Se crea la peticion para memoria del hilo %d", hilo->tid);
     if (strcmp(algoritmo, "FIFO") == 0) {
         encolar_corto_plazo_fifo(hilo);
     } else if (strcmp(algoritmo, "PRIORIDADES") == 0) {
@@ -83,6 +81,7 @@ void corto_plazo_fifo(){
         log_info(logger, "Entraste al While del planificador corto plazo FIFO");
         sem_wait(sem_estado_hilos_cola_ready);
         pthread_mutex_lock(mutex_hilos_cola_ready);
+
         t_tcb *hilo = desencolar_hilos_fifo();
         hilo->estado = EXEC; 
         pthread_mutex_unlock(mutex_hilos_cola_ready);
@@ -102,7 +101,6 @@ void encolar_corto_plazo_fifo(t_tcb * hilo){
     list_add(hilos_cola_ready->lista_hilos, hilo);
     pthread_mutex_unlock(mutex_hilos_cola_ready);
     sem_post(sem_estado_hilos_cola_ready);
-    log_info(logger, "Se hace un post del semáforo de estado de hilos_cola_ready");
 }
 
 t_tcb* desencolar_hilos_fifo(){
@@ -144,7 +142,6 @@ void encolar_corto_plazo_prioridades(t_tcb * hilo){
     list_add_in_index(hilos_cola_ready->lista_hilos, i, hilo);
     pthread_mutex_unlock(mutex_hilos_cola_ready);
     sem_post(sem_estado_hilos_cola_ready);
-    log_info(logger, "Se hace un post del semáforo de estado de hilos_cola_ready");
 }
 
 t_tcb* desencolar_hilos_prioridades()
@@ -243,7 +240,6 @@ void enviar_interrupcion_fin_quantum(void *hilo_void) {
     //semáforo para modificar el quantum
     enviar_a_cpu_interrupt(hilo->tid, FIN_QUANTUM);
     pthread_mutex_unlock(mutex_socket_cpu_interrupt);
-    log_info(logger, "Interrupción por fin de quantum enviada para el TID %d", hilo->tid);
 }
 
 void encolar_corto_plazo_multinivel(t_tcb* hilo) {
@@ -623,13 +619,9 @@ void inicializar_semaforos_corto_plazo(){
     }
     sem_init(sem_estado_multinivel, 0, 0);
 
-    log_info(logger,"Mutex's y semáforos de estado para las colas de hilos en READY/EXIT/BLOCK creados\n");
-    log_info(logger,"Mutex y semáforo de estado para las colas de hilos Multinivel creados\n");
-
 }
 
 t_colas_multinivel* inicializar_colas_multinivel() {
-    log_info(logger,"Cola Multinivel creada\n");
     t_colas_multinivel *colas_multinivel = malloc(sizeof(t_colas_multinivel));
     if (colas_multinivel == NULL) {
         perror("Error al asignar memoria para colas multinivel");

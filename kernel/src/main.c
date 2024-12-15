@@ -338,9 +338,9 @@ void inicializar_estructuras(){
     }
 	algoritmo = config_get_string_value(config, "ALGORITMO_PLANIFICACION");
 	quantum = config_get_int_value(config, "QUANTUM");
-	log_info(logger, "Se inicializa la lista de peticiones con list_create");
+
 	lista_t_peticiones = list_create();
-	log_info(logger, "Lista de peticiones inicializada");
+
 
 	inicializar_semaforos();
 	inicializar_colas_largo_plazo();

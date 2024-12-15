@@ -164,7 +164,6 @@ void encolar_proceso_en_ready(t_pcb * proceso){
 }
 
 void encolar_hilo_principal_corto_plazo(t_pcb * proceso){
-
     t_tcb * hilo = list_get(proceso->listaTCB, 0);
     t_peticion *peticion = malloc(sizeof(t_peticion));
     peticion->tipo = THREAD_CREATE_OP;
