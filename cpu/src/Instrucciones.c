@@ -595,6 +595,9 @@ void devolver_motivo_a_kernel(protocolo_socket cod_op, char** texto) {
     log_info(logger, "Entra a la primera parte de devolver motivo a kernel");
     // Enviamos el PID y TID para notificar al Kernel que el proceso fue interrumpido
     char * ok_send = "OK";
+    int texto1;
+    int texto2;
+    int texto3;
     switch (cod_op)
     {
         //no mandan nada
@@ -613,17 +616,28 @@ void devolver_motivo_a_kernel(protocolo_socket cod_op, char** texto) {
         case MUTEX_UNLOCK_OP:
         case THREAD_JOIN_OP: 
         case THREAD_CANCEL_OP:
-            agregar_a_paquete(paquete_notify,texto[1],strlen(texto[1]) + 1); // tid texto[1]
+            //agregar_a_paquete(paquete_notify,texto[1], strlen(texto[1]) + 1); // tid texto[1]
+            texto1 = atoi(texto[1]);
+            agregar_a_paquete(paquete_notify, &texto1, sizeof(int)); // tid texto[1]
             break;
 
         //mandan 2 elementos
         case THREAD_CREATE_OP:
-        case PROCESS_CREATE_OP:
-            agregar_a_paquete(paquete_notify,texto[1],strlen(texto[1]) + 1);// nombre archivo texto[1]
-            agregar_a_paquete(paquete_notify,texto[2],strlen(texto[2]) + 1);// prioridad texto[2]
+            agregar_a_paquete(paquete_notify, texto[1], strlen(texto[1]) + 1);// nombre archivo texto[1]
+            texto2 = atoi(texto[2]);
+            agregar_a_paquete(paquete_notify, &texto2, sizeof(int));// prioridad texto[2]
             log_info(logger, "Agrega correctamente al paquete a enviar a kernel estos textos %s, %s", texto[1], texto[2]);
             break;
-            
+        
+        case PROCESS_CREATE_OP:
+            agregar_a_paquete(paquete_notify,texto[1], strlen(texto[1]) + 1);// nombre archivo texto[1]
+            texto2 = atoi(texto[2]);
+            texto3 = atoi(texto[3]);
+            agregar_a_paquete(paquete_notify, &texto2, sizeof(int));// prioridad texto[3]
+            agregar_a_paquete(paquete_notify, &texto3, sizeof(int));// tamanio texto[2]
+            log_info(logger, "Agrega correctamente al paquete a enviar a kernel estos textos %s, %s", texto[1], texto[2]);
+            break;
+        
         default: 
             exit(EXIT_FAILURE);
             break;

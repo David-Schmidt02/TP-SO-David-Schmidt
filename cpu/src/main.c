@@ -68,13 +68,11 @@ int main(int argc, char* argv[]) {
 	pthread_create(&tid_kernelD, NULL, conexion_kernel_dispatch, (void *)&arg_kernelD);
 	pthread_create(&tid_memoria, NULL, cliente_conexion_memoria, (void *)&arg_memoria);
 
-	int i=0;
 	sem_wait(sem_conexion_kernel_cpu_dispatch);
 	sem_wait(sem_conexion_kernel_interrupt);
 	sem_wait(sem_conexion_memoria);
 
 	while(flag){
-		log_info(logger, "EL PID ACTUAL ES IGUAL A: %d", pid_actual);
 		if(pid_actual == 0){
 			sem_wait(sem_lista_interrupciones);
 			checkInterrupt();
@@ -84,8 +82,6 @@ int main(int argc, char* argv[]) {
 			log_info(logger, "SE BUSCA LA SIGUIENTE INSTRUCCION EN EL FECTH");
 			fetch();
 		}
-		log_info(logger, "Nro vuelta: %d",i);
-		i++;
 	}
     //espero fin conexiones
 	

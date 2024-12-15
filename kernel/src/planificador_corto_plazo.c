@@ -367,8 +367,6 @@ void recibir_motivo_devolucion_cpu() {
     FILE * archivo;
     char * ok_recibido;
     switch (motivo) {
-        
-
         case FIN_QUANTUM:
             log_info(logger, "El hilo %d fue desalojado por FIN DE QUANTUM\n", tid);
             actualizar_quantum(tiempo_transcurrido);
@@ -384,6 +382,7 @@ void recibir_motivo_devolucion_cpu() {
             // Transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
             actualizar_quantum(tiempo_transcurrido);
             THREAD_JOIN(tid);
+            encolar_hilo_corto_plazo(hilo_actual);
             //esperar_desbloqueo_ejecutar_hilo(tid); -> ya no se usá, la lógica está en finalizacion -> "desbloquear hilos"
             break;
 
@@ -425,8 +424,8 @@ void recibir_motivo_devolucion_cpu() {
         case PROCESS_CREATE_OP:
             nombre_archivo = list_remove(paquete_respuesta, 0);
             archivo = fopen(nombre_archivo, "r");
-            tamanio = * (int *)list_remove(paquete_respuesta, 0);
             prioridad = * (int *)list_remove(paquete_respuesta, 0);
+            tamanio = * (int *)list_remove(paquete_respuesta, 0);
             log_info(logger, "El hilo %d inició un PROCESS CREATE\n", tid);
             pid = proceso_actual->pid;
             actualizar_quantum(tiempo_transcurrido);

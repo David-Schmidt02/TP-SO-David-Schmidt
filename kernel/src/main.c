@@ -258,7 +258,7 @@ void *peticion_kernel(void *args) {
 
         case THREAD_EXIT_OP:
             send_protocolo = crear_paquete(THREAD_EXIT_OP);
-            agregar_a_paquete(send_protocolo, hilo, sizeof(t_tcb));
+            agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(hilo->tid));
 			log_info(logger, "Se crea la peticion de THREAD EXIT");
             break;
 

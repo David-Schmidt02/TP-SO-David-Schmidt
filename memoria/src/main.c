@@ -272,10 +272,10 @@ void *peticion_kernel_NEW_THREAD(void* arg_peticion){
 
 	//pthread_mutex_lock(mutex_conexion_kernel);
 	paquete_list = recibir_paquete(socket);
-	tcb->tid = * (int *)list_remove(paquete_list, 0);
-	tcb->pid = * (int *)list_remove(paquete_list, 0);
-	tcb->prioridad = * (int *)list_remove(paquete_list, 0);
-	tcb->estado = * (int *)list_remove(paquete_list, 0);
+	tcb->tid = *(int *)list_remove(paquete_list, 0);
+	tcb->pid = *(int *)list_remove(paquete_list, 0);
+	tcb->prioridad = *(int *)list_remove(paquete_list, 0);
+	tcb->estado = *(int *)list_remove(paquete_list, 0);
 	tcb->quantum_restante = * (int *)list_remove(paquete_list, 0);
 
 	t_list_iterator *iterator = list_iterator_create(paquete_list);
@@ -344,7 +344,7 @@ void *peticion_kernel_END_THREAD(void* arg_peticion){
 	//pthread_mutex_lock(mutex_conexion_kernel);
 
 	paquete_list = recibir_paquete(*socket);
-	tid = * (int *)list_remove(paquete_list, 0);
+	tid = *(int *)list_remove(paquete_list, 0);
 
 	fin_thread(tid);
 	log_info(logger, "Se finalizo el Thread TID: %d", tid);

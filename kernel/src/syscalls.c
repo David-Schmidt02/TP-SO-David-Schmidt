@@ -166,6 +166,7 @@ void PROCESS_EXIT() {
     for (int i = 0; i < list_size(pcb_encontrado->listaTCB); i++) {
         t_tcb* tcb_asociado = list_get(pcb_encontrado->listaTCB, i);
         cambiar_estado(tcb_asociado, EXIT);
+        log_info(logger, "TCB TID: %d del proceso PID: %d ha cambiado a estado EXIT", tcb_asociado->tid, pcb_encontrado->pid);
         //acá hay que hacer dos cosas, eliminarlos de la cola de hilos y moverlos a una cola de exit
         if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
             eliminar_hilo_de_cola_fifo_prioridades_thread_exit(tcb_asociado);
@@ -176,7 +177,7 @@ void PROCESS_EXIT() {
         } else {
             printf("Error: Algoritmo no reconocido.\n");
         }
-        log_info(logger, "TCB TID: %d del proceso PID: %d ha cambiado a estado EXIT", tcb_asociado->tid, pcb_encontrado->pid);
+        
     }
     log_info(logger, "Todos los hilos del proceso %d eliminados de READY.", pid_buscado);
 
@@ -378,6 +379,7 @@ void THREAD_CANCEL(int tid_hilo_a_cancelar) { // Esta sys recibe el tid solament
         }
 
     notificar_memoria_fin_hilo(hilo_a_cancelar);
+
     eliminar_tcb(hilo_a_cancelar);
 }
 
@@ -416,9 +418,16 @@ void eliminar_tcb(t_tcb* hilo) {
     if (hilo->registro != NULL) {
         free(hilo->registro);
     }
-    
-    // Implementar lógica para liberar otros recursos?
-    free(hilo);  // Libero el TCB
+    t_pcb * pcb = malloc(sizeof(t_pcb));
+    pcb = obtener_pcb_por_tid(hilo->tid);
+    for (int i = 0; i < list_size(proceso_actual->listaTCB); i++) {
+        t_tcb * tcb = list_get(proceso_actual->listaTCB, i);
+        if (hilo->tid == tcb->tid) {
+            list_remove(proceso_actual->listaTCB,i);
+            free(tcb);
+            break;
+        }
+    } // Libero el TCB
 }
 
 void THREAD_EXIT() {// No recibe ningún parámetro, trabaja con hilo_actual

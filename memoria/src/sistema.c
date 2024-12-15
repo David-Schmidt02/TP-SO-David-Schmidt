@@ -27,8 +27,6 @@ bool obtener_pcb_y_tcb(int pid, int tid, t_pcb **pcb_out, t_tcb **tcb_out) {
         return false;
     }
     *tcb_out = list_get(memoria_usuario->lista_tcb, index_tcb);
-    
-    
     return true;
 }
 
@@ -38,13 +36,10 @@ bool recibir_pid_tid(t_list *paquete_recv, int *pid, int *tid) {
         list_destroy_and_destroy_elements(paquete_recv, (void *)eliminar_paquete);
         return false;
     }
-
     // Extraer PID
     *pid = (int)list_remove(paquete_recv, 0);
-
     // Extraer TID
     *tid = (int)list_remove(paquete_recv, 0);
-
     list_destroy(paquete_recv);  // Liberar lista de paquetes
     return true;
 }
