@@ -68,11 +68,8 @@ void enviar_contexto(int pid, int tid) {
 /// @brief Read memory
 /// @param direccion 
 /// @return devuelve el contenido de la direccion, o -1 para error
-uint32_t read_memory(uint32_t direccion){
+uint32_t read_memory(uint32_t direccion, int pid, int tid){
     uint32_t * aux;
-    t_pcb *pcb = NULL;
-    t_tcb *tcb = NULL;
-    int pid = -1, tid = -1;
 
     if(direccion < 0 || direccion > memoria_usuario->size){
         log_error(logger, "Direccion %d invalida", direccion);
@@ -80,11 +77,6 @@ uint32_t read_memory(uint32_t direccion){
     }
 
     aux = memoria_usuario->espacio;
-
-    if (obtener_pcb_y_tcb(pid, tid, &pcb, &tcb)) {
-        pid = tcb->pid;
-        tid = tcb->tid;
-    }
 
     log_info(logger, "## Lectura - (PID:TID) - (%d:%d) - Dir. Física: %d - Tamaño: %d", pid, tid, direccion, sizeof(uint32_t));
 
@@ -95,11 +87,8 @@ uint32_t read_memory(uint32_t direccion){
 /// @param direccion
 /// @param valor
 /// @return devuelve 0 para ok o -1 para error
-int write_memory(uint32_t direccion, uint32_t valor){
+int write_memory(uint32_t direccion, uint32_t valor, int pid, int tid){
     uint32_t * aux;
-    t_pcb *pcb = NULL;
-    t_tcb *tcb = NULL;
-    int pid = -1, tid = -1;
     
     if(direccion < 0 || direccion > memoria_usuario->size){
         log_error(logger, "Direccion %d invalida", direccion);
@@ -108,10 +97,6 @@ int write_memory(uint32_t direccion, uint32_t valor){
     aux = memoria_usuario->espacio;
     aux[direccion] = valor;
 
-    if (obtener_pcb_y_tcb(pid, tid, &pcb, &tcb)) {
-        pid = tcb->pid;
-        tid = tcb->tid;
-    }
     
     log_info(logger, "## Escritura - (PID:TID) - (%d:%d) - Dir. Física: %d - Tamaño: %d", pid, tid, direccion, sizeof(uint32_t));
 

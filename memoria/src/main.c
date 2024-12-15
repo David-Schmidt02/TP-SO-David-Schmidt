@@ -412,6 +412,7 @@ void *conexion_cpu(void* arg_cpu)
 	int pid, tid;
 	t_paquete *recv;
 	t_paquete *paquete_send;
+	char *ok_respuesta = "OK";
 	while(true){
 		protocolo_socket cod_op = (protocolo_socket)recibir_operacion(socket_cliente_cpu);
 		usleep(delay); // retardo en peticion / cpu
@@ -446,7 +447,9 @@ void *conexion_cpu(void* arg_cpu)
 			case READ_MEM:
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
 				direccion = *(int *)list_remove(paquete_recv, 0);
-				valor = read_memory(direccion);
+				pid = *(int *)list_remove(paquete_recv, 0);
+				tid = *(int *)list_remove(paquete_recv, 0);
+				valor = read_memory(direccion, pid, tid);
 				log_info(logger, "Pedido de lectura, direccion: %d", direccion);
 				if(valor != -1){
 					paquete_send = crear_paquete(OK);
@@ -465,13 +468,16 @@ void *conexion_cpu(void* arg_cpu)
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
 				direccion = *(int *)list_remove(paquete_recv, 0);
 				valor = *(int *)list_remove(paquete_recv, 0);
+				pid = *(int *)list_remove(paquete_recv, 0);
+				tid = *(int *)list_remove(paquete_recv, 0);
 				log_info(logger, "Pedido de escritura, direccion: %d, valor: %d", direccion, valor);
 				if(valor != -1){
-					write_memory(direccion, valor);
+					write_memory(direccion, valor, pid, tid);
 					paquete_send = crear_paquete(OK);
-					agregar_a_paquete(paquete_send, &valor, sizeof(uint32_t));
+					agregar_a_paquete(paquete_send, ok_respuesta, strlen(ok_respuesta)+1);
 					enviar_paquete(paquete_send, socket_cliente_cpu);
 					eliminar_paquete(paquete_send);
+
 				}else {
 					paquete_send = crear_paquete(ERROR_MEMORIA);
 					log_error(logger, "Error escribiendo en memoria");

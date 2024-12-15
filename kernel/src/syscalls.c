@@ -83,7 +83,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
 
     log_info(logger, "Creación de Proceso: ## (<pid>:<%d>) Se crea el Proceso - Estado: NEW", nuevo_pcb->pid);
 
-    t_tcb* tcb_principal = crear_tcb(pid, 0, prioridadTID);
+    t_tcb* tcb_principal = crear_tcb(pid, ultimo_tid++, prioridadTID);
     tcb_principal->estado = NEW;
 
 
@@ -112,7 +112,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
 
     log_info(logger, "Proceso PID %d agregado a la lista de procesos.", nuevo_pcb->pid);
     
-    log_info(logger, "## (<PID>:<TID>) - Solicitó syscall: PROCESS_CREATE");
+    log_info(logger, "## (%d:%d) - Solicitó syscall: PROCESS_CREATE", nuevo_pcb->pid, tcb_principal->tid);
     
     
 }

@@ -15,8 +15,8 @@ t_pcb* crear_pcb(int pid, int prioridadTID)
     pcb->listaTCB = list_create();
     pcb->listaMUTEX = list_create();
 
-    t_tcb* tcb_principal = crear_tcb(pid, 0, prioridadTID);
-    list_add(pcb->listaTCB, tcb_principal);
+    // t_tcb* tcb_principal = crear_tcb(pid, ultimo_tid++, prioridadTID);
+    // list_add(pcb->listaTCB, tcb_principal);
     
     //t_list *listaMUTEX;
     pid++;

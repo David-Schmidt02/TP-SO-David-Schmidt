@@ -298,6 +298,8 @@ void execute(int instruccion, char **texto) {
     uint32_t *reg_valor = NULL;
     uint32_t *reg_comparacion = NULL;
     t_paquete * paquete;
+    char * ok_respuesta;
+    t_list *paquete_recv;
 
     switch (instruccion)
     {
@@ -345,15 +347,16 @@ void execute(int instruccion, char **texto) {
                 // iría la lógica de leer de la memoria real y asignar al registro destino
                 paquete = crear_paquete(READ_MEM);
                 agregar_a_paquete(paquete,reg_direccion,sizeof(uint32_t));
+                agregar_a_paquete(paquete,&pid_actual,sizeof(int));
+                agregar_a_paquete(paquete,&pid_actual,sizeof(int));
                 pthread_mutex_lock(mutex_conexion_memoria);
                 enviar_paquete(paquete,socket_conexion_memoria);
                 eliminar_paquete(paquete);
                 t_list* paquete_recv = recibir_paquete(socket_conexion_memoria);
                 pthread_mutex_unlock(mutex_conexion_memoria);
-                t_paquete* recv = list_remove(paquete_recv,0);
-                *reg_destino = *((uint32_t *) recv->buffer->stream);
+
+                *reg_destino = *(uint32_t *)list_remove(paquete_recv,0);
                 list_destroy(paquete_recv);
-                eliminar_paquete(recv);
             }    
                 else 
                     log_info(logger, "Error: Registro no válido en READ_MEM");
@@ -368,6 +371,8 @@ void execute(int instruccion, char **texto) {
                     paquete = crear_paquete(WRITE_MEM);
                     agregar_a_paquete(paquete,reg_direccion,sizeof(uint32_t));
                     agregar_a_paquete(paquete,reg_valor,sizeof(uint32_t));
+                    agregar_a_paquete(paquete,&pid_actual,sizeof(int));
+                    agregar_a_paquete(paquete,&pid_actual,sizeof(int));
                     pthread_mutex_lock(mutex_conexion_memoria);
                     enviar_paquete(paquete,socket_conexion_memoria);
                     eliminar_paquete(paquete);
@@ -379,8 +384,16 @@ void execute(int instruccion, char **texto) {
                     {
                         case OK:
                             log_info(logger, "## Operación recibida:OK!");
+                            paquete_recv = recibir_paquete(socket_conexion_memoria);
+                            ok_respuesta = list_remove(paquete_recv, 0);
+                            free(ok_respuesta);
+                            list_destroy(paquete_recv);
                         break;
                         case SEGMENTATION_FAULT:
+                            paquete_recv = recibir_paquete(socket_conexion_memoria);
+                            ok_respuesta = list_remove(paquete_recv, 0);
+                            free(ok_respuesta);
+                            list_destroy(paquete_recv);
                             manejar_motivo(SEGMENTATION_FAULT,texto);
                         break;
                         default:
@@ -587,7 +600,6 @@ void enviar_contexto_de_memoria() {
             list_destroy(paquete_respuesta);
             break;
     }
-    pid_actual=0;
 }
 
 void devolver_motivo_a_kernel(protocolo_socket cod_op, char** texto) {
@@ -705,12 +717,13 @@ void manejar_motivo(protocolo_socket tipo, char** texto) {
 
     pthread_mutex_lock(mutex_conexion_memoria);
     enviar_contexto_de_memoria();
-    detener_ejecucion();
+    
     pthread_mutex_unlock(mutex_conexion_memoria);
     
     pthread_mutex_lock(mutex_kernel_interrupt);
     devolver_motivo_a_kernel(tipo,texto);
     pthread_mutex_unlock(mutex_kernel_interrupt);
+    detener_ejecucion();
 }
 
 void manejar_finalizacion(protocolo_socket tipo, char** texto){
