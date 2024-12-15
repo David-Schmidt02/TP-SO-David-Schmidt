@@ -183,6 +183,8 @@ void actualizar_contexto_ejecucion() {
     pthread_mutex_unlock(mutex_tcb);
 
     t_paquete *paquete_ok = crear_paquete(OK);
+    char * ok_respuesta = "OK";
+    agregar_a_paquete(paquete_ok, ok_respuesta, strlen(ok_respuesta)+1);
     enviar_paquete(paquete_ok, socket_cliente_cpu);
     eliminar_paquete(paquete_ok);
     log_info(logger, "Recibi contexto de CPU");

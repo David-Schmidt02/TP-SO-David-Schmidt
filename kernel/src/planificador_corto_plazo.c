@@ -369,22 +369,22 @@ void recibir_motivo_devolucion_cpu() {
     int prioridad;
     int tamanio;
     FILE * archivo;
+    char * ok_recibido;
     switch (motivo) {
-        case FINALIZACION:
-            log_info(logger, "El hilo %d ha FINALIZADO correctamente\n", tid);
-            desbloquear_hilos(tid);
-            //eliminar el hilo de las estructuras.
-            break;
+        
 
         case FIN_QUANTUM:
             log_info(logger, "El hilo %d fue desalojado por FIN DE QUANTUM\n", tid);
             actualizar_quantum(tiempo_transcurrido);
             encolar_corto_plazo_multinivel(hilo_actual);
+            ok_recibido = list_remove(paquete_respuesta, 0);
+            free(ok_recibido);
+            list_destroy(paquete_respuesta);
             break;
 
         case THREAD_JOIN_OP:
             log_info(logger, "El hilo %d fue bloqueado por THREAD JOIN\n", tid);
-            tid = (intptr_t)list_remove(paquete_respuesta, 0);
+            tid = *(int *)list_remove(paquete_respuesta, 0);
             // Transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
             actualizar_quantum(tiempo_transcurrido);
             THREAD_JOIN(tid);
@@ -413,7 +413,7 @@ void recibir_motivo_devolucion_cpu() {
             break;
 
         case IO_SYSCALL:
-            tiempo = (intptr_t)list_remove(paquete_respuesta, 0);
+            tiempo = *(int *)list_remove(paquete_respuesta, 0);
             log_info(logger, "El hilo %d ejecuta un IO\n", tid);
             actualizar_quantum(tiempo_transcurrido);
             IO(tiempo, hilo_actual->tid);
@@ -452,21 +452,32 @@ void recibir_motivo_devolucion_cpu() {
             log_info(logger, "El hilo %d inició un PROCESS EXIT\n", tid);
             pid = proceso_actual->pid;
             PROCESS_EXIT();
+            ok_recibido = list_remove(paquete_respuesta, 0);
+            free(ok_recibido);
+            list_destroy(paquete_respuesta);
             break;   
         
         case THREAD_CANCEL_OP:
-            tid = (intptr_t)list_remove(paquete_respuesta, 0);
+            tid = *(int *)list_remove(paquete_respuesta, 0);
             log_info(logger, "El hilo %d inició un THREAD CANCEL\n", tid);
+            desbloquear_hilos(tid);
             THREAD_CANCEL(tid);
             break;   
 
         case THREAD_EXIT_OP:
             log_info(logger, "El hilo %d inició un THREAD EXIT\n", tid);
+            desbloquear_hilos(hilo_actual->tid);
             THREAD_EXIT();
+            ok_recibido = list_remove(paquete_respuesta, 0);
+            free(ok_recibido);
+            list_destroy(paquete_respuesta);
             break;   
         case SEGMENTATION_FAULT:
             log_info(logger, "El hilo %d es finalizado por SEGMENTATION FAULT\n", hilo_actual->tid);
             PROCESS_EXIT();
+            ok_recibido = list_remove(paquete_respuesta, 0);
+            free(ok_recibido);
+            list_destroy(paquete_respuesta);
             break;
         default:
             log_warning(logger, "Motivo desconocido para el hilo %d\n", tid);

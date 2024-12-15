@@ -282,6 +282,8 @@ void decode( char *inst) {
             execute(16,texto); // LOG
     else if ((strcmp(texto[0], "LOG") == 0 && texto[1]))
             execute(17, texto);
+    else if ((strcmp(texto[0], "IO") == 0 && texto[1]))
+            execute(18, texto);
     else{
         log_info(logger, "Instrucción no reconocida: %s", texto[0]);
         exit(EXIT_FAILURE);
@@ -390,8 +392,8 @@ void execute(int instruccion, char **texto) {
         case 6: // JNZ
             reg_comparacion = registro_aux( texto[1]); // Registro a comparar con 0
             if (reg_comparacion != NULL && *reg_comparacion != 0) {
-                cpu_actual->PC = (uint32_t) atoi(texto[2]); // Actualiza el PC, que se supone que es entero el valor del PC
-                log_info(logger, "## JNZ - Salto a la Instrucción: %u", cpu_actual->PC);
+                cpu_actual->PC = (uint32_t) atoi(texto[2])-1; // Actualiza el PC, que se supone que es entero el valor del PC
+                log_info(logger, "## JNZ - Salto a la Instrucción: %u", cpu_actual->PC+1);
             } else if (reg_comparacion == NULL) 
                 log_info(logger, "Error: Registro no válido en JNZ");
             else 
@@ -429,8 +431,11 @@ void execute(int instruccion, char **texto) {
         case 16: // MUTEX_UNLOCK
             encolar_interrupcion(MUTEX_UNLOCK_OP,6,texto);
         break;
-        case 17: // MUTEX_UNLOCK
+        case 17: // LOG_OP
             encolar_interrupcion(LOG_OP,7,texto);
+        break;
+        case 18: // IO_SYSCALL
+            encolar_interrupcion(IO_SYSCALL,2,texto);
         break;
         default:
             log_info(logger, "Error: Instrucción no reconocida");
@@ -589,44 +594,39 @@ void devolver_motivo_a_kernel(protocolo_socket cod_op, char** texto) {
     t_paquete *paquete_notify = crear_paquete(cod_op);
     log_info(logger, "Entra a la primera parte de devolver motivo a kernel");
     // Enviamos el PID y TID para notificar al Kernel que el proceso fue interrumpido
+    char * ok_send = "OK";
     switch (cod_op)
     {
-    //no mandan nada
-    case DUMP_MEMORY_OP:
-    case PROCESS_EXIT_OP:
-        break;
+        //no mandan nada
+        case DUMP_MEMORY_OP:
+        case PROCESS_EXIT_OP:
+        case THREAD_EXIT_OP:
+        case FIN_QUANTUM:
+        case SEGMENTATION_FAULT:
+            agregar_a_paquete(paquete_notify, ok_send, strlen(ok_send)+1);
+            break;
 
-    //solo mandan el primer elemento
-    case MUTEX_CREATE_OP:
-    case LOG_OP:
-    case MUTEX_LOCK_OP: 
-    case MUTEX_UNLOCK_OP:
-    case THREAD_JOIN_OP: 
-    case THREAD_CANCEL_OP:
-    case THREAD_EXIT_OP:
-        agregar_a_paquete(paquete_notify,texto[1],strlen(texto[1]) + 1); // tid texto[1]
-        break;
+        //solo mandan el primer elemento
+        case MUTEX_CREATE_OP:
+        case LOG_OP:
+        case MUTEX_LOCK_OP: 
+        case MUTEX_UNLOCK_OP:
+        case THREAD_JOIN_OP: 
+        case THREAD_CANCEL_OP:
+            agregar_a_paquete(paquete_notify,texto[1],strlen(texto[1]) + 1); // tid texto[1]
+            break;
 
-    //mandan 2 elementos
-    case THREAD_CREATE_OP:
-    case PROCESS_CREATE_OP:
-        agregar_a_paquete(paquete_notify,texto[1],strlen(texto[1]) + 1);// nombre archivo texto[1]
-        agregar_a_paquete(paquete_notify,texto[2],strlen(texto[2]) + 1);// prioridad texto[2]
-        log_info(logger, "Agrega correctamente al paquete a enviar a kernel estos textos %s, %s", texto[1], texto[2]);
-        break;
-        
-    //mandan tid y pid
-    case FIN_QUANTUM:
-        agregar_a_paquete(paquete_notify, &pid_actual, sizeof(pid_actual));  
-        agregar_a_paquete(paquete_notify, &tid_actual, sizeof(tid_actual));  
-    
-    // Enviamos la notificación al Kernel
-    case SEGMENTATION_FAULT:
-        break;
-
-    default: 
-        exit(EXIT_FAILURE);
-        break;
+        //mandan 2 elementos
+        case THREAD_CREATE_OP:
+        case PROCESS_CREATE_OP:
+            agregar_a_paquete(paquete_notify,texto[1],strlen(texto[1]) + 1);// nombre archivo texto[1]
+            agregar_a_paquete(paquete_notify,texto[2],strlen(texto[2]) + 1);// prioridad texto[2]
+            log_info(logger, "Agrega correctamente al paquete a enviar a kernel estos textos %s, %s", texto[1], texto[2]);
+            break;
+            
+        default: 
+            exit(EXIT_FAILURE);
+            break;
     }
     log_info(logger, "Notificación enviada al Kernel por la interrupción del PID %d, TID %d", pid_actual, tid_actual);
     enviar_paquete(paquete_notify, socket_conexion_kernel_interrupt);
@@ -692,14 +692,10 @@ void manejar_motivo(protocolo_socket tipo, char** texto) {
     pthread_mutex_lock(mutex_conexion_memoria);
     enviar_contexto_de_memoria();
     detener_ejecucion();
-    log_info(logger, "Pasa la funcion enviar contexto a memoria");
     pthread_mutex_unlock(mutex_conexion_memoria);
-    log_info(logger, "Pasa el unlock del mutex conexion memoria");
     
     pthread_mutex_lock(mutex_kernel_interrupt);
-    log_info(logger, "Pasa el primer lock del mutex kernel interrupt");
     devolver_motivo_a_kernel(tipo,texto);
-    log_info(logger, "Pasa la funcion devolver motivo a kernel");
     pthread_mutex_unlock(mutex_kernel_interrupt);
 }
 
