@@ -135,7 +135,6 @@ void inicializar_semaforos_cpu(){
 void obtener_contexto_de_memoria() {
     char *texto[1];
     
-    t_paquete *msjerror;
     t_list *paquete_respuesta;
     log_info(logger, "LLEGA AL PRINCIPIO DE LA PETICION DEL CONTEXTO A MEMORIA");
     pthread_mutex_lock(mutex_conexion_memoria);
@@ -148,25 +147,23 @@ void obtener_contexto_de_memoria() {
     enviar_paquete(paquete, socket_conexion_memoria);
     eliminar_paquete(paquete);
 
-    protocolo_socket cod_op = recibir_operacion(socket_conexion_memoria);
-    if(cod_op == ERROR_MEMORIA){
-        log_error(logger, "Error de memoria al enviar contexto");
-        return;
-    }
+    int cod_op = recibir_operacion(socket_conexion_memoria);
+
     if(cod_op == CONTEXTO_RECEIVE){
-        paquete_respuesta = recibir_paquete(socket_conexion_memoria); // Recibir el contexto de ejecución
-        if (paquete_respuesta != NULL) 
-        {
-            cpu_actual = list_remove(paquete_respuesta, 0);
-            base_actual = *(int*)list_remove(paquete_respuesta, 0);
-            limite_actual = *(int*)list_remove(paquete_respuesta, 0);
-            sem_post(sem_hay_contexto);
+        paquete_respuesta = recibir_paquete(socket_conexion_memoria);
 
-            log_info(logger, "## PID: %d -## TID: %d - Llegó el contexto de ejecucion", pid_actual, tid_actual);
+        cpu_actual = list_remove(paquete_respuesta, 0);
+        base_actual = *(int *)list_remove(paquete_respuesta, 0);
+        limite_actual = *(int *)list_remove(paquete_respuesta, 0);
 
-        } else 
-            log_info(logger,"Error: No se recibió  el Contexto de Ejecución.");
+        sem_post(sem_hay_contexto);
+
+        log_info(logger, "Se recibio contexto de memoria para el TID %d", tid_actual);
+        list_destroy(paquete_respuesta);
     }
+
+    
+
     pthread_mutex_unlock(mutex_conexion_memoria);
     //log_info(logger, "## PID: %d - Se solicitó el Contexto Ejecución", pid); 
 }
@@ -199,6 +196,7 @@ void fetch() {
 
         char *instruccion;
         instruccion = list_remove(paquete_lista,0);
+        list_destroy(paquete_lista);
         sem_post(sem_hay_contexto);
         
         if (instruccion == NULL) {
@@ -210,7 +208,6 @@ void fetch() {
         pthread_mutex_unlock(mutex_conexion_memoria);
         log_error(logger, "Se recibió la siguiente instruccion (PC:%d) a memoria", cpu_actual->PC);
         decode(instruccion);
-        free(instruccion);
         
 }
 
@@ -226,6 +223,7 @@ void traducir_direccion( uint32_t dir_logica, uint32_t *dir_fisica) {
 
 void decode( char *inst) {
     char **texto = string_split(inst," "); //Se agrega al vector en la última posicion un NULL
+    free(inst);
     //PROCESS_CREATE(0) PROCESO1(1) 256(2) 1(3), la 5ta es pos NULL. ejemplo: string_split("hola, mundo", ",") => ["hola", " mundo", NULL]
     //Compara el ID de la instrucción y ejecuta la operación correspondiente
 
@@ -525,9 +523,7 @@ void checkInterrupt() { //el checkInterrupt se corre siempre -> interrupcion -> 
             break;    
         case INFO_HILO:
             log_info(logger, "Se recibio la info de un nuevo hilo");
-            tid_actual = atoi(interrupcion_actual->parametro[1]);
-            pid_actual = atoi(interrupcion_actual->parametro[2]);
-            log_info(logger, "EL PID ACTUAL A PARTIR DEL HILO RECIBIDO ES IGUAL A: ", pid_actual);
+            log_info(logger, "EL PID ACTUAL A PARTIR DEL HILO RECIBIDO ES IGUAL A: %d", pid_actual);
             obtener_contexto_de_memoria();
             break;
 
@@ -543,6 +539,7 @@ void enviar_contexto_de_memoria() {
     // Crear el paquete a enviar
     char *texto[1];
     t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
+    t_list * paquete_respuesta;
 
     // Agregar los registros de la CPU al paquete
     agregar_a_paquete(paquete_send, &pid_actual, sizeof(int));
@@ -560,21 +557,29 @@ void enviar_contexto_de_memoria() {
     switch (respuesta){
         case OK:
             log_info(logger, "Contexto de PID %d enviado correctamente a Memoria", pid_actual);
+            paquete_respuesta = recibir_paquete(socket_conexion_memoria);
+            list_destroy(paquete_respuesta);
             break;
         case SEGMENTATION_FAULT:
             log_error(logger, "Segmentation Fault recibido desde Memoria.");
             pthread_mutex_lock(mutex_lista_interrupciones);
             encolar_interrupcion(SEGMENTATION_FAULT, 1,texto);
             pthread_mutex_unlock(mutex_lista_interrupciones);
+            paquete_respuesta = recibir_paquete(socket_conexion_memoria);
+            list_destroy(paquete_respuesta);
             break;      
         case ERROR_MEMORIA:
             log_error(logger, "Error crítico: Memoria respondió con un error.");
             pthread_mutex_lock(mutex_lista_interrupciones);
             encolar_interrupcion(SEGMENTATION_FAULT, 1,texto);
             pthread_mutex_unlock(mutex_lista_interrupciones);
+            paquete_respuesta = recibir_paquete(socket_conexion_memoria);
+            list_destroy(paquete_respuesta);
             break;
         default:  // Caso de respuesta inesperada
             log_warning(logger, "Respuesta inesperada de Memoria!");
+            paquete_respuesta = recibir_paquete(socket_conexion_memoria);
+            list_destroy(paquete_respuesta);
             break;
     }
     pid_actual=0;
@@ -639,7 +644,6 @@ void encolar_interrupcion(protocolo_socket tipo, int prioridad, char** texto) {
     // Insertamos la interrupción en la lista
     list_add(lista_interrupciones, nueva_interrupcion);
     log_info(logger, "Interrupción agregada: %i con prioridad %d", tipo, prioridad);
-    pid_actual = 0;
     sem_post(sem_lista_interrupciones);
 }
 
@@ -684,10 +688,10 @@ void liberar_interrupcion(t_interrupcion* interrupcion) {
 void manejar_motivo(protocolo_socket tipo, char** texto) {
 
     log_info(logger, "Se detiene la ejecucion del hilo actual para manejar el motivo: %d", tipo);
-    detener_ejecucion();
 
     pthread_mutex_lock(mutex_conexion_memoria);
     enviar_contexto_de_memoria();
+    detener_ejecucion();
     log_info(logger, "Pasa la funcion enviar contexto a memoria");
     pthread_mutex_unlock(mutex_conexion_memoria);
     log_info(logger, "Pasa el unlock del mutex conexion memoria");

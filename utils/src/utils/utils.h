@@ -40,7 +40,7 @@ typedef struct arg_struct {
 
 typedef enum
 {
-    HANDSHAKE,
+    INVALID,
     MENSAJE,
     PAQUETE,
     INSTRUCCIONES,

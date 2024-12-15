@@ -101,8 +101,6 @@ int main(int argc, char* argv[]) {
 void *conexion_kernel_dispatch(void* arg_kernelD)
 {
 	argumentos_thread * args = arg_kernelD; 
-	t_paquete *handshake_send;
-	t_list *handshake_recv;
 	t_list *paquete;
 	int tid;
 
@@ -119,12 +117,6 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 		pthread_mutex_lock(mutex_kernel_dispatch);
 		int cod_op = recibir_operacion(socket_conexion_kernel_dispatch);
 		switch (cod_op){
-			case HANDSHAKE:
-				handshake_recv = recibir_paquete(socket_conexion_kernel_interrupt);
-				log_info(logger, "me llego: kernel dispatch\n");
-				list_iterate(handshake_recv, (void*) iterator);
-				enviar_paquete(handshake_send, socket_conexion_kernel_interrupt);
-				break;
 			case INFO_HILO:
 				log_info(logger, "Recibí un hilo para ejecutar de parte de Kernel");
 				t_list *paquete = recibir_paquete(socket_conexion_kernel_dispatch);
@@ -161,8 +153,6 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 void *conexion_kernel_interrupt(void* arg_kernelI)
 {
 	argumentos_thread * args = arg_kernelI; 
-	t_paquete *handshake_send;
-	t_list *handshake_recv;
 	t_list *paquete;
 	int tid;
 
@@ -179,16 +169,10 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 		int cod_op = recibir_operacion(socket_conexion_kernel_interrupt);
 		switch (cod_op)
 		{
-			case HANDSHAKE:
-				handshake_recv = recibir_paquete(socket_conexion_kernel_interrupt);
-				log_info(logger, "me llego: kernel interrupt\n");
-				list_iterate(handshake_recv, (void*) iterator);
-				enviar_paquete(handshake_send, socket_conexion_kernel_interrupt);
-				break;
 			case FIN_QUANTUM:
 				paquete = recibir_paquete(socket_conexion_kernel_interrupt);
 				tid_de_interrupcion_FIN_QUANTUM = *(int *)list_remove(paquete, 0);
-				list_destroy_and_destroy_elements(paquete, free);
+				list_destroy(paquete);
 				char* texto[1];
 				pthread_mutex_lock(mutex_lista_interrupciones);
 				encolar_interrupcion(FIN_QUANTUM, 3, texto);
