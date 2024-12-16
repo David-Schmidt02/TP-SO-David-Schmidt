@@ -7,12 +7,17 @@ uint32_t block_count;
 int block_size;
 char* mount_dir;
 uint32_t num_bloque;
+pthread_mutex_t *mutex_bitmap; 
+char* nombre_archivo;
+uint32_t tamanio;
+uint32_t *datos;
 
 int main() {
 
     pthread_t tid_memoria;
 
 	argumentos_thread arg_memoria;
+	mutex_bitmap = malloc(sizeof(pthread_mutex_t));
 
     logger = log_create("filesystem.log", "filesystem", 1, LOG_LEVEL_DEBUG);
     t_config *config = config_create("config/filesystem.config");
@@ -29,14 +34,16 @@ int main() {
 	retardo_acceso = config_get_int_value(config, "RETARDO_ACCESO_BLOQUE");
 	mount_dir = config_get_string_value(config, "MOUNT_DIR");
 	// Inicializar estructuras
-	
+	pthread_mutex_init(mutex_bitmap, NULL);
 	mount_dir = crear_directorio(mount_dir,"/mount_dir");
 	inicializar_bitmap(mount_dir,block_count);
 	inicializar_bloques(block_count,block_size,mount_dir);
-
+	inicializar_libres();
 	//esto es lo que tiene que hacer cuando recibe la peticion
 	//
 	
+    
+    
     //conexiones
 	pthread_create(&tid_memoria, NULL, conexion_memoria, (void *)&arg_memoria);
 	//conexiones
@@ -52,8 +59,9 @@ int main() {
 void *conexion_memoria(void* arg_memoria)
 {
 	argumentos_thread * args = arg_memoria; 
-	t_paquete *recv;
+	t_paquete *send;
 	t_list *recv_list;
+	int check;
 	char * handshake_texto = "conexion filesystem";
 	t_config *config = config_create("config/filesystem.config");
 
@@ -69,17 +77,31 @@ void *conexion_memoria(void* arg_memoria)
 				case DUMP_MEMORY_OP:
 					recv_list = recibir_paquete(socket_cliente_memoria);
 
-					char* nombre_archivo;
-					uint32_t tamanio;
-					uint32_t *datos;
+
 					nombre_archivo = list_remove(recv_list,0);
 					tamanio = *(int *)list_remove(recv_list,0);
 					datos = (uint32_t *)list_remove(recv_list,0);
-					log_info(logger, "Nombre del archivo recivido: %s", nombre_archivo);
+					log_info(logger, "Nombre del archivo recibido: %s", nombre_archivo);
 					char* dir_files = mount_dir;
 					dir_files = crear_directorio(dir_files,"/files");
-					crear_archivo_metadata(block_count,block_size,dir_files,nombre_archivo,tamanio);
-					log_info(logger, "Fin de solicitud - Archivo: %s", nombre_archivo);
+					log_info(logger, "antes de crear el archivo dump");
+
+					check = crear_archivo_dump(block_count,block_size,dir_files,nombre_archivo,tamanio,datos);
+					if (check != -1){
+						send = crear_paquete(OK);
+						agregar_a_paquete(send, nombre_archivo, strlen(nombre_archivo)+1);
+						enviar_paquete(send,socket_cliente_memoria);
+						eliminar_paquete(send);
+						log_info(logger, "Fin de solicitud - Archivo: %s", nombre_archivo);
+						
+					}else{
+						send = crear_paquete(ERROR);
+						agregar_a_paquete(send, nombre_archivo, strlen(nombre_archivo)+1);
+						enviar_paquete(send,socket_cliente_memoria);
+						eliminar_paquete(send);
+						log_info(logger, "error al crear el archivo");	
+					}	
+						
 					break;
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");

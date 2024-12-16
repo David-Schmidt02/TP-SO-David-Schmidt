@@ -1,7 +1,6 @@
 #include "bitmap.h"
 
 static t_bitarray* bitmap;
-static pthread_mutex_t mutex_bitmap;
 static FILE* bitmap_file;
 extern uint32_t block_count;
 extern int block_size;
@@ -9,6 +8,7 @@ extern int retardo_acceso;
 extern char* mount_dir;
 extern t_config *config;
 extern t_log *logger;
+extern pthread_mutex_t *mutex_bitmap;
 int libres;
 
 void inicializar_libres() {
@@ -86,58 +86,57 @@ void inicializar_bitmap(char* mount_dir, uint32_t block_count) {
         exit(EXIT_FAILURE);
     }
 
-
-    pthread_mutex_init(&mutex_bitmap, NULL);
+    
 
     log_info(logger, "Bitmap inicializado correctamente.");
     free(path_bitmap);
 }
 
 bool espacio_disponible(uint32_t cantidad) {
-    pthread_mutex_lock(&mutex_bitmap);
+    pthread_mutex_lock(mutex_bitmap);
     for (int i = 0; i < bitarray_get_max_bit(bitmap); i++) {
         if (!bitarray_test_bit(bitmap, i)) {
             libres--;
             if (libres <= cantidad) {
-                pthread_mutex_unlock(&mutex_bitmap);
+                pthread_mutex_unlock(mutex_bitmap);
                 return true;
             }
         }
     }
-    pthread_mutex_unlock(&mutex_bitmap);
+    pthread_mutex_unlock(mutex_bitmap);
     return false;
 }
 
 uint32_t reservar_bloques() {
-    pthread_mutex_lock(&mutex_bitmap);
+    pthread_mutex_lock(mutex_bitmap);
     if (!espacio_disponible(1)) {
-        pthread_mutex_unlock(&mutex_bitmap);
+        pthread_mutex_unlock(mutex_bitmap);
         log_error(logger, "No hay bloques disponibles para reservar.");
         return -1;
     }
     for (uint32_t i = 0; i < bitarray_get_max_bit(bitmap); i++) {
         if (!bitarray_test_bit(bitmap, i)) {
             bitarray_set_bit(bitmap, i);
-            pthread_mutex_unlock(&mutex_bitmap);
+            pthread_mutex_unlock(mutex_bitmap);
             return i;
         }
     }
-    pthread_mutex_unlock(&mutex_bitmap);
+    pthread_mutex_unlock(mutex_bitmap);
     return -1; // No hay bloques disponibles
 }
 
 void liberar_bloque(uint32_t bloque) {
-    pthread_mutex_lock(&mutex_bitmap);
+    pthread_mutex_lock(mutex_bitmap);
     bitarray_clean_bit(bitmap, bloque);
-    pthread_mutex_unlock(&mutex_bitmap);
+    pthread_mutex_unlock(mutex_bitmap);
 }
 
 void destruir_bitmap() {
-    pthread_mutex_lock(&mutex_bitmap);
+    pthread_mutex_lock(mutex_bitmap);
 
     if (!bitmap_file) {
         log_error(logger, "Error al abrir el archivo bitmap.dat para escribir.");
-        pthread_mutex_unlock(&mutex_bitmap);
+        pthread_mutex_unlock(mutex_bitmap);
         exit(EXIT_FAILURE);
     }
 
@@ -146,7 +145,7 @@ void destruir_bitmap() {
     size_t bytes_a_escribir = (bitarray_get_max_bit(bitmap) + 7) / 8;
     if (fwrite(bitmap->bitarray, sizeof(uint8_t), bytes_a_escribir, bitmap_file) != bytes_a_escribir) {
         log_error(logger, "Error al escribir el archivo bitmap.dat.");
-        pthread_mutex_unlock(&mutex_bitmap);
+        pthread_mutex_unlock(mutex_bitmap);
         exit(EXIT_FAILURE);
     }
     fflush(bitmap_file);
@@ -155,6 +154,6 @@ void destruir_bitmap() {
     bitarray_destroy(bitmap);
     fclose(bitmap_file);
 
-    pthread_mutex_unlock(&mutex_bitmap);
-    pthread_mutex_destroy(&mutex_bitmap);
+    pthread_mutex_unlock(mutex_bitmap);
+    pthread_mutex_destroy(mutex_bitmap);
 }

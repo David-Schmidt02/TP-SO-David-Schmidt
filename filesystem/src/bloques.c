@@ -11,6 +11,10 @@ extern char* mount_dir;
 int bloques_libres;
 extern uint32_t num_bloque;
 
+extern char* nombre_archivo;
+extern uint32_t tamanio;
+extern uint32_t *datos;
+
 void inicializar_bloques(uint32_t block_count, int block_size, char* mount_dir) {
     if (mount_dir == NULL) {
         log_info(logger, "Error: No se encontró 'MOUNT_DIR' en la configuración.");
@@ -82,11 +86,11 @@ void *leer_bloque(int bloque) {
 }
 
 
-void crear_archivo_metadata(uint32_t block_count,  int block_size, char* dir_files, char* nombre_archivo,uint32_t tamanio) {
+int crear_archivo_metadata(uint32_t block_count,  int block_size, char* dir_files, char* nombre_archivo,uint32_t tamanio) {
     log_info(logger, "## Bloque asignado: %d - Archivo: %s - Bloques Libres: %d", num_bloque, nombre_archivo, bloques_libres);
     if (block_count == 0) {
         log_error(logger, "No se encontró el valor BLOCK_COUNT en el archivo de configuración.");
-        exit(EXIT_FAILURE);
+        return -1;
     }
 
     size_t path_length = strlen(dir_files) + strlen(nombre_archivo) + 2;
@@ -129,5 +133,93 @@ void crear_archivo_metadata(uint32_t block_count,  int block_size, char* dir_fil
     log_info(logger, "Archivo Creado: %s - Tamaño: %d", nombre_archivo, tamanio);
     free(path_metadata);
 
+    return 0;
+}
 
+int crear_archivo_dump(uint32_t block_count, int block_size, char* dir_files, char* nombre_archivo, uint32_t tamanio, uint32_t* datos) {
+    // Verificar si hay espacio suficiente en el bitmap
+    uint32_t num_bloques_necesarios = (tamanio + block_size - 1) / block_size; // Redondear hacia arriba
+    if (!espacio_disponible(num_bloques_necesarios + 1)) { // 1 adicional para el bloque de índices
+        log_error(logger, "No hay suficiente espacio en el bitmap para crear el archivo.");
+        return -1;
+    }
+    log_error(logger, "antes del if");
+    // Reservar el bloque de índices
+    uint32_t bloque_indice = reservar_bloques();
+    if (bloque_indice == -1) {
+        log_error(logger, "Error al reservar el bloque de índices.");
+        return -1;
+    }
+
+    // Reservar los bloques de datos
+    uint32_t bloques_datos[num_bloques_necesarios];
+    for (uint32_t i = 0; i < num_bloques_necesarios; i++) {
+        bloques_datos[i] = reservar_bloques();
+        if (bloques_datos[i] == -1) {
+            log_error(logger, "Error al reservar bloque de datos.");
+            // Liberar los bloques reservados previamente
+            liberar_bloque(bloque_indice);
+            for (uint32_t j = 0; j < i; j++) {
+                liberar_bloque(bloques_datos[j]);
+            }
+            return -1;
+        }
+    }
+
+    // Crear el archivo de metadata
+    int resultado_metadata = crear_archivo_metadata(block_count, block_size, dir_files, nombre_archivo, tamanio);
+    if (resultado_metadata != 0) {
+        log_error(logger, "Error al crear el archivo de metadata.");
+        // Liberar los bloques reservados
+        liberar_bloque(bloque_indice);
+        for (uint32_t i = 0; i < num_bloques_necesarios; i++) {
+            liberar_bloque(bloques_datos[i]);
+        }
+        return -1;
+    }
+
+    // Escribir referencias a los bloques de datos en el bloque de índices
+    FILE* fs = fopen("filesystem.dat", "rb+"); // Abrir el sistema de archivos
+    if (fs == NULL) {
+        log_error(logger, "Error al abrir el archivo del filesystem.");
+        liberar_bloque(bloque_indice);
+        for (uint32_t i = 0; i < num_bloques_necesarios; i++) {
+            liberar_bloque(bloques_datos[i]);
+        }
+        return -1;
+    }
+
+    fseek(fs, bloque_indice * block_size, SEEK_SET); // Posicionar en el bloque de índices
+    if (fwrite(bloques_datos, sizeof(uint32_t), num_bloques_necesarios, fs) != num_bloques_necesarios) {
+        log_error(logger, "Error al escribir en el bloque de índices.");
+        fclose(fs);
+        liberar_bloque(bloque_indice);
+        for (uint32_t i = 0; i < num_bloques_necesarios; i++) {
+            liberar_bloque(bloques_datos[i]);
+        }
+        return -1;
+    }
+
+    // Escribir los datos en los bloques de datos
+    for (uint32_t i = 0; i < num_bloques_necesarios; i++) {
+        fseek(fs, bloques_datos[i] * block_size, SEEK_SET); // Posicionar en el bloque de datos
+
+        size_t bytes_a_escribir = (tamanio > block_size) ? block_size : tamanio; // Bytes a escribir en este bloque
+        if (fwrite(datos, 1, bytes_a_escribir, fs) != bytes_a_escribir) {
+            log_error(logger, "Error al escribir datos en el bloque %u.", bloques_datos[i]);
+            fclose(fs);
+            liberar_bloque(bloque_indice);
+            for (uint32_t j = 0; j < num_bloques_necesarios; j++) {
+                liberar_bloque(bloques_datos[j]);
+            }
+            return -1;
+        }
+
+        datos += bytes_a_escribir / sizeof(uint32_t); // Avanzar el puntero de datos
+        tamanio -= bytes_a_escribir; // Reducir los bytes restantes
+    }
+
+    fclose(fs);
+    log_info(logger, "Archivo dump creado exitosamente: %s", nombre_archivo);
+    return 0;
 }
