@@ -142,7 +142,11 @@ void destruir_bitmap() {
     }
 
     // Escribir el bitmap al archivo
-        peticion->proceso = proceso;
+    fseek(bitmap_file, 0, SEEK_SET);
+    size_t bytes_a_escribir = (bitarray_get_max_bit(bitmap) + 7) / 8;
+    if (fwrite(bitmap->bitarray, sizeof(uint8_t), bytes_a_escribir, bitmap_file) != bytes_a_escribir) {
+        log_error(logger, "Error al escribir el archivo bitmap.dat.");
+        pthread_mutex_unlock(&mutex_bitmap);
         exit(EXIT_FAILURE);
     }
     fflush(bitmap_file);
