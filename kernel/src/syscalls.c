@@ -50,6 +50,8 @@ extern t_cola_IO *colaIO;
 extern pthread_mutex_t * mutex_colaIO;
 extern sem_t * sem_estado_colaIO;
 
+extern sem_t * sem_proceso_finalizado;
+
 t_pcb* obtener_pcb_por_tid(int tid) {
     for (int i = 0; i < list_size(procesos_cola_ready->lista_procesos); i++) {
         t_pcb* pcb = list_get(procesos_cola_ready->lista_procesos, i);
@@ -116,6 +118,8 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     
     
 }
+
+
 
 void eliminar_mutex(t_mutex* mutex) {
     if (mutex != NULL) {
@@ -205,8 +209,7 @@ void PROCESS_EXIT() {
     
     sem_wait(sem_estado_procesos_cola_ready);
     pthread_mutex_unlock(mutex_procesos_cola_ready);
-
-    
+    sem_post(sem_proceso_finalizado);
 }
 
 void notificar_memoria_fin_proceso(int pid) {

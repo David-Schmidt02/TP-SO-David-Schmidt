@@ -14,6 +14,8 @@ extern t_cola_hilo* hilos_cola_ready;
 extern pthread_mutex_t * mutex_hilos_cola_ready;
 extern sem_t * sem_estado_hilos_cola_ready;
 
+extern sem_t * sem_hilo_principal_process_create_encolado;
+
 extern t_cola_hilo* hilos_cola_exit;
 extern pthread_mutex_t * mutex_hilos_cola_exit;
 extern sem_t * sem_estado_hilos_cola_exit;
@@ -78,7 +80,6 @@ void encolar_hilo_ya_creado_corto_plazo(t_tcb * hilo){
 
 void corto_plazo_fifo(){
     while (1){   
-        log_info(logger, "Entraste al While del planificador corto plazo FIFO");
         sem_wait(sem_estado_hilos_cola_ready);
         pthread_mutex_lock(mutex_hilos_cola_ready);
 
@@ -89,6 +90,17 @@ void corto_plazo_fifo(){
         log_info(logger, "Se envía el hilo al cpu dispatch");
         hilo_actual = hilo;
         proceso_actual = obtener_pcb_por_tid(hilo_actual->tid);
+        t_tcb * tcb=malloc(sizeof(t_tcb));
+        /*while (tcb!=NULL){
+            if (hilos_cola_ready->lista_hilos == NULL)
+                break;
+            else{
+                tcb = list_get(hilos_cola_ready->lista_hilos, i);
+                log_info(logger, "HILO con TID: %d PID: %d", tcb->tid, tcb->pid);
+                i++;
+            }
+        }
+        */
         enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
         log_info(logger,"Cola de FIFO: Ejecutando hilo TID=%d, PID=%d\n", hilo->tid, hilo->pid);
         recibir_motivo_devolucion_cpu();
@@ -111,7 +123,6 @@ t_tcb* desencolar_hilos_fifo(){
 void corto_plazo_prioridades()
 {
     while(1){
-        log_info(logger, "Entraste al While del planificador corto plazo Prioridades");
         sem_wait(sem_estado_hilos_cola_ready);
         pthread_mutex_lock(mutex_hilos_cola_ready);
         list_sort(hilos_cola_ready->lista_hilos, (void *)comparar_prioridades); 
@@ -157,7 +168,6 @@ int comparar_prioridades(t_tcb *a, t_tcb *b) {
 
 void corto_plazo_colas_multinivel() {
     while (1) {
-        log_info(logger, "Entraste al While del planificador corto plazo CMN");
         int replanificar = 0; // Variable para saber si hay que replanificar
         sem_wait(sem_estado_multinivel);
         pthread_mutex_lock(mutex_colas_multinivel);
@@ -368,7 +378,7 @@ void recibir_motivo_devolucion_cpu() {
     char * ok_recibido;
     switch (motivo) {
         case FIN_QUANTUM:
-            log_info(logger, "El hilo %d fue desalojado por FIN DE QUANTUM\n", tid);
+            log_info(logger, "TID:%d PID:%d fue desalojado por FIN DE QUANTUM\n", tid, hilo_actual->pid);
             actualizar_quantum(tiempo_transcurrido);
             encolar_corto_plazo_multinivel(hilo_actual);
             ok_recibido = list_remove(paquete_respuesta, 0);
@@ -377,7 +387,7 @@ void recibir_motivo_devolucion_cpu() {
             break;
 
         case THREAD_JOIN_OP:
-            log_info(logger, "El hilo %d fue bloqueado por THREAD JOIN\n", tid);
+            log_info(logger, "TID:%d PID:%d fue bloqueado por THREAD JOIN\n", tid, hilo_actual->pid);
             tid = *(int *)list_remove(paquete_respuesta, 0);
             // Transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
             actualizar_quantum(tiempo_transcurrido);
@@ -388,21 +398,21 @@ void recibir_motivo_devolucion_cpu() {
 
         case MUTEX_CREATE_OP:
             nombre_mutex = list_remove(paquete_respuesta, 0);
-            log_info(logger, "El hilo %d está creando un nuevo mutex\n", tid);
+            log_info(logger, "TID:%d PID:%d está creando un nuevo mutex\n", tid, hilo_actual->pid);
             actualizar_quantum(tiempo_transcurrido);
             MUTEX_CREATE(nombre_mutex);
             break;
 
         case MUTEX_LOCK_OP:
             nombre_mutex = list_remove(paquete_respuesta, 0);
-            log_info(logger, "El hilo %d está intentando adquirir un mutex\n", tid);
+            log_info(logger, "TID:%d PID:%d está intentando adquirir un mutex\n", tid, hilo_actual->pid);
             actualizar_quantum(tiempo_transcurrido);
             MUTEX_LOCK(nombre_mutex);
             break;
 
         case MUTEX_UNLOCK_OP:
             nombre_mutex = list_remove(paquete_respuesta, 0);
-            log_info(logger, "El hilo %d está intentando liberar un mutex\n", tid);
+            log_info(logger, "TID:%d PID:%d está intentando liberar un mutex\n", tid, hilo_actual->pid);
             actualizar_quantum(tiempo_transcurrido);
             MUTEX_UNLOCK(nombre_mutex);
             break;
@@ -410,13 +420,13 @@ void recibir_motivo_devolucion_cpu() {
         case IO_SYSCALL:
             encolar_hilo_corto_plazo(hilo_actual);
             tiempo = *(int *)list_remove(paquete_respuesta, 0);
-            log_info(logger, "El hilo %d ejecuta un IO\n", tid);
+            log_info(logger, "TID:%d PID:%d ejecuta un IO\n", tid, hilo_actual->pid);
             actualizar_quantum(tiempo_transcurrido);
             IO(tiempo, hilo_actual->tid);
             break;   
 
         case DUMP_MEMORY_OP:
-            log_info(logger, "El hilo %d lanza un dump del proceso padre\n", tid);
+            log_info(logger, "TID:%d PID:%d lanza un dump del proceso padre\n", tid, hilo_actual->pid);
             pid = proceso_actual->pid;
             actualizar_quantum(tiempo_transcurrido);
             DUMP_MEMORY(pid);
@@ -428,10 +438,11 @@ void recibir_motivo_devolucion_cpu() {
             archivo = fopen(nombre_archivo, "r");
             prioridad = * (int *)list_remove(paquete_respuesta, 0);
             tamanio = * (int *)list_remove(paquete_respuesta, 0);
-            log_info(logger, "El hilo %d inició un PROCESS CREATE\n", tid);
+            log_info(logger, "TID:%d PID:%d inició un PROCESS CREATE\n", tid, hilo_actual->pid);
             pid = proceso_actual->pid;
             actualizar_quantum(tiempo_transcurrido);
             PROCESS_CREATE(archivo, tamanio, prioridad);
+            sem_wait(sem_hilo_principal_process_create_encolado);
             encolar_hilo_corto_plazo(hilo_actual);
             break;   
 
@@ -439,7 +450,7 @@ void recibir_motivo_devolucion_cpu() {
             nombre_archivo = list_remove(paquete_respuesta, 0);
             archivo = fopen(nombre_archivo, "r");
             prioridad = *(int *)list_remove(paquete_respuesta, 0);
-            log_info(logger, "El hilo %d inició un THREAD CREATE\n", tid);
+            log_info(logger, "TID:%d PID:%d inició un THREAD CREATE\n", tid, hilo_actual->pid);
             pid = proceso_actual->pid;
             actualizar_quantum(tiempo_transcurrido);
             THREAD_CREATE(archivo, prioridad);
@@ -448,7 +459,7 @@ void recibir_motivo_devolucion_cpu() {
         
 
         case PROCESS_EXIT_OP:
-            log_info(logger, "El hilo %d inició un PROCESS EXIT\n", tid);
+            log_info(logger, "TID:%d PID:%d inició un PROCESS EXIT\n", tid, hilo_actual->pid);
             pid = proceso_actual->pid;
             PROCESS_EXIT();
             ok_recibido = list_remove(paquete_respuesta, 0);
@@ -458,13 +469,13 @@ void recibir_motivo_devolucion_cpu() {
         
         case THREAD_CANCEL_OP:
             tid = *(int *)list_remove(paquete_respuesta, 0);
-            log_info(logger, "El hilo %d inició un THREAD CANCEL\n", tid);
+            log_info(logger, "TID:%d PID:%d inició un THREAD CANCEL\n", tid, hilo_actual->pid);
             desbloquear_hilos(tid);
             THREAD_CANCEL(tid);
             break;   
 
         case THREAD_EXIT_OP:
-            log_info(logger, "El hilo %d inició un THREAD EXIT\n", tid);
+            log_info(logger, "TID:%d PID:%d inició un THREAD EXIT\n", tid, hilo_actual->pid);
             desbloquear_hilos(hilo_actual->tid);
             THREAD_EXIT();
             ok_recibido = list_remove(paquete_respuesta, 0);
@@ -472,7 +483,7 @@ void recibir_motivo_devolucion_cpu() {
             list_destroy(paquete_respuesta);
             break;   
         case SEGMENTATION_FAULT:
-            log_info(logger, "El hilo %d es finalizado por SEGMENTATION FAULT\n", hilo_actual->tid);
+            log_info(logger, "TID:%d PID:%d es finalizado por SEGMENTATION FAULT\n", hilo_actual->tid);
             PROCESS_EXIT();
             ok_recibido = list_remove(paquete_respuesta, 0);
             free(ok_recibido);
@@ -485,10 +496,7 @@ void recibir_motivo_devolucion_cpu() {
 }
 
 void actualizar_quantum(int tiempo_transcurrido){
-    hilo_actual->quantum_restante -= tiempo_transcurrido;
-    if (hilo_actual->quantum_restante < 0) {
-                hilo_actual->quantum_restante = quantum;
-            }
+    hilo_actual->quantum_restante = quantum;
 }
 
 void desbloquear_hilos(int tid) {

@@ -58,6 +58,8 @@ t_cola_hilo* hilos_cola_ready;
 pthread_mutex_t * mutex_hilos_cola_ready;
 sem_t * sem_estado_hilos_cola_ready;
 
+sem_t * sem_hilo_principal_process_create_encolado;
+
 t_cola_hilo* hilos_cola_exit;
 pthread_mutex_t * mutex_hilos_cola_exit;
 sem_t * sem_estado_hilos_cola_exit;
@@ -109,6 +111,7 @@ int main(int argc, char* argv[]) {
 	int prioridad_proceso_inicial = atoi(argv[3]);
 
 	PROCESS_CREATE(archivo_pseudocodigo_proceso_inicial, tamanio_proceso_proceso_inicial, prioridad_proceso_inicial);
+    
 	
     pthread_t tid_memoria;
     pthread_t tid_cpu_dispatch;
@@ -120,18 +123,6 @@ int main(int argc, char* argv[]) {
 	argumentos_thread arg_planificador;
 
     void *ret_value;
-
-    //planificador
-	pthread_create(&tid_entradaSalida, NULL, acceder_Entrada_Salida, (void *)&arg_planificador);
-	
-	log_info(logger,"Creacion del hilo para el planificador de largo plazo\n");
-    pthread_t hilo_largo_plazo;
-    pthread_create(&hilo_largo_plazo, NULL, (void *)largo_plazo_fifo, NULL);
-    sleep(1);
-
-    log_info(logger,"Creacion del hilo para el planificador de corto plazo\n");
-    pthread_t hilo_corto_plazo;
-    pthread_create(&hilo_corto_plazo, NULL, (void *)planificador_corto_plazo_hilo, NULL);
 
     //conexiones
 	arg_memoria.puerto = config_get_string_value(config, "PUERTO_MEMORIA");
@@ -147,6 +138,18 @@ int main(int argc, char* argv[]) {
 	pthread_create(&tid_memoria, NULL, administrador_peticiones_memoria, (void *)&arg_memoria);
     pthread_create(&tid_cpu_dispatch, NULL, conexion_cpu_dispatch, (void *)&arg_cpu_dispatch);
     pthread_create(&tid_cpu_interrupt, NULL, conexion_cpu_interrupt, (void *)&arg_cpu_interrupt);
+
+    //planificador
+    log_info(logger,"Creacion del hilo para el hilo de IO\n");
+	pthread_create(&tid_entradaSalida, NULL, acceder_Entrada_Salida, (void *)&arg_planificador);
+	
+	log_info(logger,"Creacion del hilo para el planificador de largo plazo\n");
+    pthread_t hilo_largo_plazo;
+    pthread_create(&hilo_largo_plazo, NULL, (void *)largo_plazo_fifo, NULL);
+
+    log_info(logger,"Creacion del hilo para el planificador de corto plazo\n");
+    pthread_t hilo_corto_plazo;
+    pthread_create(&hilo_corto_plazo, NULL, (void *)planificador_corto_plazo_hilo, NULL);
 
     //espero fin conexiones
 	pthread_join(tid_memoria, ret_value);
@@ -219,21 +222,19 @@ void *peticion_kernel(void *args) {
     t_tcb *hilo = peticion->hilo;
     t_paquete *send_protocolo;
     protocolo_socket op;
-	log_info(logger, "Se envía la peticion a memoria");
-    log_info(logger, "ME CONECTO CON MEMORIA DESDE EL SOCKET: %d", socket);
     switch (peticion->tipo) {
         case PROCESS_CREATE_OP:
             send_protocolo = crear_paquete(PROCESS_CREATE_OP);
             agregar_a_paquete(send_protocolo, &proceso->pid, sizeof(proceso->pid));
             agregar_a_paquete(send_protocolo, &proceso->memoria_necesaria, sizeof(proceso->memoria_necesaria));
             agregar_a_paquete(send_protocolo, &proceso->estado, sizeof(proceso->estado));
-			log_info(logger, "Se crea la peticion de PROCESS CREATE");
+			log_info(logger, "Se envió la peticion de PROCESS CREATE");
             break;
 
         case PROCESS_EXIT_OP:
             send_protocolo = crear_paquete(PROCESS_EXIT_OP);
             agregar_a_paquete(send_protocolo, &proceso->pid, sizeof(int));
-			log_info(logger, "Se crea la peticion de PROCESS EXIT");
+			log_info(logger, "Se envió la peticion de PROCESS EXIT del PID: %d", proceso->pid);
 			sem_post(sem_proceso_finalizado);
             break;
 
@@ -249,17 +250,16 @@ void *peticion_kernel(void *args) {
             char *aux_instruccion;
             while(list_iterator_has_next(iterator)){
                 aux_instruccion = list_iterator_next(iterator);
-                log_info(logger, "instruccion: %s",aux_instruccion);
                 int tamanio2 = strlen(aux_instruccion)+1;
                 agregar_a_paquete(send_protocolo, aux_instruccion, tamanio2);
             }
-			log_info(logger, "Se crea la peticion de THREAD CREATE");
+			log_info(logger, "Se envió la peticion de THREAD CREATE");
             break;
 
         case THREAD_EXIT_OP:
             send_protocolo = crear_paquete(THREAD_EXIT_OP);
             agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(hilo->tid));
-			log_info(logger, "Se crea la peticion de THREAD EXIT");
+			log_info(logger, "Se envió la peticion de THREAD EXIT");
             break;
 
 		case THREAD_CANCEL_OP:
@@ -272,7 +272,7 @@ void *peticion_kernel(void *args) {
             send_protocolo = crear_paquete(DUMP_MEMORY_OP);
 			agregar_a_paquete(send_protocolo, &proceso_actual->pid, sizeof(int));
             agregar_a_paquete(send_protocolo, &hilo_actual->tid, sizeof(int));
-			log_info(logger, "Se crea la peticion de DUMP MEMORY");
+			log_info(logger, "Se envió la peticion de DUMP MEMORY");
             break;
 
         default:
@@ -293,13 +293,11 @@ void *peticion_kernel(void *args) {
 
         case ERROR:
             log_info(logger, "'ERROR' recibido desde memoria para operación %d", peticion->tipo);
-            	log_info(logger, "Actualizo el valor de respuesta recibida a true");
             peticion->respuesta_exitosa = false;
             break;
 
 		case OK:
             log_info(logger, "'OK' recibido desde memoria para operación %d", peticion->tipo);
-            log_info(logger, "Actualizo el valor de respuesta recibida a true");
             peticion->respuesta_exitosa = true;
             break;	
 

@@ -282,7 +282,6 @@ void *peticion_kernel_NEW_THREAD(void* arg_peticion){
 	char * aux_instruccion;
 	while(list_iterator_has_next(iterator)){
 		aux_instruccion = list_iterator_next(iterator);
-		log_info(logger, "ID instruccion %s", aux_instruccion);
 		list_add(instrucciones, aux_instruccion);
 	}
 	tcb->instrucciones = list_create();

@@ -17,6 +17,7 @@ extern pthread_mutex_t * mutex_lista_t_peticiones;
 extern sem_t * sem_lista_t_peticiones; 
 extern sem_t * sem_estado_respuesta_desde_memoria;
 
+extern sem_t * sem_hilo_principal_process_create_encolado;
 //extern pthread_mutex_t * mutex_respuesta_desde_memoria;
 //extern pthread_cond_t * cond_respuesta_desde_memoria;
 
@@ -95,22 +96,23 @@ void inicializar_semaforos_largo_plazo(){
     }
     sem_init(sem_proceso_finalizado, 0, 0);
 
-    log_info(logger,"COLAS DE PROCESOS EN READY/A CREAR CREADAS CORRECTAMENTE\n");
-    log_info(logger,"MUTEXS DE LAS COLAS DE PROCESOS EN READY/A CREAR CREADOS CORRECTAMENTE\n");
-    log_info(logger,"SEMÁFOROS DE ESTADO DE LAS COLAS DE PROCESOS EN READY/A CREAR/FINALIZADOS CORRECTAMENTE\n");
+    sem_hilo_principal_process_create_encolado = malloc(sizeof(sem_t));
+    if (sem_hilo_principal_process_create_encolado == NULL) {
+        perror("Error al asignar memoria para semáforo de cola");
+        exit(EXIT_FAILURE);
+    }
+    sem_init(sem_hilo_principal_process_create_encolado, 0, 0);
 }
 
 void largo_plazo_fifo()
 {
     while (1)
     {
-        log_info(logger,"Entraste al while del planificador de largo plazo\n");
         sem_wait(sem_estado_procesos_a_crear);
         log_info(logger,"Llego un procesos para crear\n");
         pthread_mutex_lock(mutex_procesos_a_crear);
         t_pcb *proceso = desencolar_proceso_a_crear();
     // Crear petición
-        log_info(logger,"Se crea la peticion para memoria del proceso %d", proceso->pid);
         t_peticion *peticion = malloc(sizeof(t_peticion));
         peticion->tipo = PROCESS_CREATE_OP;
         peticion->proceso = proceso;
@@ -118,11 +120,14 @@ void largo_plazo_fifo()
         encolar_peticion_memoria(peticion);
         sem_wait(sem_estado_respuesta_desde_memoria);
         if (peticion->respuesta_exitosa) {
-            log_info(logger,"Memoria respondió con éxito la peticion, se encola en ready el proceso %d", proceso->pid);
             proceso->estado = READY;
             encolar_proceso_en_ready(proceso);
             log_info(logger,"Se encola el hilo principal del proceso %d", proceso->pid);
             encolar_hilo_principal_corto_plazo(proceso);
+            if (proceso->pid != 1)
+            {
+                sem_post(sem_hilo_principal_process_create_encolado);
+            }
             pthread_mutex_unlock(mutex_procesos_a_crear);
         } else {
             log_info(logger, "Memoria no tiene espacio suficiente, reintentando cuando un proceso se termine...");
@@ -171,7 +176,6 @@ void encolar_hilo_principal_corto_plazo(t_pcb * proceso){
     peticion->hilo = hilo;
     encolar_peticion_memoria(peticion);
     sem_wait(sem_estado_respuesta_desde_memoria);
-    
     if (strcmp(algoritmo, "FIFO") == 0) {
         log_info(logger, "Se encola el hilo según el algoritmo de FIFO");
         encolar_corto_plazo_fifo(hilo);

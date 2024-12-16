@@ -127,6 +127,7 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 				strcpy(texto[2],string_itoa(pid_actual)); 
 				pthread_mutex_lock(mutex_lista_interrupciones);
 				log_info(logger, "Encolo la interrupcion del hilo en la lista de interrupciones");
+				log_error(logger, "EL TID: %d PID:%d", tid_actual, pid_actual);
 				encolar_interrupcion(INFO_HILO,3,texto);
 				pthread_mutex_unlock(mutex_lista_interrupciones);
 				break;

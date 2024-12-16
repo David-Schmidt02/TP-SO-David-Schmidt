@@ -52,6 +52,8 @@ void inicializar_registros_cpu() {
     cpu_actual->HX = 0;
     cpu_actual->PC = 0;
 
+    
+
     pid_actual = 0;
     //tid_actual = 0; -> no es necesario
 
@@ -136,7 +138,6 @@ void obtener_contexto_de_memoria() {
     char *texto[1];
     
     t_list *paquete_respuesta;
-    log_info(logger, "LLEGA AL PRINCIPIO DE LA PETICION DEL CONTEXTO A MEMORIA");
     pthread_mutex_lock(mutex_conexion_memoria);
 
     t_paquete *paquete = crear_paquete(CONTEXTO_RECEIVE); 
@@ -161,9 +162,6 @@ void obtener_contexto_de_memoria() {
         log_info(logger, "Se recibio contexto de memoria para el TID %d", tid_actual);
         list_destroy(paquete_respuesta);
     }
-
-    
-
     pthread_mutex_unlock(mutex_conexion_memoria);
     //log_info(logger, "## PID: %d - Se solicitó el Contexto Ejecución", pid); 
 }
@@ -727,7 +725,6 @@ void manejar_motivo(protocolo_socket tipo, char** texto) {
 
     pthread_mutex_lock(mutex_conexion_memoria);
     enviar_contexto_de_memoria();
-    
     pthread_mutex_unlock(mutex_conexion_memoria);
     
     pthread_mutex_lock(mutex_kernel_interrupt);
@@ -740,6 +737,7 @@ void manejar_finalizacion(protocolo_socket tipo, char** texto){
     log_info(logger, "## Manejo de Finalización");
 
     // Notificar al Kernel que el hilo finalizó
+
     pthread_mutex_lock(mutex_kernel_interrupt);
     devolver_motivo_a_kernel(tipo,texto);
     pthread_mutex_unlock(mutex_kernel_interrupt);
