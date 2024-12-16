@@ -173,7 +173,7 @@ void PROCESS_EXIT() {
             eliminar_hilo_de_cola_multinivel_thread_exit(tcb_asociado);
             encolar_en_exit(tcb_asociado);//se agrega a la cola de exit
         } else {
-            printf("Error: Algoritmo no reconocido.\n");
+            log_info(logger,"Error: Algoritmo no reconocido.\n");
         }
         
     }
@@ -379,7 +379,7 @@ void THREAD_CANCEL(int tid_hilo_a_cancelar) { // Esta sys recibe el tid solament
         } else if (strcmp(algoritmo, "CMN") == 0) {
             eliminar_hilo_de_cola_multinivel_cancel(hilo_a_cancelar);
         } else {
-            printf("Error: Algoritmo no reconocido.\n");
+            log_info(logger,"Error: Algoritmo no reconocido.\n");
         }
 
     notificar_memoria_fin_hilo(hilo_a_cancelar);
@@ -455,7 +455,7 @@ void THREAD_EXIT() {// No recibe ningún parámetro, trabaja con hilo_actual
         } else if (strcmp(algoritmo, "CMN") == 0) {
             eliminar_hilo_de_cola_multinivel_thread_exit(hilo_a_salir);
         } else {
-            printf("Error: Algoritmo no reconocido.\n");
+            log_info(logger,"Error: Algoritmo no reconocido.\n");
         }
 
     log_info(logger, "Hilo TID %d finalizado.", hilo_a_salir->tid);
@@ -533,7 +533,7 @@ void MUTEX_LOCK(char* nombre_mutex) {
             eliminar_hilo_de_cola_multinivel_thread_exit(hilo_actual);
             encolar_en_block(hilo_actual);//se agrega a la cola de exit
         } else {
-            printf("Error: Algoritmo no reconocido.\n");
+            log_info(logger, "Error: Algoritmo no reconocido.\n");
         }
 
     } 
@@ -549,7 +549,7 @@ void MUTEX_LOCK(char* nombre_mutex) {
             eliminar_hilo_de_cola_multinivel_thread_exit(hilo_actual);
             encolar_en_block(hilo_actual);//se agrega a la cola de exit
         } else {
-            printf("Error: Algoritmo no reconocido.\n");
+            log_info(logger, "Error: Algoritmo no reconocido.\n");
         }
 
     }   

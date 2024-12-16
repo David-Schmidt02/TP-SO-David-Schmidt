@@ -47,7 +47,7 @@ void* planificador_corto_plazo_hilo(void* arg) {
     } else if (strcmp(algoritmo, "CMN") == 0) {
         corto_plazo_colas_multinivel();
     } else {
-        printf("Error: Algoritmo no reconocido.\n");
+        log_info(logger, "Error: Algoritmo no reconocido.\n");
     }
 
 }
@@ -61,7 +61,7 @@ void encolar_hilo_corto_plazo(t_tcb * hilo){
     } else if (strcmp(algoritmo, "CMN") == 0) {
         encolar_corto_plazo_multinivel(hilo);
     } else {
-        printf("Error: Algoritmo no reconocido.\n");
+        log_info(logger,"Error: Algoritmo no reconocido.\n");
     }
 }
 
@@ -73,7 +73,7 @@ void encolar_hilo_ya_creado_corto_plazo(t_tcb * hilo){
     } else if (strcmp(algoritmo, "CMN") == 0) {
         encolar_corto_plazo_multinivel(hilo);
     } else {
-        printf("Error: Algoritmo no reconocido.\n");
+        log_info(logger,"Error: Algoritmo no reconocido.\n");
     }
 }
 
@@ -236,6 +236,7 @@ void enviar_interrupcion_fin_quantum(void *hilo_void) {
     // Si el hilo finalizó, igual se manda la interrupcion por Fin de Quantum, pero la CPU chequea que ese hilo ya terminó y la desestima
     pthread_mutex_lock(mutex_socket_cpu_interrupt);
     //semáforo para modificar el quantum
+    log_info(logger, "Se envía interrupción por FIN_QUANTUM PID: %d TID: %d.\n", hilo_actual->pid ,hilo_actual->tid);
     enviar_a_cpu_interrupt(hilo->tid, FIN_QUANTUM);
     pthread_mutex_unlock(mutex_socket_cpu_interrupt);
 }
@@ -263,7 +264,7 @@ void encolar_corto_plazo_multinivel(t_tcb* hilo) {
         }
     }
     if (nivel == NULL) {
-        printf("Nivel de prioridad %d no existe. Creando nueva cola...\n", prioridad);
+        log_info(logger,"Nivel de prioridad %d no existe. Creando nueva cola...\n", prioridad);
 
         // Crear una nueva cola de hilos
         t_cola_hilo* nueva_cola = malloc(sizeof(t_cola_hilo));
@@ -297,12 +298,13 @@ void encolar_corto_plazo_multinivel(t_tcb* hilo) {
 
         // Encolar el hilo en la nueva cola
         list_add(nueva_cola->lista_hilos, hilo);
-        printf("Hilo de prioridad %d encolado en la nueva cola\n", prioridad);
+        log_info(logger, "Hilo de prioridad %d encolado en la nueva cola\n", prioridad);
     } else {
         // Si ya existe el nivel, encolamos el hilo en la cola correspondiente
         list_add(nivel->cola_hilos->lista_hilos, hilo);
-        printf("Hilo de prioridad %d encolado en la cola existente\n", prioridad);
+        log_info(logger, "Hilo de prioridad %d encolado en la cola existente\n", prioridad);
     }
+    sem_post(sem_estado_multinivel);
 }
 
 bool nivel_existe_por_prioridad(void* elemento, void* contexto) {
@@ -332,7 +334,6 @@ void enviar_a_cpu_interrupt(int tid, protocolo_socket motivo) {
         agregar_a_paquete(send_interrupt, &tid, sizeof(tid)); 
         enviar_paquete(send_interrupt, conexion_kernel_cpu_interrupt);
         pcb_aux = obtener_pcb_por_tid(tid);
-        log_info(logger, "## (%d:%d) - Desalojado por fin de Quantum", pcb_aux->pid, tid);
         eliminar_paquete(send_interrupt);
         break;
     default:
@@ -437,6 +438,7 @@ void recibir_motivo_devolucion_cpu() {
             break;   
 
         case THREAD_CREATE_OP:
+            log_info(logger, "## (%d:%d) - Solicitó syscall: PROCESS_EXIT", hilo_actual->pid, hilo_actual->tid);
             nombre_archivo = list_remove(paquete_respuesta, 0);
             archivo = fopen(nombre_archivo, "r");
             prioridad = *(int *)list_remove(paquete_respuesta, 0);
