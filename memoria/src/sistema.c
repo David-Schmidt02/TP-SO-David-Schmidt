@@ -443,16 +443,25 @@ int send_dump(int pid, int tid){
     struct timeval tiempo_actual;
     gettimeofday(&tiempo_actual, NULL);
     struct tm *tiempo_local = localtime(&tiempo_actual.tv_sec);
-    char * nombre_archivo = malloc(50);
-    snprintf(nombre_archivo, sizeof(nombre_archivo), 
-             "%d-%d-%02d:%02d:%02d:%03ld.dmp", 
-             string_itoa(pid),
-             string_itoa(tid),
-             tiempo_local->tm_hour,
-             tiempo_local->tm_min,
-             tiempo_local->tm_sec,
-             tiempo_actual.tv_usec / 1000);
+
+    char *nombre_archivo = malloc(60);
+    if (nombre_archivo == NULL) {
+        perror("Error al asignar memoria");
+        return EXIT_FAILURE;
+    }
+    snprintf(nombre_archivo, 60,
+            "%d-%d-%02d:%02d:%02d:%03ld.dmp",
+            pid,
+            tid,
+            tiempo_local->tm_hour,
+            tiempo_local->tm_min,
+            tiempo_local->tm_sec,
+            tiempo_actual.tv_usec / 1000);
+
     log_info(logger, "Nombre del archivo de dump: %s", nombre_archivo);
+    
+
+
     t_paquete * send = crear_paquete(DUMP_MEMORY_OP);
     agregar_a_paquete(send, nombre_archivo, strlen(nombre_archivo)+1);
     agregar_a_paquete(send, &size, sizeof(uint32_t));
@@ -473,7 +482,7 @@ int send_dump(int pid, int tid){
     else{
         return -1;
     }
-    
+    free(nombre_archivo);
 }
 int crear_proceso(t_pcb *pcb) {
     switch(memoria_usuario->tipo_particion) {

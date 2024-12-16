@@ -11,7 +11,7 @@
 
 void inicializar_libres();
 void inicializar_bitmap(char* mount_dir,uint32_t block_count);
-int reservar_bloques();
+uint32_t reservar_bloques();
 bool espacio_disponible(uint32_t cantidad);
 void liberar_bloque(uint32_t bloque);
 void destruir_bitmap();
