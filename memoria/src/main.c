@@ -375,10 +375,10 @@ void *peticion_kernel_DUMP(void* arg_peticion){
 		
 	if(send_dump(pid, tid) == -1){
 		respuesta = ERROR;
-		log_info(logger, "Dump Exitoso");
+		log_info(logger, "Error Dump");
 	}else{
 		respuesta = OK;
-		log_info(logger, "Error Dump");
+		log_info(logger, "Dump Exitoso");
 	}
 
 	

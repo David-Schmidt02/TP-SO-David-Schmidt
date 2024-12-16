@@ -9,6 +9,7 @@ extern int block_size;
 extern int retardo_acceso;
 extern char* mount_dir;
 int bloques_libres;
+extern uint32_t num_bloque;
 
 void inicializar_bloques(uint32_t block_count, int block_size, char* mount_dir) {
     if (mount_dir == NULL) {
@@ -82,6 +83,7 @@ void *leer_bloque(int bloque) {
 
 
 void crear_archivo_metadata(uint32_t block_count,  int block_size, char* dir_files, char* nombre_archivo,uint32_t tamanio) {
+    log_info(logger, "## Bloque asignado: %d - Archivo: %s - Bloques Libres: %d", num_bloque, nombre_archivo, bloques_libres-block_count);
     if (block_count == 0) {
         log_error(logger, "No se encontró el valor BLOCK_COUNT en el archivo de configuración.");
         exit(EXIT_FAILURE);
@@ -100,7 +102,7 @@ void crear_archivo_metadata(uint32_t block_count,  int block_size, char* dir_fil
             log_error(logger, "Error al crear el archivo metadata");
             free(path_metadata);
             exit(EXIT_FAILURE);
-        }
+        }else log_info(logger, "## Archivo Creado: %s - Tamaño: %d", nombre_archivo, tamanio);
         index_block++;
         size_t buffer_size = snprintf(NULL, 0, "SIZE=%u\nINDEX_BLOCK=%d\n", block_size, index_block) + 1;
         char *buffer = malloc(buffer_size);

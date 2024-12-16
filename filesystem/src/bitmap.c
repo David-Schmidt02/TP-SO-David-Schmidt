@@ -108,7 +108,7 @@ bool espacio_disponible(uint32_t cantidad) {
     return false;
 }
 
-uint32_t reservar_bloque() {
+uint32_t reservar_bloques() {
     pthread_mutex_lock(&mutex_bitmap);
     if (!espacio_disponible(1)) {
         pthread_mutex_unlock(&mutex_bitmap);
