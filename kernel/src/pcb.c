@@ -36,6 +36,7 @@ t_tcb* crear_tcb(int pid,int tid, int prioridad)
     tcb->lista_espera = list_create();  // Inicializa la lista de hilos en espera
     tcb->cant_hilos_block = malloc(sizeof(sem_t));
     tcb->registro = malloc(sizeof(RegistroCPU));
+    tcb->contador_joins = 0;
     if (tcb->cant_hilos_block == NULL) {
         perror("Error al asignar memoria para semáforo de cola");
         exit(EXIT_FAILURE);

@@ -52,6 +52,7 @@ typedef struct {
     t_estado estado;
     int quantum_restante;
     t_list* lista_espera; // Lista de hilos que están esperando a que el hilo corriendo termine
+    int contador_joins;
     t_list* instrucciones;
     RegistroCPU *registro;  // Lista de instrucciones para el hilo
 } t_tcb;

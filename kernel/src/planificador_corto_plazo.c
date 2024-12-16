@@ -377,12 +377,13 @@ void recibir_motivo_devolucion_cpu() {
             break;
 
         case THREAD_JOIN_OP:
-            log_info(logger, "## (%d:%d) - Bloqueado por: PTHREAD_JOIN\n", hilo_actual->pid, hilo_actual->tid);
+            t_tcb* tcb = malloc(sizeof(t_tcb));
             tid = *(int *)list_remove(paquete_respuesta, 0);
+            log_info(logger, "## (%d:%d) - Bloqueado por: PTHREAD_JOIN, esperando al hilo ## (%d)\n", hilo_actual->pid, hilo_actual->tid, tcb->tid );
             // Transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
             actualizar_quantum(tiempo_transcurrido);
             THREAD_JOIN(tid);
-            encolar_hilo_corto_plazo(hilo_actual);
+            //encolar_hilo_corto_plazo(hilo_actual);
             //esperar_desbloqueo_ejecutar_hilo(tid); -> ya no se usá, la lógica está en finalizacion -> "desbloquear hilos"
             break;
 
@@ -446,6 +447,7 @@ void recibir_motivo_devolucion_cpu() {
             break;   
         
         case PROCESS_EXIT_OP:
+            log_info(logger, "## (%d:%d) - Solicitó syscall: PROCESS_EXIT", hilo_actual->pid, tid);
             PROCESS_EXIT();
             ok_recibido = list_remove(paquete_respuesta, 0);
             free(ok_recibido);
@@ -497,12 +499,10 @@ void desbloquear_hilos(int tid) {
             log_warning(logger,"El hilo TID %d no bloquea ningún hilo\n", tid);
             continue;
         }
-        sem_post(hilo_bloqueado->cant_hilos_block);
-        int sem_valor;
-        sem_getvalue(hilo_bloqueado->cant_hilos_block, &sem_valor);
+        hilo_bloqueado->contador_joins++;
 
-        if (sem_valor == 1) {
-            printf("Hilo TID %d listo para ejecutar.\n", hilo_bloqueado->tid);
+        if (hilo_bloqueado->contador_joins == 0) {
+            log_info(logger, "Hilo TID %d listo para ejecutar.\n", hilo_bloqueado->tid);
             cambiar_estado(hilo_bloqueado, READY);
             encolar_hilo_ya_creado_corto_plazo(hilo_bloqueado);// se encola el hilo nuevamente sin generar una peticion a memoria
         }

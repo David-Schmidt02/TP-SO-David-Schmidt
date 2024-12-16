@@ -85,7 +85,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
 
     log_info(logger, "## (%d) Se crea el Proceso - Estado: NEW", nuevo_pcb->pid);
 
-    t_tcb* tcb_principal = crear_tcb(pid, ultimo_tid++, prioridadTID);
+    t_tcb* tcb_principal = crear_tcb(pid, ultimo_tid, prioridadTID);
     tcb_principal->estado = NEW;
 
 
@@ -106,18 +106,12 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
 
     tcb_principal->instrucciones = lista_instrucciones;
     
-
     pthread_mutex_lock(mutex_procesos_a_crear);
     list_add(procesos_a_crear->lista_procesos, nuevo_pcb);
     sem_post(sem_estado_procesos_a_crear);
     pthread_mutex_unlock(mutex_procesos_a_crear);
 
-    
-    
-    
 }
-
-
 
 void eliminar_mutex(t_mutex* mutex) {
     if (mutex != NULL) {
@@ -172,7 +166,7 @@ void PROCESS_EXIT() {
         cambiar_estado(tcb_asociado, EXIT);
         log_info(logger, "## (%d:%d) Finaliza el hilo", pcb_encontrado->pid, tcb_asociado->tid);
         //acá hay que hacer dos cosas, eliminarlos de la cola de hilos y moverlos a una cola de exit
-        if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
+        if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES") == 0) {
             eliminar_hilo_de_cola_fifo_prioridades_thread_exit(tcb_asociado);
             encolar_en_exit(tcb_asociado);//se agrega a la cola de exit
         } else if (strcmp(algoritmo, "CMN") == 0) {
@@ -335,6 +329,7 @@ void THREAD_JOIN(int tid_a_esperar) {
 
     if (hilo_a_esperar == NULL || hilo_a_esperar->estado == EXIT) {
         log_info(logger, "THREAD_JOIN: Hilo TID %d no encontrado o ya finalizado.", tid_a_esperar);
+        encolar_hilo_corto_plazo(hilo_actual);
         return;
     }
 
@@ -455,7 +450,7 @@ void THREAD_EXIT() {// No recibe ningún parámetro, trabaja con hilo_actual
         return;
     }
     // Elimina el hilo de la cola correspondiente y lo encola en la cola de EXIT
-    if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
+    if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES") == 0) {
             eliminar_hilo_de_cola_fifo_prioridades_thread_exit(hilo_a_salir);
         } else if (strcmp(algoritmo, "CMN") == 0) {
             eliminar_hilo_de_cola_multinivel_thread_exit(hilo_a_salir);
@@ -677,6 +672,7 @@ void agregar_hilo_a_lista_de_espera(t_tcb* hilo_a_esperar, t_tcb* hilo_actual) {
         hilo_a_esperar->lista_espera = list_create();
     }
     list_add(hilo_a_esperar->lista_espera, hilo_actual);
+    hilo_actual->contador_joins--;
 }
 
 t_list* obtener_lista_de_hilos_que_esperan(t_tcb* hilo) {
