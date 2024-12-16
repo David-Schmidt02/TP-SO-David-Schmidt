@@ -109,7 +109,6 @@ void largo_plazo_fifo()
     while (1)
     {
         sem_wait(sem_estado_procesos_a_crear);
-        log_info(logger,"Llego un procesos para crear\n");
         pthread_mutex_lock(mutex_procesos_a_crear);
         t_pcb *proceso = desencolar_proceso_a_crear();
     // Crear petición
@@ -122,7 +121,6 @@ void largo_plazo_fifo()
         if (peticion->respuesta_exitosa) {
             proceso->estado = READY;
             encolar_proceso_en_ready(proceso);
-            log_info(logger,"Se encola el hilo principal del proceso %d", proceso->pid);
             encolar_hilo_principal_corto_plazo(proceso);
             if (proceso->pid != 1)
             {
@@ -130,9 +128,11 @@ void largo_plazo_fifo()
             }
             pthread_mutex_unlock(mutex_procesos_a_crear);
         } else {
-            log_info(logger, "Memoria no tiene espacio suficiente, reintentando cuando un proceso se termine...");
+            log_warning(logger, "Memoria no tiene espacio suficiente, reintentando cuando un proceso se termine...");
             //probar como funciona
             while(!peticion->respuesta_exitosa){
+                pthread_mutex_unlock(mutex_procesos_a_crear);
+                sem_post(sem_hilo_principal_process_create_encolado);
                 sem_wait(sem_proceso_finalizado);
                 pthread_mutex_lock(mutex_procesos_a_crear);
                 list_add_in_index(procesos_a_crear->lista_procesos, 0, proceso);
@@ -141,22 +141,11 @@ void largo_plazo_fifo()
             }
         }
         free(peticion);
-        /*
-        int aux;
-        int val = sem_getvalue(sem_estado_procesos_a_crear,aux);
-        if(val == 0){
-            t_paquete* send_terminate = crear_paquete(TERMINATE);
-            enviar_paquete(send_terminate, conexion_kernel_cpu_interrupt);
-            //lanzar funciones para liberar estructuras
-        }
-        */
     }
-    
 }
 
 t_pcb* desencolar_proceso_a_crear(){
     t_pcb *proceso = list_remove(procesos_a_crear->lista_procesos, 0);
-    log_info(logger,"Se desencoló el proceso %d de la lista de procesos a crear", proceso->pid);
     return proceso;
 }
 
@@ -177,13 +166,10 @@ void encolar_hilo_principal_corto_plazo(t_pcb * proceso){
     encolar_peticion_memoria(peticion);
     sem_wait(sem_estado_respuesta_desde_memoria);
     if (strcmp(algoritmo, "FIFO") == 0) {
-        log_info(logger, "Se encola el hilo según el algoritmo de FIFO");
         encolar_corto_plazo_fifo(hilo);
     } else if (strcmp(algoritmo, "PRIORIDADES") == 0) {
-        log_info(logger, "Se encola el hilo según el algoritmo de Prioridades");
         encolar_corto_plazo_prioridades(hilo);
     } else if (strcmp(algoritmo, "CMN") == 0) {
-        log_info(logger, "Se encola el hilo según el algoritmo de Colas Multinivel");
         encolar_corto_plazo_multinivel(hilo);
     } else {
         printf("Error: Algoritmo no reconocido.\n");

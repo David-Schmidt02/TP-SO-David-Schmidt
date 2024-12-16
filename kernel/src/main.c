@@ -193,9 +193,7 @@ void *administrador_peticiones_memoria(void* arg_server){
 	pthread_t aux_thread;
 	
 	while(1){
-		log_info(logger, "Entraste al While del administrador de peticiones");
 		sem_wait(sem_lista_t_peticiones);
-		log_info(logger, "Entró una peticion a la lista de peticiones");
 		pthread_mutex_lock(mutex_lista_t_peticiones);
 		peticion = list_remove(lista_t_peticiones, 0);
 		pthread_mutex_unlock(mutex_lista_t_peticiones);
@@ -206,7 +204,6 @@ void *administrador_peticiones_memoria(void* arg_server){
 		}while(conexion_kernel_memoria == -1);
 		args_peticion.peticion = peticion;
 		args_peticion.socket = conexion_kernel_memoria; 
-		log_info(logger, "Se crea un hilo individual para la peticion");
 		pthread_create(&aux_thread, NULL, peticion_kernel, (void *)&args_peticion);
 		pthread_detach(aux_thread);
 	}
@@ -281,7 +278,6 @@ void *peticion_kernel(void *args) {
     }
 
     enviar_paquete(send_protocolo, socket);
-    log_info(logger, "Petición enviada a memoria, esperando respuesta...");
 
     // Esperar respuesta bloqueante -> esta es la respuesta esperada desde memoria
     op = recibir_operacion(socket);
@@ -317,12 +313,6 @@ void *peticion_kernel(void *args) {
 void encolar_peticion_memoria(t_peticion * peticion){
         // Encolar la petición
         pthread_mutex_lock(mutex_lista_t_peticiones);
-		if (peticion->proceso){
-			log_info(logger,"Se encola la peticion del proceso %d a la lista de peticiones", peticion->proceso->pid);
-		}
-		if (peticion->hilo){
-			log_info(logger,"Se encola la peticion del hilo %d del proceso %d a la lista de peticiones", peticion->hilo->tid, obtener_pcb_por_pid(peticion->hilo->pid)->pid );
-		}
         list_add(lista_t_peticiones, peticion);
         pthread_mutex_unlock(mutex_lista_t_peticiones);
         sem_post(sem_lista_t_peticiones);
@@ -366,7 +356,6 @@ void inicializar_semaforos(){
         exit(EXIT_FAILURE);
     }
 	sem_init(sem_estado_colaIO, 0, 0);
-	log_info(logger,"Mutex y semáforo de estado para la lista de peticiones creados\n");
 
     mutex_socket_memoria = malloc(sizeof(pthread_mutex_t));
     if (mutex_socket_memoria == NULL) {
@@ -420,7 +409,6 @@ void inicializar_semaforos_peticiones(){
         perror("Error al asignar memoria para semáforo de cola");
         exit(EXIT_FAILURE);
     }
-	log_info(logger,"Mutex y semáforo de estado para la lista de peticiones creados\n");
 	sem_init(sem_lista_t_peticiones, 0, 0);
 
 	sem_estado_respuesta_desde_memoria = malloc(sizeof(sem_t));
@@ -428,7 +416,6 @@ void inicializar_semaforos_peticiones(){
         perror("Error al asignar memoria para semáforo de cola");
         exit(EXIT_FAILURE);
     }
-	log_info(logger,"Mutex y semáforo de estado para la lista de peticiones creados\n");
 	sem_init(sem_estado_respuesta_desde_memoria, 0, 0);
 }
 
@@ -441,7 +428,6 @@ void inicializar_colas_corto_plazo(){
 	hilos_cola_ready = inicializar_cola_hilo(READY);
 	hilos_cola_bloqueados = inicializar_cola_hilo(BLOCK);
 	hilos_cola_exit = inicializar_cola_hilo(EXIT);
-	log_info(logger,"Cola de hilos en Ready/Block/Exit inicializadas \n");
 	colas_multinivel = inicializar_colas_multinivel();
 
 }

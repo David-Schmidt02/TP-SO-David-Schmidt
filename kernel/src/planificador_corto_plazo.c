@@ -87,20 +87,9 @@ void corto_plazo_fifo(){
         hilo->estado = EXEC; 
         pthread_mutex_unlock(mutex_hilos_cola_ready);
         pthread_mutex_lock(mutex_socket_cpu_dispatch);
-        log_info(logger, "Se envía el hilo al cpu dispatch");
         hilo_actual = hilo;
         proceso_actual = obtener_pcb_por_tid(hilo_actual->tid);
         t_tcb * tcb=malloc(sizeof(t_tcb));
-        /*while (tcb!=NULL){
-            if (hilos_cola_ready->lista_hilos == NULL)
-                break;
-            else{
-                tcb = list_get(hilos_cola_ready->lista_hilos, i);
-                log_info(logger, "HILO con TID: %d PID: %d", tcb->tid, tcb->pid);
-                i++;
-            }
-        }
-        */
         enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
         log_info(logger,"Cola de FIFO: Ejecutando hilo TID=%d, PID=%d\n", hilo->tid, hilo->pid);
         recibir_motivo_devolucion_cpu();
@@ -130,7 +119,6 @@ void corto_plazo_prioridades()
         hilo->estado = EXEC;  
         pthread_mutex_unlock(mutex_hilos_cola_ready);
         pthread_mutex_lock(mutex_socket_cpu_dispatch);
-        log_info(logger, "Se envía el hilo al cpu dispatch");
         hilo_actual = hilo;
         proceso_actual = obtener_pcb_por_tid(hilo_actual->tid);
         enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
@@ -221,10 +209,10 @@ void ejecutar_round_robin(t_tcb * hilo_a_ejecutar) {
 
     // Enviamos el hilo a la CPU mediante el canal de dispatch
     pthread_mutex_lock(mutex_socket_cpu_dispatch);
-    log_info(logger, "Se envía el hilo al cpu dispatch");
     hilo_actual = hilo_a_ejecutar;
     proceso_actual = obtener_pcb_por_tid(hilo_actual->tid);
     enviar_a_cpu_dispatch(hilo_a_ejecutar->tid, hilo_a_ejecutar->pid); // Envía el TID y PID al CPU
+    log_info(logger,"Cola de RR: Ejecutando hilo TID=%d, PID=%d\n", hilo_a_ejecutar->tid, hilo_a_ejecutar->pid);
     pthread_mutex_unlock(mutex_socket_cpu_dispatch);
 
     // Lanzamos un nuevo hilo que cuente el quantum y envíe una interrupción si se agota
@@ -335,14 +323,16 @@ void enviar_a_cpu_dispatch(int tid, int pid)
 }
 
 void enviar_a_cpu_interrupt(int tid, protocolo_socket motivo) {
-    t_paquete *send_interrupt;
+    t_paquete *send_interrupt;\
+    t_pcb * pcb_aux;
     switch (motivo)
     {
     case FIN_QUANTUM:
         send_interrupt = crear_paquete(FIN_QUANTUM);
         agregar_a_paquete(send_interrupt, &tid, sizeof(tid)); 
         enviar_paquete(send_interrupt, conexion_kernel_cpu_interrupt);
-        log_info(logger, "## - Interrupción por FIN DE QUANTUM del hilo [%d] enviada a CPU", tid);
+        pcb_aux = obtener_pcb_por_tid(tid);
+        log_info(logger, "## (%d:%d) - Desalojado por fin de Quantum", pcb_aux->pid, tid);
         eliminar_paquete(send_interrupt);
         break;
     default:
@@ -378,7 +368,7 @@ void recibir_motivo_devolucion_cpu() {
     char * ok_recibido;
     switch (motivo) {
         case FIN_QUANTUM:
-            log_info(logger, "TID:%d PID:%d fue desalojado por FIN DE QUANTUM\n", tid, hilo_actual->pid);
+            log_info(logger, "## (%d:%d) - Desalojado por fin de Quantum\n", hilo_actual->pid, tid);
             actualizar_quantum(tiempo_transcurrido);
             encolar_corto_plazo_multinivel(hilo_actual);
             ok_recibido = list_remove(paquete_respuesta, 0);
@@ -387,7 +377,7 @@ void recibir_motivo_devolucion_cpu() {
             break;
 
         case THREAD_JOIN_OP:
-            log_info(logger, "TID:%d PID:%d fue bloqueado por THREAD JOIN\n", tid, hilo_actual->pid);
+            log_info(logger, "## (%d:%d) - Bloqueado por: PTHREAD_JOIN\n", hilo_actual->pid, hilo_actual->tid);
             tid = *(int *)list_remove(paquete_respuesta, 0);
             // Transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
             actualizar_quantum(tiempo_transcurrido);
@@ -398,35 +388,34 @@ void recibir_motivo_devolucion_cpu() {
 
         case MUTEX_CREATE_OP:
             nombre_mutex = list_remove(paquete_respuesta, 0);
-            log_info(logger, "TID:%d PID:%d está creando un nuevo mutex\n", tid, hilo_actual->pid);
+            log_info(logger, "PID:%d TID:%d está creando un nuevo mutex\n", hilo_actual->pid, tid);
             actualizar_quantum(tiempo_transcurrido);
             MUTEX_CREATE(nombre_mutex);
             break;
 
         case MUTEX_LOCK_OP:
             nombre_mutex = list_remove(paquete_respuesta, 0);
-            log_info(logger, "TID:%d PID:%d está intentando adquirir un mutex\n", tid, hilo_actual->pid);
+            log_info(logger, "## (%d:%d) - Bloqueado por: MUTEX\n", hilo_actual->pid, tid);
             actualizar_quantum(tiempo_transcurrido);
             MUTEX_LOCK(nombre_mutex);
             break;
 
         case MUTEX_UNLOCK_OP:
             nombre_mutex = list_remove(paquete_respuesta, 0);
-            log_info(logger, "TID:%d PID:%d está intentando liberar un mutex\n", tid, hilo_actual->pid);
+            log_info(logger, "PID:%d TID:%d está intentando liberar un mutex\n", hilo_actual->pid, tid);
             actualizar_quantum(tiempo_transcurrido);
             MUTEX_UNLOCK(nombre_mutex);
             break;
 
         case IO_SYSCALL:
-            encolar_hilo_corto_plazo(hilo_actual);
             tiempo = *(int *)list_remove(paquete_respuesta, 0);
-            log_info(logger, "TID:%d PID:%d ejecuta un IO\n", tid, hilo_actual->pid);
+            log_info(logger, "## (%d:%d) - Bloqueado por: IO\n", hilo_actual->pid, tid);
             actualizar_quantum(tiempo_transcurrido);
             IO(tiempo, hilo_actual->tid);
             break;   
 
         case DUMP_MEMORY_OP:
-            log_info(logger, "TID:%d PID:%d lanza un dump del proceso padre\n", tid, hilo_actual->pid);
+            log_info(logger, "PID:%d TID:%d lanza un dump del proceso padre\n", hilo_actual->pid, tid);
             pid = proceso_actual->pid;
             actualizar_quantum(tiempo_transcurrido);
             DUMP_MEMORY(pid);
@@ -434,11 +423,11 @@ void recibir_motivo_devolucion_cpu() {
             break;   
 
         case PROCESS_CREATE_OP:
+            log_info(logger, "## (%d:%d) - Solicitó syscall: PROCESS_CREATE", hilo_actual->pid, tid);
             nombre_archivo = list_remove(paquete_respuesta, 0);
             archivo = fopen(nombre_archivo, "r");
             prioridad = * (int *)list_remove(paquete_respuesta, 0);
             tamanio = * (int *)list_remove(paquete_respuesta, 0);
-            log_info(logger, "TID:%d PID:%d inició un PROCESS CREATE\n", tid, hilo_actual->pid);
             pid = proceso_actual->pid;
             actualizar_quantum(tiempo_transcurrido);
             PROCESS_CREATE(archivo, tamanio, prioridad);
@@ -450,7 +439,6 @@ void recibir_motivo_devolucion_cpu() {
             nombre_archivo = list_remove(paquete_respuesta, 0);
             archivo = fopen(nombre_archivo, "r");
             prioridad = *(int *)list_remove(paquete_respuesta, 0);
-            log_info(logger, "TID:%d PID:%d inició un THREAD CREATE\n", tid, hilo_actual->pid);
             pid = proceso_actual->pid;
             actualizar_quantum(tiempo_transcurrido);
             THREAD_CREATE(archivo, prioridad);
@@ -459,7 +447,6 @@ void recibir_motivo_devolucion_cpu() {
         
 
         case PROCESS_EXIT_OP:
-            log_info(logger, "TID:%d PID:%d inició un PROCESS EXIT\n", tid, hilo_actual->pid);
             pid = proceso_actual->pid;
             PROCESS_EXIT();
             ok_recibido = list_remove(paquete_respuesta, 0);
@@ -468,14 +455,14 @@ void recibir_motivo_devolucion_cpu() {
             break;   
         
         case THREAD_CANCEL_OP:
+            log_info(logger, "PID:%d TID:%d inicio un Thread Cancel\n", hilo_actual->pid, tid);
             tid = *(int *)list_remove(paquete_respuesta, 0);
-            log_info(logger, "TID:%d PID:%d inició un THREAD CANCEL\n", tid, hilo_actual->pid);
             desbloquear_hilos(tid);
             THREAD_CANCEL(tid);
             break;   
 
         case THREAD_EXIT_OP:
-            log_info(logger, "TID:%d PID:%d inició un THREAD EXIT\n", tid, hilo_actual->pid);
+            log_info(logger, "PID:%d TID:%d inicio un Thread exit\n", hilo_actual->pid, tid);
             desbloquear_hilos(hilo_actual->tid);
             THREAD_EXIT();
             ok_recibido = list_remove(paquete_respuesta, 0);
@@ -527,7 +514,7 @@ void desbloquear_hilos(int tid) {
 }
 
 void esperar_desbloqueo_ejecutar_hilo(int tid){
-    t_tcb* hilo_esperando = obtener_tcb_por_tid(tid);
+    t_tcb* hilo_esperando = obtener_tcb_por_tid(hilos_cola_bloqueados->lista_hilos, tid);
     sem_wait(hilo_esperando->cant_hilos_block);
     pthread_mutex_lock(mutex_socket_cpu_dispatch); 
     enviar_a_cpu_dispatch(hilo_esperando->tid, hilo_esperando->pid);   
@@ -559,14 +546,14 @@ t_cola_hilo* inicializar_cola_hilo(t_estado estado) {
 
     t_cola_hilo *cola = malloc(sizeof(t_cola_hilo));
     if (cola == NULL) {
-        perror("Error al asignar memoria para cola de hilos");
+        log_error(logger, "Error al asignar memoria para cola de hilos");
         exit(EXIT_FAILURE);
     }
 
     cola->nombre_estado = estado;
     cola->lista_hilos = list_create();  // Crea una lista vacía
     if (cola->lista_hilos == NULL) {
-        perror("Error al crear lista de hilos");
+        log_error(logger, "Error al crear lista de hilos");
         exit(EXIT_FAILURE);
     }
     return cola;
@@ -575,14 +562,14 @@ t_cola_hilo* inicializar_cola_hilo(t_estado estado) {
 void inicializar_semaforos_corto_plazo(){
     mutex_hilos_cola_ready = malloc(sizeof(pthread_mutex_t));
     if (mutex_hilos_cola_ready == NULL) {
-        perror("Error al asignar memoria para mutex de cola");
+        log_error(logger, "Error al asignar memoria para mutex de cola");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_init(mutex_hilos_cola_ready, NULL);
 
     mutex_hilos_cola_exit = malloc(sizeof(pthread_mutex_t));
     if (mutex_hilos_cola_exit == NULL) {
-        perror("Error al asignar memoria para mutex de cola");
+        log_error(logger, "Error al asignar memoria para mutex de cola");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_init(mutex_hilos_cola_exit, NULL);

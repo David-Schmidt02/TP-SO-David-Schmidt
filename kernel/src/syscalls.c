@@ -83,13 +83,13 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     t_pcb* nuevo_pcb = crear_pcb(pid, prioridadTID);
     nuevo_pcb->memoria_necesaria = tam_proceso;
 
-    log_info(logger, "Creación de Proceso: ## (<pid>:<%d>) Se crea el Proceso - Estado: NEW", nuevo_pcb->pid);
+    log_info(logger, "## (%d) Se crea el Proceso - Estado: NEW", nuevo_pcb->pid);
 
     t_tcb* tcb_principal = crear_tcb(pid, ultimo_tid++, prioridadTID);
     tcb_principal->estado = NEW;
 
 
-    log_info(logger, "Creación del hilo principal para el proceso PID: %d", nuevo_pcb->pid);
+    log_info(logger, "## (%d:%d) Se crea el Hilo - Estado: READY", nuevo_pcb->pid, tcb_principal->tid);
 
     nuevo_pcb->listaTCB = list_create();
     nuevo_pcb->listaMUTEX = list_create();
@@ -112,9 +112,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     sem_post(sem_estado_procesos_a_crear);
     pthread_mutex_unlock(mutex_procesos_a_crear);
 
-    log_info(logger, "Proceso PID %d agregado a la lista de procesos.", nuevo_pcb->pid);
     
-    log_info(logger, "## (%d:%d) - Solicitó syscall: PROCESS_CREATE", nuevo_pcb->pid, tcb_principal->tid);
     
     
 }
@@ -140,9 +138,9 @@ void eliminar_pcb(t_pcb* pcb) {
         list_destroy_and_destroy_elements(pcb->listaMUTEX, (void*) eliminar_mutex); // <-- Asegúrate de tener esta función
     }
 
-    free(pcb);
+    log_info(logger, "## Finaliza el proceso %d", pcb->pid);
 
-    log_info(logger, "PCB eliminado exitosamente.");
+    free(pcb);
 }
 
 void PROCESS_EXIT() {
@@ -170,7 +168,7 @@ void PROCESS_EXIT() {
     for (int i = 0; i < list_size(pcb_encontrado->listaTCB); i++) {
         t_tcb* tcb_asociado = list_get(pcb_encontrado->listaTCB, i);
         cambiar_estado(tcb_asociado, EXIT);
-        log_info(logger, "TCB TID: %d del proceso PID: %d ha cambiado a estado EXIT", tcb_asociado->tid, pcb_encontrado->pid);
+        log_info(logger, "## (%d:%d) Finaliza el hilo", pcb_encontrado->pid, tcb_asociado->tid);
         //acá hay que hacer dos cosas, eliminarlos de la cola de hilos y moverlos a una cola de exit
         if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
             eliminar_hilo_de_cola_fifo_prioridades_thread_exit(tcb_asociado);
@@ -195,7 +193,6 @@ void PROCESS_EXIT() {
     //list_remove_and_destroy_by_condition(procesos_cola_ready->lista_procesos, (void*) (pcb_encontrado->pid == pid_buscado), (void*) eliminar_pcb);
     t_list_iterator * iterator = list_iterator_create(procesos_cola_ready->lista_procesos);
     t_pcb *aux;
-    log_info(logger, "Proceso con PID: %d ha sido eliminado.", pcb_encontrado->pid);
     log_info(logger, "## Finaliza el proceso %d", pcb_encontrado->pid);
     while (list_iterator_has_next(iterator))
     {
@@ -332,7 +329,7 @@ void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad) {
 }
 
 void THREAD_JOIN(int tid_a_esperar) {
-    t_tcb* hilo_a_esperar = obtener_tcb_por_tid(tid_a_esperar);
+    t_tcb* hilo_a_esperar = obtener_tcb_por_tid(hilos_cola_ready->lista_hilos, tid_a_esperar);
 
     if (hilo_a_esperar == NULL || hilo_a_esperar->estado == EXIT) {
         log_info(logger, "THREAD_JOIN: Hilo TID %d no encontrado o ya finalizado.", tid_a_esperar);
@@ -345,9 +342,7 @@ void THREAD_JOIN(int tid_a_esperar) {
     //agregar una interrupcion a CPU para que deje de ejecutarlo y ejecute el siguiente hilo de la cola
 
     // Obtengo el PCB correspondiente al hilo actual
-    log_info(logger, "## (%d:%d) - Bloqueado por: THREAD_JOIN", hilo_actual->pid, hilo_actual->tid);
     encolar_en_block(hilo_actual);
-    log_info(logger, "THREAD_JOIN: Hilo TID %d se bloquea esperando a Hilo TID %d.", hilo_actual->tid, tid_a_esperar);
     //free(pcb_hilo_actual);/
 }
 
@@ -361,7 +356,7 @@ void finalizar_hilo(t_tcb* hilo) {
 }
 
 void THREAD_CANCEL(int tid_hilo_a_cancelar) { // Esta sys recibe el tid solamente del hilo a cancelar
-    t_tcb* hilo_a_cancelar = obtener_tcb_por_tid(tid_hilo_a_cancelar);
+    t_tcb* hilo_a_cancelar = obtener_tcb_por_tid(hilos_cola_ready->lista_hilos,tid_hilo_a_cancelar);
     if (hilo_a_cancelar == NULL) {
         log_warning(logger, "TID %d no existe o ya fue finalizado.", tid_hilo_a_cancelar);
         return;
@@ -614,8 +609,6 @@ void DUMP_MEMORY(int pid) {
     peticion->hilo = NULL; 
     encolar_peticion_memoria(peticion);
     sem_wait(sem_estado_respuesta_desde_memoria);
-
-    log_info(logger, "FIN DEL DUMP DE MEMORIA");
 }
 
 void element_destroyer(void* elemento) 
@@ -661,9 +654,9 @@ void liberarInstrucciones(t_list* instrucciones) {
 }
 
 
-t_tcb* obtener_tcb_por_tid(int tid) {
-    for (int i = 0; i < list_size(lista_global_tcb); i++) {
-        t_tcb* hilo = list_get(lista_global_tcb, i);
+t_tcb* obtener_tcb_por_tid(t_list * lista, int tid) {
+    for (int i = 0; i < list_size(lista); i++) {
+        t_tcb* hilo = list_get(lista, i);
         if (hilo->tid == tid) {
             return hilo;
         }
