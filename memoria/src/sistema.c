@@ -253,6 +253,7 @@ int agregar_a_dinamica(t_pcb *pcb){
     
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_huecos);
     elemento_huecos *aux_hueco, *aux_hueco_nuevo;
+    elemento_huecos *mejor_hueco, *peor_hueco;
     elemento_procesos *aux_proceso;
     int index;
 
@@ -261,28 +262,88 @@ int agregar_a_dinamica(t_pcb *pcb){
     pthread_mutex_lock(mutex_procesos_din);
     while(list_iterator_has_next(iterator)) {
         aux_hueco = list_iterator_next(iterator); // siguiente hueco
-        if (aux_hueco->size >= pcb->memoria_necesaria){ // entra mi proceso en el hueco?
-            
-            //seteo variables del nuevo proceso
-            aux_proceso->inicio = aux_hueco->inicio;
-            aux_proceso->size = pcb->memoria_necesaria;
+        switch (memoria_usuario->fit)
+        {
+        case FIRST_FIT:
+            if (aux_hueco->size >= pcb->memoria_necesaria){ // entra mi proceso en el hueco?
+                
+                //seteo variables del nuevo proceso
+                aux_proceso->inicio = aux_hueco->inicio;
+                aux_proceso->size = pcb->memoria_necesaria;
 
-            //add proceso a tabla de procesos
-            index = list_add(memoria_usuario->tabla_procesos, aux_proceso);
-            
-            //creo un hueco nuevo a partir del usado
-            aux_hueco_nuevo->inicio = aux_hueco->inicio+aux_proceso->size;
-            aux_hueco_nuevo->size = aux_hueco->size-aux_proceso->size;
+                //add proceso a tabla de procesos
+                index = list_add(memoria_usuario->tabla_procesos, aux_proceso);
+                
+                //creo un hueco nuevo a partir del usado
+                aux_hueco_nuevo->inicio = aux_hueco->inicio+aux_proceso->size;
+                aux_hueco_nuevo->size = aux_hueco->size-aux_proceso->size;
 
-            //reemplazo el hueco usado por el nuevo (que es mas chico)
-            aux_hueco = aux_hueco_nuevo;
+                //reemplazo el hueco usado por el nuevo (que es mas chico)
+                aux_hueco = aux_hueco_nuevo;
 
-            //se me quemo el cerebro
-            list_iterator_destroy(iterator);
-            pthread_mutex_unlock(mutex_procesos_din);
+                //se me quemo el cerebro
+                list_iterator_destroy(iterator);
+                pthread_mutex_unlock(mutex_procesos_din);
+            }
             return index;
+            break;
+        case BEST_FIT:
+            if (aux_hueco->size >= pcb->memoria_necesaria){// entra mi proceso en el hueco?
+                if(mejor_hueco==NULL){
+                    mejor_hueco = aux_hueco;
+                }else if(mejor_hueco->size > aux_hueco->size){
+                    mejor_hueco = aux_hueco;
+                }
+            } 
+            break;
+        case WORST_FIT:
+            if (aux_hueco->size >= pcb->memoria_necesaria){// entra mi proceso en el hueco?
+                if(peor_hueco==NULL){
+                    peor_hueco = aux_hueco;
+                }else if(peor_hueco->size < aux_hueco->size){
+                    peor_hueco = aux_hueco;
+                }
+            } 
+            break;
+        
+        default:
+            break;
+        
         }
-    }pthread_mutex_unlock(mutex_procesos_din);
+    }
+    if(mejor_hueco && memoria_usuario->fit == BEST_FIT){
+        //seteo variables del nuevo proceso
+        aux_proceso->inicio = mejor_hueco->inicio;
+        aux_proceso->size = pcb->memoria_necesaria;
+        //add proceso a tabla de procesos
+        index = list_add(memoria_usuario->tabla_procesos, aux_proceso);
+        
+        //creo un hueco nuevo a partir del usado
+        aux_hueco_nuevo->inicio = mejor_hueco->inicio+aux_proceso->size;
+        aux_hueco_nuevo->size = mejor_hueco->size-aux_proceso->size;
+        //reemplazo el hueco usado por el nuevo (que es mas chico)
+        mejor_hueco = aux_hueco_nuevo;
+        //se me quemo el cerebro
+        list_iterator_destroy(iterator);
+        pthread_mutex_unlock(mutex_procesos_din);
+    }
+    if(peor_hueco && memoria_usuario->fit == WORST_FIT){
+        //seteo variables del nuevo proceso
+        aux_proceso->inicio = peor_hueco->inicio;
+        aux_proceso->size = pcb->memoria_necesaria;
+        //add proceso a tabla de procesos
+        index = list_add(memoria_usuario->tabla_procesos, aux_proceso);
+        
+        //creo un hueco nuevo a partir del usado
+        aux_hueco_nuevo->inicio = peor_hueco->inicio+aux_proceso->size;
+        aux_hueco_nuevo->size = peor_hueco->size-aux_proceso->size;
+        //reemplazo el hueco usado por el nuevo (que es mas chico)
+        peor_hueco = aux_hueco_nuevo;
+        //se me quemo el cerebro
+        list_iterator_destroy(iterator);
+        pthread_mutex_unlock(mutex_procesos_din);
+    }
+    pthread_mutex_unlock(mutex_procesos_din);
     log_error(logger, "No hay huecos libres");
     return -1;
 }

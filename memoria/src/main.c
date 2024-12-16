@@ -3,6 +3,7 @@
 t_log *logger;
 int socket_cliente_cpu; //necesito que sea global para usarlo desde sistema.c
 int conexion_memoria_fs;
+
 t_memoria *memoria_usuario;
 pthread_mutex_t * mutex_pcb;
 pthread_mutex_t * mutex_tcb;
@@ -55,11 +56,19 @@ int main(int argc, char* argv[]) {
 	pthread_mutex_init(mutex_lista_peticiones, NULL);
 
 	//inicializar memoria
+	fit fit;
+	char * fit_text;
+	fit_text = config_get_string_value(config, "ALGORITMO_BUSQUEDA");
+	if(!strcmp(fit_text, "FIRST")){
+		fit = FIRST_FIT;
+	}else if(strcmp(fit_text, "BEST")){
+		fit = BEST_FIT;
+	}else fit = WORST_FIT;
 	t_list *particiones = list_create();
 	char ** particiones_string = config_get_array_value(config, "PARTICIONES");
 	cargar_lista_particiones(particiones, particiones_string);
 	string_array_destroy(particiones_string);
-	inicializar_memoria(config_get_int_value(config, "TIPO_PARTICION"), config_get_int_value(config, "TAM_MEMORIA"), particiones); //1 fija 0 dinamica
+	inicializar_memoria(config_get_int_value(config, "TIPO_PARTICION"), config_get_int_value(config, "TAM_MEMORIA"), particiones, fit); //1 fija 0 dinamica
 
     //conexiones
 	arg_cpu.puerto = config_get_string_value(config, "PUERTO_CPU");
@@ -85,13 +94,14 @@ int main(int argc, char* argv[]) {
 
 }
 
-void inicializar_memoria(particiones tipo_particion, int size, t_list *particiones){
+void inicializar_memoria(particiones tipo_particion, int size, t_list *particiones, fit fit){
 
 	memoria_usuario = malloc(sizeof(t_memoria));
 	memoria_usuario->lista_pcb = list_create();
 	memoria_usuario->lista_tcb = list_create();
 	memoria_usuario->espacio=malloc(size*sizeof(uint32_t));
 	memoria_usuario->size = size;
+	memoria_usuario->fit = fit;
 
 	switch(tipo_particion){
 		case DINAMICAS: // particiones dinamicas

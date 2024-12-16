@@ -16,6 +16,12 @@ typedef enum particiones{
     FIJAS
 }particiones;
 
+typedef enum fit{
+    FIRST_FIT,
+    BEST_FIT,
+    WORST_FIT
+}fit;
+
 void enviar_contexto(int pid, int tid);
 void *conexion_kernel(void * arg_kernel);
 void *peticion_kernel_DUMP(void *arg_peticion);
@@ -26,7 +32,7 @@ void *peticion_kernel_NEW_PROCESS(void* arg_peticion);
 void *peticion_kernel_NEW_THREAD(void *arg_peticion);
 void *peticion_kernel_END_PROCESS(void *arg_peticion);
 void *peticion_kernel_END_THREAD(void *arg_peticion);
-void inicializar_memoria(particiones tipo_particion, int size, t_list *); // hacer para dinamicas
+void inicializar_memoria(particiones tipo_particion, int size, t_list *, fit fit); // hacer para dinamicas
 void levantar_conexiones(void); //
 void cargar_lista_particiones(t_list *, char **); //solo para fijas
 
@@ -34,6 +40,7 @@ typedef struct t_memoria{
     void *espacio;
     int size;
     enum particiones tipo_particion;
+    enum fit fit;
     t_list *tabla_particiones_fijas;
     t_list *tabla_huecos;
     t_list *tabla_procesos;

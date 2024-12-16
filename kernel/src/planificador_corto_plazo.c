@@ -479,7 +479,7 @@ void recibir_motivo_devolucion_cpu() {
             list_destroy(paquete_respuesta);
             break;
         default:
-            log_warning(logger, "Motivo desconocido para el hilo %d\n", tid);
+            log_warning(logger, "Motivo: %d desconocido para el hilo %d\n", motivo, tid);
             break;
     }
 }
