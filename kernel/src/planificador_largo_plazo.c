@@ -133,9 +133,10 @@ void largo_plazo_fifo()
             while(!peticion->respuesta_exitosa){
                 pthread_mutex_unlock(mutex_procesos_a_crear);
                 sem_post(sem_hilo_principal_process_create_encolado);
+                sem_post(sem_hilo_principal_process_create_encolado);
                 sem_wait(sem_proceso_finalizado);
                 pthread_mutex_lock(mutex_procesos_a_crear);
-                list_add_in_index(procesos_a_crear->lista_procesos, 0, proceso);
+                list_add_in_index(procesos_a_crear->lista_procesos, -1, proceso);
                 pthread_mutex_unlock(mutex_procesos_a_crear);
                 sem_post(sem_estado_procesos_a_crear);
             }

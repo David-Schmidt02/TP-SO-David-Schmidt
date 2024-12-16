@@ -445,14 +445,12 @@ void recibir_motivo_devolucion_cpu() {
             encolar_hilo_corto_plazo(hilo_actual);
             break;   
         
-
         case PROCESS_EXIT_OP:
-            pid = proceso_actual->pid;
             PROCESS_EXIT();
             ok_recibido = list_remove(paquete_respuesta, 0);
             free(ok_recibido);
             list_destroy(paquete_respuesta);
-            break;   
+            break;
         
         case THREAD_CANCEL_OP:
             log_info(logger, "PID:%d TID:%d inicio un Thread Cancel\n", hilo_actual->pid, tid);

@@ -12,6 +12,7 @@ extern pthread_mutex_t * mutex_colaIO;
 extern sem_t * sem_estado_colaIO;
 extern t_tcb * hilo_actual;
 extern t_cola_hilo* hilos_cola_ready;
+extern pthread_mutex_t * mutex_hilos_cola_ready;
 
 
 //PASA EL PROCESO A BLOCKED, ESPERA EL TIEMPO Y DESBLOQUEA EL PROFCESO (READY)
@@ -31,10 +32,7 @@ void* acceder_Entrada_Salida(void *arg) {
 
         t_uso_io *peticion = list_remove(colaIO->lista_io, 0);
 
-        tcb_aux = obtener_tcb_por_tid(hilos_cola_ready->lista_hilos, peticion->tid);
-        if(tcb_aux == NULL){
-            tcb_aux = hilo_actual;
-        }
+        tcb_aux = peticion->hilo;
         pthread_mutex_unlock(mutex_colaIO);
         log_info(logger, "## (%d:%d) finalizó IO y pasa a READY\n", tcb_aux->pid, tcb_aux->tid);
         if (peticion != NULL) {

@@ -27,7 +27,7 @@ typedef struct
 
 
 typedef struct{
-    int tid;
+    t_tcb *hilo;
     int milisegundos;
 }t_uso_io;
 

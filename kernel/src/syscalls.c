@@ -149,6 +149,8 @@ void PROCESS_EXIT() {
     t_pcb* pcb_encontrado = NULL;
 
     // Buscar el PCB que coincide con el pid del hilo actual
+    proceso_actual->estado = EXIT;
+
     for (int i = 0; i < list_size(procesos_cola_ready->lista_procesos); i++) {
         t_pcb* pcb = list_get(procesos_cola_ready->lista_procesos, i);
         if (pid_buscado == pcb->pid) {
@@ -479,7 +481,7 @@ void IO(float milisec, int tcb_id) {
     }
 
     peticion->milisegundos = milisec;
-    peticion->tid = tcb_id;
+    peticion->hilo = hilo_actual;
 
     list_add(colaIO->lista_io, peticion);
 
@@ -655,8 +657,10 @@ void liberarInstrucciones(t_list* instrucciones) {
 
 
 t_tcb* obtener_tcb_por_tid(t_list * lista, int tid) {
+    t_tcb* hilo;
+
     for (int i = 0; i < list_size(lista); i++) {
-        t_tcb* hilo = list_get(lista, i);
+        hilo = list_get(lista, i);
         if (hilo->tid == tid) {
             return hilo;
         }
