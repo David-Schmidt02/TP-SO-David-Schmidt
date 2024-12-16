@@ -441,7 +441,7 @@ int send_dump(int pid, int tid){
     struct timeval tiempo_actual;
     gettimeofday(&tiempo_actual, NULL);
     struct tm *tiempo_local = localtime(&tiempo_actual.tv_sec);
-    char * nombre_archivo = NULL;
+    char * nombre_archivo = malloc(50);
     snprintf(nombre_archivo, sizeof(nombre_archivo), 
              "%d-%d-%02d:%02d:%02d:%03ld.dmp", 
              string_itoa(pid),
