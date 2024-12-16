@@ -6,6 +6,7 @@ t_config *config;
 uint32_t block_count;
 int block_size;
 char* mount_dir;
+uint32_t num_bloque;
 
 int main() {
 
@@ -71,16 +72,14 @@ void *conexion_memoria(void* arg_memoria)
 					char* nombre_archivo;
 					uint32_t tamanio;
 					uint32_t *datos;
-
 					nombre_archivo = list_remove(recv_list,0);
-					tamanio = (uint32_t)list_remove(recv_list,0);
-					datos = list_remove(recv_list,0);
-
+					tamanio = *(int *)list_remove(recv_list,0);
+					datos = (uint32_t *)list_remove(recv_list,0);
+					log_info(logger, "Nombre del archivo recivido: %s", nombre_archivo);
 					char* dir_files = mount_dir;
 					dir_files = crear_directorio(dir_files,"/files");
-					espacio_disponible(tamanio);
 					crear_archivo_metadata(block_count,block_size,dir_files,nombre_archivo,tamanio);
-					log_info(logger, "Fin de solicitud - Archivo: <%s>", nombre_archivo);
+					log_info(logger, "Fin de solicitud - Archivo: %s", nombre_archivo);
 					break;
 				case -1:
 					log_error(logger, "el cliente se desconecto. Terminando servidor");
