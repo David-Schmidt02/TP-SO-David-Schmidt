@@ -34,9 +34,9 @@ void* acceder_Entrada_Salida(void *arg) {
 
         tcb_aux = peticion->hilo;
         pthread_mutex_unlock(mutex_colaIO);
-        log_info(logger, "## (%d:%d) finalizó IO y pasa a READY\n", tcb_aux->pid, tcb_aux->tid);
         if (peticion != NULL) {
             usleep(peticion->milisegundos);
+            log_info(logger, "## (%d:%d) finalizó IO y pasa a READY\n", tcb_aux->pid, tcb_aux->tid);
             encolar_hilo_corto_plazo(tcb_aux);
             free(peticion);
         }

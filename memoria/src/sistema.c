@@ -236,16 +236,57 @@ int agregar_a_tabla_particion_fija(t_pcb *pcb){
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_particiones_fijas);
     elemento_particiones_fijas *aux;
     int index = -1;
+    elemento_particiones_fijas *aux_best, *aux_worst;
+    aux_best = malloc(sizeof(elemento_particiones_fijas));
+    aux_worst = malloc(sizeof(elemento_particiones_fijas));
 
     pthread_mutex_lock(mutex_part_fijas);
     while(list_iterator_has_next(iterator)) {
         aux = list_iterator_next(iterator);
-        if (aux->libre_ocupado==0 && aux->size>= pcb->memoria_necesaria){
-            aux->libre_ocupado = pcb->pid; //no liberar aux, sino se pierde el elemento xd
-            index = list_iterator_index(iterator);
-            break;
+        switch(memoria_usuario->fit){
+            case FIRST_FIT:
+                if (aux->libre_ocupado==0 && aux->size >= pcb->memoria_necesaria){
+                    aux->libre_ocupado = pcb->pid; //no liberar aux, sino se pierde el elemento xd
+                    index = list_iterator_index(iterator);
+                    pthread_mutex_unlock(mutex_part_fijas);
+                    list_iterator_destroy(iterator);
+                    return index;
+                }
+                break;
+            case BEST_FIT:
+                if (aux->libre_ocupado==0 && aux->size >= pcb->memoria_necesaria){
+                    if(aux_best==NULL){
+                        aux_best = aux;
+                    }else if(aux_best->size > aux->size){
+                        aux_best = aux;
+                    }
+                }
+                break;
+            case WORST_FIT:
+                if (aux->libre_ocupado==0 && aux->size >= pcb->memoria_necesaria){
+                    if(aux_worst==NULL){
+                        aux_worst = aux;
+                    }else if(aux_worst->size < aux->size){
+                        aux_worst = aux;
+                    }
+                }
+                break;
         }
-    }pthread_mutex_unlock(mutex_part_fijas);
+    }if(aux_best && memoria_usuario->fit == BEST_FIT){
+        aux_best->libre_ocupado = pcb->pid; //no liberar aux, sino se pierde el elemento xd
+        index = list_iterator_index(iterator);
+        pthread_mutex_unlock(mutex_part_fijas);
+        list_iterator_destroy(iterator);
+        return index;
+    }
+    if(aux_worst && memoria_usuario->fit == WORST_FIT){
+        aux_worst->libre_ocupado = pcb->pid; //no liberar aux, sino se pierde el elemento xd
+        index = list_iterator_index(iterator);
+        pthread_mutex_unlock(mutex_part_fijas);
+        list_iterator_destroy(iterator);
+        return index;
+    }
+    pthread_mutex_unlock(mutex_part_fijas);
     list_iterator_destroy(iterator);
     return index;
 }
@@ -254,7 +295,7 @@ int agregar_a_dinamica(t_pcb *pcb){
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_huecos);
     elemento_huecos *aux_hueco, *aux_hueco_nuevo;
     elemento_huecos *mejor_hueco, *peor_hueco;
-    elemento_procesos *aux_proceso;
+    elemento_procesos *aux_proceso=malloc(sizeof(elemento_procesos));
     int index;
 
     aux_proceso->pid = pcb->pid;
@@ -284,8 +325,8 @@ int agregar_a_dinamica(t_pcb *pcb){
                 //se me quemo el cerebro
                 list_iterator_destroy(iterator);
                 pthread_mutex_unlock(mutex_procesos_din);
+                return index;
             }
-            return index;
             break;
         case BEST_FIT:
             if (aux_hueco->size >= pcb->memoria_necesaria){// entra mi proceso en el hueco?
@@ -326,6 +367,7 @@ int agregar_a_dinamica(t_pcb *pcb){
         //se me quemo el cerebro
         list_iterator_destroy(iterator);
         pthread_mutex_unlock(mutex_procesos_din);
+        return index;
     }
     if(peor_hueco && memoria_usuario->fit == WORST_FIT){
         //seteo variables del nuevo proceso
@@ -342,6 +384,7 @@ int agregar_a_dinamica(t_pcb *pcb){
         //se me quemo el cerebro
         list_iterator_destroy(iterator);
         pthread_mutex_unlock(mutex_procesos_din);
+        return index;
     }
     pthread_mutex_unlock(mutex_procesos_din);
     log_error(logger, "No hay huecos libres");
@@ -352,6 +395,7 @@ void remover_proceso_de_tabla_dinamica(int pid){
 
     elemento_huecos *aux_hueco, *aux_hueco_iterator;
     elemento_procesos *aux_proceso;
+    aux_hueco = malloc (sizeof(elemento_huecos));
 
     pthread_mutex_lock(mutex_procesos_din);
 
@@ -455,6 +499,7 @@ int buscar_en_dinamica(int pid){
     while(list_iterator_has_next(iterator)){
         aux = list_iterator_next(iterator);
         if(aux->pid == pid){
+            pthread_mutex_unlock(mutex_procesos_din);
             return list_iterator_index(iterator);
         }
     }
@@ -578,9 +623,11 @@ int crear_proceso(t_pcb *pcb) {
 
             pthread_mutex_lock(mutex_pcb);
             list_add(memoria_usuario->lista_pcb, pcb);
-
+            pcb->listaTCB = list_create();
+            pcb->listaMUTEX = list_create();
             t_list_iterator *iterator_dinamica = list_iterator_create(pcb->listaTCB);
             t_tcb *tcb_aux_dinamica;
+            
             while (list_iterator_has_next(iterator_dinamica)) {
                 tcb_aux_dinamica = list_iterator_next(iterator_dinamica);
                 list_add(memoria_usuario->lista_tcb, tcb_aux_dinamica);
@@ -659,7 +706,7 @@ void fin_proceso(int pid) {
             
             pthread_mutex_lock(mutex_pcb);
             t_pcb * pcb = list_remove(memoria_usuario->lista_pcb, index_pcb); // saco el pid de la tabla_pcb
-            memoria_liberada = pcb_aux->memoria_necesaria;
+            memoria_liberada = pcb->memoria_necesaria;
             free(pcb);
             pthread_mutex_unlock(mutex_pcb);
             //

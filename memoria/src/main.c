@@ -58,17 +58,25 @@ int main(int argc, char* argv[]) {
 	//inicializar memoria
 	fit fit;
 	char * fit_text;
+	particiones tipo_particion;
+	char * tipo_particion_text;
+	tipo_particion_text = config_get_string_value(config, "ESQUEMA");
 	fit_text = config_get_string_value(config, "ALGORITMO_BUSQUEDA");
 	if(!strcmp(fit_text, "FIRST")){
 		fit = FIRST_FIT;
 	}else if(strcmp(fit_text, "BEST")){
 		fit = BEST_FIT;
 	}else fit = WORST_FIT;
+	if(!strcmp(tipo_particion_text,"FIJAS")){
+		tipo_particion = FIJAS;
+	}else if (!strcmp(tipo_particion_text, "DINAMICAS")){
+		tipo_particion = DINAMICAS;
+	}
 	t_list *particiones = list_create();
 	char ** particiones_string = config_get_array_value(config, "PARTICIONES");
 	cargar_lista_particiones(particiones, particiones_string);
 	string_array_destroy(particiones_string);
-	inicializar_memoria(config_get_int_value(config, "TIPO_PARTICION"), config_get_int_value(config, "TAM_MEMORIA"), particiones, fit); //1 fija 0 dinamica
+	inicializar_memoria(tipo_particion, config_get_int_value(config, "TAM_MEMORIA"), particiones, fit); //1 fija 0 dinamica
 
     //conexiones
 	arg_cpu.puerto = config_get_string_value(config, "PUERTO_CPU");
