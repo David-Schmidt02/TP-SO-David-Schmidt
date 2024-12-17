@@ -108,12 +108,12 @@ bool espacio_disponible(uint32_t cantidad) {
 }
 
 uint32_t reservar_bloques() {
-    pthread_mutex_lock(mutex_bitmap);
+    
     if (!espacio_disponible(1)) {
-        pthread_mutex_unlock(mutex_bitmap);
         log_error(logger, "No hay bloques disponibles para reservar.");
         return -1;
     }
+    pthread_mutex_lock(mutex_bitmap);
     for (uint32_t i = 0; i < bitarray_get_max_bit(bitmap); i++) {
         if (!bitarray_test_bit(bitmap, i)) {
             bitarray_set_bit(bitmap, i);

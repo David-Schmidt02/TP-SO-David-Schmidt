@@ -420,16 +420,16 @@ void recibir_motivo_devolucion_cpu() {
             log_info(logger, "PID:%d TID:%d lanza un dump del proceso padre\n", hilo_actual->pid, tid);
             pid = proceso_actual->pid;
             actualizar_quantum(tiempo_transcurrido);
-            DUMP_MEMORY(pid);
             encolar_hilo_corto_plazo(hilo_actual);
+            DUMP_MEMORY(pid);
             break;   
 
         case PROCESS_CREATE_OP:
             log_info(logger, "## (%d:%d) - Solicitó syscall: PROCESS_CREATE", hilo_actual->pid, tid);
             nombre_archivo = list_remove(paquete_respuesta, 0);
             archivo = fopen(nombre_archivo, "r");
-            prioridad = * (int *)list_remove(paquete_respuesta, 0);
             tamanio = * (int *)list_remove(paquete_respuesta, 0);
+            prioridad = * (int *)list_remove(paquete_respuesta, 0);
             pid = proceso_actual->pid;
             actualizar_quantum(tiempo_transcurrido);
             PROCESS_CREATE(archivo, tamanio, prioridad);

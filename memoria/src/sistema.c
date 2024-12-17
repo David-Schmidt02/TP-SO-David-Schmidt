@@ -620,9 +620,11 @@ int crear_proceso(t_pcb *pcb) {
             if (index_dinamica == -1) {
                 return index_dinamica;
             }
-
+            elemento_procesos *aux_din = list_get(memoria_usuario->tabla_procesos, index_dinamica);
             pthread_mutex_lock(mutex_pcb);
             list_add(memoria_usuario->lista_pcb, pcb);
+            pcb->base = aux_fija->base;
+            pcb->limite = aux_fija->size;
             pcb->listaTCB = list_create();
             pcb->listaMUTEX = list_create();
             t_list_iterator *iterator_dinamica = list_iterator_create(pcb->listaTCB);

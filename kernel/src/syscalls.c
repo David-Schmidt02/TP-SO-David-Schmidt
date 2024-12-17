@@ -85,7 +85,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
 
     log_info(logger, "## (%d) Se crea el Proceso - Estado: NEW", nuevo_pcb->pid);
 
-    t_tcb* tcb_principal = crear_tcb(pid, ultimo_tid, prioridadTID);
+    t_tcb* tcb_principal = crear_tcb(pid, ultimo_tid++, prioridadTID);
     tcb_principal->estado = NEW;
 
 
