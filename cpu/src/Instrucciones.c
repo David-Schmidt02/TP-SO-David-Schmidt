@@ -26,6 +26,7 @@ extern pthread_mutex_t *mutex_lista_interrupciones;
 extern sem_t * sem_conexion_kernel_interrupt;
 extern sem_t * sem_conexion_kernel_cpu_dispatch;
 extern sem_t * sem_conexion_memoria;
+extern sem_t * sem_se_detuvo_ejecucion;
 //
 
 //Para manejar las conexiones con mutexs
@@ -55,9 +56,10 @@ void inicializar_registros_cpu() {
     
 
     pid_actual = 0;
-    //tid_actual = 0; -> no es necesario
+    tid_actual = -1; 
 
     log_info(logger, "Contexto de CPU inicializado");
+    sem_post(sem_se_detuvo_ejecucion);
 }
 
 void inicializar_semaforos_cpu(){
@@ -95,6 +97,13 @@ void inicializar_semaforos_cpu(){
         exit(EXIT_FAILURE);
     }
     sem_init(sem_conexion_kernel_cpu_dispatch, 0, 0);
+
+    sem_se_detuvo_ejecucion = malloc(sizeof(sem_t));
+    if (sem_se_detuvo_ejecucion == NULL) {
+        perror("Error al asignar memoria para semáforo de cola");
+        exit(EXIT_FAILURE);
+    }
+    sem_init(sem_se_detuvo_ejecucion, 0, 0);
 
     sem_lista_interrupciones = malloc(sizeof(sem_t));
     if (sem_lista_interrupciones == NULL) {
@@ -496,7 +505,12 @@ void checkInterrupt() { //el checkInterrupt se corre siempre -> interrupcion -> 
     switch (interrupcion_actual->tipo) {
         case FIN_QUANTUM:
             log_info(logger, "## Interrupción FIN_QUANTUM recibida para el TID: %d", tid_de_interrupcion_FIN_QUANTUM);
-            manejar_motivo(interrupcion_actual->tipo,interrupcion_actual->parametro);        
+            if(pid_actual != 0)
+                {
+                    manejar_motivo(interrupcion_actual->tipo,interrupcion_actual->parametro);
+                    break;
+                }
+            log_info(logger, "## Interrupción FIN_QUANTUM cancelada, PID: %d TID:%d", pid_actual, tid_actual);
             break;
         case PROCESS_CREATE_OP:
             log_info(logger, "## syscall Interrupción PROCESS_CREATE_OP recibida ");
@@ -706,6 +720,7 @@ t_interrupcion* obtener_interrupcion() {
     pthread_mutex_lock(mutex_lista_interrupciones);
 
     list_remove(lista_interrupciones, indice_mayor_prioridad);
+    log_error(logger, "TAMAÑO RESTANTE DE LA LISTA DE INTERRUPCIONES: %d",list_size(lista_interrupciones));
     pthread_mutex_unlock(mutex_lista_interrupciones);
 
     return interrupcion_mayor_prioridad;

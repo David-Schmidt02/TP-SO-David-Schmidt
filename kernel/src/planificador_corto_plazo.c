@@ -158,21 +158,22 @@ void corto_plazo_colas_multinivel() {
     while (1) {
         int replanificar = 0; // Variable para saber si hay que replanificar
         sem_wait(sem_estado_multinivel);
-        pthread_mutex_lock(mutex_colas_multinivel);
         t_nivel_prioridad *nivel_a_ejecutar = NULL;
         t_cola_hilo *cola_a_ejecutar = buscar_cola_menor_prioridad(colas_multinivel, &nivel_a_ejecutar);
 
         // Si encontramos una cola válida para ejecutar
         if (cola_a_ejecutar != NULL && nivel_a_ejecutar != NULL) {
             // Extraemos el primer hilo en la cola de menor prioridad
+            pthread_mutex_lock(mutex_colas_multinivel);
             t_tcb *hilo_a_ejecutar = list_remove(cola_a_ejecutar->lista_hilos, 0);
+            pthread_mutex_unlock(mutex_colas_multinivel);
             log_info(logger,"Cola de prioridad %d: Ejecutando hilo TID=%d, PID=%d\n", nivel_a_ejecutar->nivel_prioridad, hilo_a_ejecutar->tid, hilo_a_ejecutar->pid);
             hilo_a_ejecutar->estado = EXEC;  
             ejecutar_round_robin(hilo_a_ejecutar);
             // Indicamos que hay que replanificar, ya que se ha ejecutado un hilo
             replanificar = 1;
         }
-        pthread_mutex_unlock(mutex_colas_multinivel);
+
         if (!replanificar) {
             usleep(100); 
         }
@@ -231,7 +232,7 @@ void enviar_interrupcion_fin_quantum(void *hilo_void) {
     gettimeofday(&tiempo_inicio_quantum, NULL); // Marcar el inicio del quantum
     pthread_mutex_unlock(&mutex_tiempo_inicio);
 
-    usleep(hilo->quantum_restante);
+    usleep(hilo->quantum_restante*1000);
     // Si el quantum se agotó, enviamos una interrupción al CPU por el canal de interrupt
     // Si el hilo finalizó, igual se manda la interrupcion por Fin de Quantum, pero la CPU chequea que ese hilo ya terminó y la desestima
     pthread_mutex_lock(mutex_socket_cpu_interrupt);

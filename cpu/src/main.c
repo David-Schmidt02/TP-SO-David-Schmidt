@@ -12,6 +12,8 @@ uint32_t base_actual,limite_actual;
 
 sem_t * sem_conexion_kernel_interrupt;
 sem_t * sem_conexion_kernel_cpu_dispatch;
+sem_t * sem_se_detuvo_ejecucion;
+
 
 int pid_actual;
 int tid_actual;
@@ -116,6 +118,7 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 			case INFO_HILO:
 				log_info(logger, "Recibí un hilo para ejecutar de parte de Kernel");
 				t_list *paquete = recibir_paquete(socket_conexion_kernel_dispatch);
+				sem_wait(sem_se_detuvo_ejecucion);
 				tid_actual = *(int *)list_remove(paquete, 0);
 				pid_actual = *(int *)list_remove(paquete, 0);
 				list_destroy(paquete);
@@ -171,10 +174,12 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 				tid_de_interrupcion_FIN_QUANTUM = *(int *)list_remove(paquete, 0);
 				list_destroy(paquete);
 				char* texto[1];
-				pthread_mutex_lock(mutex_lista_interrupciones);
-				encolar_interrupcion(FIN_QUANTUM, 3, texto);
-				pthread_mutex_unlock(mutex_lista_interrupciones);
-				log_info(logger, "Se recibió interrupción FIN_QUANTUM");
+				if(tid_actual == tid_de_interrupcion_FIN_QUANTUM){
+					pthread_mutex_lock(mutex_lista_interrupciones);
+					encolar_interrupcion(FIN_QUANTUM, 3, texto);
+					pthread_mutex_unlock(mutex_lista_interrupciones);
+					log_info(logger, "Se recibió interrupción FIN_QUANTUM");
+				}
 				break;
 			
 			case -1:
@@ -204,7 +209,6 @@ void *cliente_conexion_memoria(void * arg_memoria){
 
 void inicializar_estructuras_cpu(){
 	lista_interrupciones = list_create();
-	inicializar_registros_cpu();
 	inicializar_semaforos_cpu();
-
+	inicializar_registros_cpu();
 }
