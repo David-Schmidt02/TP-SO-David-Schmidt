@@ -18,6 +18,14 @@ int block_size = 4;
 void *conexion_memoria(void * arg_memoria);
 int main();
 void levantar_conexiones();
-char* crear_directorio(char* base_path, char* ruta_a_agregar);
+char* crear_directorio(char* ruta_a_agregar);
+
+typedef struct
+{
+	uint32_t * ptr;
+    char *nombre_archivo;
+	
+} t_bloque_ptr;
+
 
 #endif

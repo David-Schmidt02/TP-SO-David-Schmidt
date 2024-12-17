@@ -6,16 +6,17 @@ t_config *config;
 uint32_t block_count;
 int block_size;
 char* mount_dir;
+char * ruta_files;
 uint32_t num_bloque;
 pthread_mutex_t *mutex_bitmap; 
-char* nombre_archivo;
 uint32_t tamanio;
-uint32_t *datos;
+t_list * lista_indices;
+extern FILE *bloques_file;
 
 int main() {
 
     pthread_t tid_memoria;
-
+	
 	argumentos_thread arg_memoria;
 	mutex_bitmap = malloc(sizeof(pthread_mutex_t));
 
@@ -35,9 +36,10 @@ int main() {
 	mount_dir = config_get_string_value(config, "MOUNT_DIR");
 	// Inicializar estructuras
 	pthread_mutex_init(mutex_bitmap, NULL);
-	mount_dir = crear_directorio(mount_dir,"/mount_dir");
-	inicializar_bitmap(mount_dir,block_count);
-	inicializar_bloques(block_count,block_size,mount_dir);
+	mount_dir = crear_directorio("/mount_dir");
+	inicializar_bitmap();
+	inicializar_bloques();
+	ruta_files = crear_directorio("/files");
 	inicializar_libres();
 	//esto es lo que tiene que hacer cuando recibe la peticion
 	//
@@ -68,6 +70,8 @@ void *conexion_memoria(void* arg_memoria)
 	int server = iniciar_servidor(args->puerto);
 	log_info(logger, "Servidor listo para recibir al cliente memoria");
 	int socket_cliente_memoria = esperar_cliente(server);
+	char *nombre_archivo;
+	void *datos;
 
 	//HANDSHAKE_end
 		while(true){
@@ -80,13 +84,10 @@ void *conexion_memoria(void* arg_memoria)
 
 					nombre_archivo = list_remove(recv_list,0);
 					tamanio = *(int *)list_remove(recv_list,0);
-					datos = (uint32_t *)list_remove(recv_list,0);
+					datos = list_remove(recv_list,0);
 					log_info(logger, "Nombre del archivo recibido: %s", nombre_archivo);
-					char* dir_files = mount_dir;
-					dir_files = crear_directorio(dir_files,"/files");
-					log_info(logger, "antes de crear el archivo dump");
 
-					check = crear_archivo_dump(block_count,block_size,dir_files,nombre_archivo,tamanio,datos);
+					check = crear_archivo_dump(nombre_archivo,tamanio,datos);
 					if (check != -1){
 						send = crear_paquete(OK);
 						agregar_a_paquete(send, nombre_archivo, strlen(nombre_archivo)+1);
@@ -112,37 +113,38 @@ void *conexion_memoria(void* arg_memoria)
 					break;
 			}
 		}
-		
+	
+	fclose(bloques_file);
 	close(server);
 	close(socket_cliente_memoria);
 	config_destroy(config);
     return (void *)EXIT_SUCCESS;
 }
 
-char* crear_directorio(char* base_path, char* ruta_a_agregar) {
-    if (!base_path) {
+char* crear_directorio(char* ruta_a_agregar) {
+    if (!mount_dir) {
         fprintf(stderr, "Error: La ruta base es NULL.\n");
         exit(EXIT_FAILURE);
     }
 
-    size_t path_length = strlen(base_path) + strlen(ruta_a_agregar) + 1;
-    char* mount_dir = malloc(path_length);
-    if (!mount_dir) {
+    size_t path_length = strlen(mount_dir) + strlen(ruta_a_agregar) + 1;
+    char* ruta = malloc(path_length);
+    if (!ruta) {
         fprintf(stderr, "Error: No se pudo asignar memoria para la ruta del directorio.\n");
         exit(EXIT_FAILURE);
     }
 
-    snprintf(mount_dir, path_length, "%s%s", base_path,ruta_a_agregar);
+    snprintf(ruta, path_length, "%s%s", mount_dir,ruta_a_agregar);
 
-    if (mkdir(mount_dir, 0700) == 0) {
-        printf("Directorio '%s' creado correctamente.\n", mount_dir);
+    if (mkdir(ruta, 0700) == 0) {
+        printf("Directorio '%s' creado correctamente.\n", ruta);
     } else if (errno == EEXIST) {
-        printf("El directorio '%s' ya existe.\n", mount_dir);
+        printf("El directorio '%s' ya existe.\n", ruta);
     } else {
         perror("Error al crear el directorio");
-        free(mount_dir); // Liberar memoria en caso de error
+        free(ruta); // Liberar memoria en caso de error
         exit(EXIT_FAILURE);
     }
 
-    return mount_dir;
+    return ruta;
 }

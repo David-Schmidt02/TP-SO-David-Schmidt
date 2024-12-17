@@ -10,18 +10,28 @@ extern t_config *config;
 extern t_log *logger;
 extern pthread_mutex_t *mutex_bitmap;
 int libres;
+uint32_t index_libre;
 
 void inicializar_libres() {
-    libres = (int)block_count;
+    libres = 0;
+    int i = 0;
+    pthread_mutex_lock(mutex_bitmap);
+    for (i; i < bitarray_get_max_bit(bitmap); i++) {
+        if (!bitarray_test_bit(bitmap, i)) {
+            libres++;
+        }
+    }
+    index_libre = (i+1) - libres;
+    pthread_mutex_unlock(mutex_bitmap);
 }
 
-void inicializar_bitmap(char* mount_dir, uint32_t block_count) {
+void inicializar_bitmap() {
     if (block_count == 0) {
         log_error(logger, "No se encontró el valor BLOCK_COUNT en el archivo de configuración.");
         exit(EXIT_FAILURE);
     }
 
-    size_t tamanio_bitmap = (block_count + 7) / 8;
+    size_t tamanio_bitmap = (size_t)ceil((double)block_count/8);
 
     size_t path_length = strlen(mount_dir) + strlen("/bitmap.dat") + 1;
     char *path_bitmap = malloc(path_length);
@@ -93,36 +103,25 @@ void inicializar_bitmap(char* mount_dir, uint32_t block_count) {
 }
 
 bool espacio_disponible(uint32_t cantidad) {
-    pthread_mutex_lock(mutex_bitmap);
-    for (int i = 0; i < bitarray_get_max_bit(bitmap); i++) {
-        if (!bitarray_test_bit(bitmap, i)) {
-            libres--;
-            if (libres <= cantidad) {
-                pthread_mutex_unlock(mutex_bitmap);
-                return true;
-            }
-        }
+    inicializar_libres();
+    if(libres >= cantidad){
+        return true;
     }
-    pthread_mutex_unlock(mutex_bitmap);
     return false;
 }
 
-uint32_t reservar_bloques() {
+uint32_t reservar_bloques(uint32_t size) {
     
-    if (!espacio_disponible(1)) {
-        log_error(logger, "No hay bloques disponibles para reservar.");
+    inicializar_libres();
+    if(!libres){
         return -1;
     }
-    pthread_mutex_lock(mutex_bitmap);
-    for (uint32_t i = 0; i < bitarray_get_max_bit(bitmap); i++) {
-        if (!bitarray_test_bit(bitmap, i)) {
-            bitarray_set_bit(bitmap, i);
-            pthread_mutex_unlock(mutex_bitmap);
-            return i;
-        }
+
+    for (int i = index_libre; i < (index_libre + size); i++){
+        bitarray_set_bit(bitmap, i);
     }
-    pthread_mutex_unlock(mutex_bitmap);
-    return -1; // No hay bloques disponibles
+
+    return index_libre;
 }
 
 void liberar_bloque(uint32_t bloque) {
