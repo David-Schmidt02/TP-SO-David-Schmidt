@@ -253,22 +253,20 @@ void eliminar_hilo_de_cola_fifo_prioridades_thread_cancel(t_tcb* tcb_asociado) {
 
 void eliminar_hilo_de_cola_multinivel_thread_exit(t_tcb* tcb_asociado) {
     pthread_mutex_lock(mutex_colas_multinivel);
-
     // Iterar sobre cada nivel de prioridad
     for (int i = 0; i < list_size(colas_multinivel->niveles_prioridad); i++) {
+        
         t_nivel_prioridad *nivel = list_get(colas_multinivel->niveles_prioridad, i);
-
-        pthread_mutex_lock(mutex_colas_multinivel);
         for (int j = 0; j < list_size(nivel->cola_hilos->lista_hilos); j++) {
             t_tcb *hilo = list_get(nivel->cola_hilos->lista_hilos, j);
             if (hilo->pid == tcb_asociado->pid) {
                 list_remove(nivel->cola_hilos->lista_hilos, j);
                 j--;
                 //sem_wait(sem_estado_multinivel);
+                pthread_mutex_unlock(mutex_colas_multinivel);
                 break;
             }
         }
-        pthread_mutex_unlock(mutex_colas_multinivel);
     }
     pthread_mutex_unlock(mutex_colas_multinivel);
 }
@@ -280,17 +278,16 @@ void eliminar_hilo_de_cola_multinivel_cancel(t_tcb* tcb_asociado) {
     for (int i = 0; i < list_size(colas_multinivel->niveles_prioridad); i++) {
         t_nivel_prioridad *nivel = list_get(colas_multinivel->niveles_prioridad, i);
 
-        pthread_mutex_lock(mutex_colas_multinivel);
         for (int j = 0; j < list_size(nivel->cola_hilos->lista_hilos); j++) {
             t_tcb *hilo = list_get(nivel->cola_hilos->lista_hilos, j);
             if (hilo->pid == tcb_asociado->pid) {
                 list_remove(nivel->cola_hilos->lista_hilos, j);
                 j--;
                 sem_wait(sem_estado_multinivel);
+                pthread_mutex_unlock(mutex_colas_multinivel);
                 break;
             }
         }
-        pthread_mutex_unlock(mutex_colas_multinivel);
     }
     pthread_mutex_unlock(mutex_colas_multinivel);
 }
