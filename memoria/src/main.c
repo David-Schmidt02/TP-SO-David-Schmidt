@@ -6,7 +6,7 @@ int conexion_memoria_fs;
 
 t_memoria *memoria_usuario;
 pthread_mutex_t * mutex_pcb;
-pthread_mutex_t * mutex_tcb;
+
 pthread_mutex_t * mutex_part_fijas;
 pthread_mutex_t * mutex_huecos;
 pthread_mutex_t * mutex_procesos_din;
@@ -35,8 +35,6 @@ int main(int argc, char* argv[]) {
 
 	mutex_pcb = malloc(sizeof(pthread_mutex_t));
 	pthread_mutex_init(mutex_pcb, NULL);
-	mutex_tcb = malloc(sizeof(pthread_mutex_t));
-	pthread_mutex_init(mutex_tcb, NULL);
 	mutex_part_fijas = malloc(sizeof(pthread_mutex_t));
 	pthread_mutex_init(mutex_part_fijas, NULL);
 	mutex_huecos = malloc(sizeof(pthread_mutex_t));
@@ -106,7 +104,6 @@ void inicializar_memoria(particiones tipo_particion, int size, t_list *particion
 
 	memoria_usuario = malloc(sizeof(t_memoria));
 	memoria_usuario->lista_pcb = list_create();
-	memoria_usuario->lista_tcb = list_create();
 	memoria_usuario->espacio=malloc(size*sizeof(uint32_t));
 	memoria_usuario->size = size;
 	memoria_usuario->fit = fit;
@@ -354,7 +351,7 @@ void *peticion_kernel_END_PROCESS(void* arg_peticion){
 }
 void *peticion_kernel_END_THREAD(void* arg_peticion){
 	int *socket = arg_peticion;
-	int tid;
+	int tid, pid;
 	//atender peticion
 	t_list * paquete_list;
 	t_paquete * paquete_send;
@@ -362,8 +359,10 @@ void *peticion_kernel_END_THREAD(void* arg_peticion){
 
 	paquete_list = recibir_paquete(*socket);
 	tid = *(int *)list_remove(paquete_list, 0);
+	pid = *(int *)list_remove(paquete_list, 0);
 
-	fin_thread(tid);
+
+	fin_thread(tid, pid);
 	log_info(logger, "Se finalizo el Thread TID: %d", tid);
 	
 	//notificar resultado a kernel
@@ -457,8 +456,9 @@ void *conexion_cpu(void* arg_cpu)
 				paquete_recv = recibir_paquete(socket_cliente_cpu);
 				PC = *(int *)list_remove(paquete_recv, 0);
 				tid = *(int *)list_remove(paquete_recv, 0);
-				log_info(logger, "Solicitud de instruccion recibida TID: %d, PC: %d", tid, PC);
-				obtener_instruccion(PC, tid);
+				pid = *(int *)list_remove(paquete_recv, 0);
+				log_info(logger, "Solicitud de instruccion recibida PID: %d, TID: %d, PC: %d", pid, tid, PC);
+				obtener_instruccion(PC, tid, pid);
 				list_destroy(paquete_recv);
 				break;
 			case READ_MEM:
