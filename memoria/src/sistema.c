@@ -740,7 +740,7 @@ void fin_thread(int tid, int pid){
     t_pcb *pcb_aux;
 
     index_pid = buscar_pid(memoria_usuario->lista_pcb, pid);
-    pcb_aux = list_remove(memoria_usuario->lista_pcb, index_pid);
+    pcb_aux = list_get(memoria_usuario->lista_pcb, index_pid);
 
     index_tid = buscar_tid(pcb_aux->listaTCB, tid);
 
