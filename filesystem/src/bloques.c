@@ -74,7 +74,9 @@ void escribir_bloque(int bloque, void *contenido, size_t tamanio) {
     }
     usleep(retardo_acceso * 1000);
     fseek(bloques_file, (bloque * block_size), SEEK_CUR);
+    pthread_mutex_lock(mutex_logs);
     fwrite(contenido, tamanio, 1, bloques_file);
+    pthread_mutex_unlock(mutex_logs);
     log_info(logger, "## Bloque asignado: %d con %lu bytes", bloque, libres);
 }
 
@@ -137,6 +139,7 @@ int crear_archivo_metadata(char* nombre_archivo,uint32_t tamanio) {
         return 0; 
     }
     log_info(logger, "Archivo Creado: %s - Tamaño: %d", nombre_archivo, tamanio);
+    index_block++;
     free(path_metadata);
     return 0;
 }
@@ -172,30 +175,40 @@ int crear_archivo_dump(char* nombre_archivo, uint32_t tamanio, void* datos) {
 }
 
 int cargar_bloques(uint32_t* bloques_datos, uint32_t cantidad_bloques, void *datos){
-    size_t uy = strlen(mount_dir) + strlen("/bloques.dat") + 1;
-    char *path_bloques = malloc(uy);
-    snprintf(path_bloques, sizeof(path_bloques), "%s/bloques.dat", mount_dir);
-    FILE* bloques_file = fopen(path_bloques, "rb+"); //hardcodeado->cambiar
-
+    size_t path_length = strlen(mount_dir) + strlen("/bloques.dat") + 1;
+    char* path_bloques = malloc(path_length);
+    strcpy(path_bloques,"");
+    strcat(path_bloques, mount_dir);
+    strcat(path_bloques, "/bloques.dat");
+    FILE* bloques_file = fopen(path_bloques, "rb+");
     if (bloques_file == NULL) {
         log_error(logger, "Error al abrir el archivo de bloques");
     }
-
+    int block_sizeAUX;
     for (uint32_t i = 0; i < cantidad_bloques; i++) {
-
+        if (i==0) {
+            continue;
+        }
+        if (i == cantidad_bloques-1){
+            block_sizeAUX=(tamanio%32);
+        }
+        else{
+            block_sizeAUX=block_size;
+        }
         size_t posicion = bloques_datos[i]*block_size;
 
         if(fseek(bloques_file,posicion,SEEK_SET) != 0){
             log_error(logger, "error al mover el puntero: %d", bloques_datos[i]);
             return -1;
         }
-        void *  fragmento_datos = (char*) datos + (i*block_size);
-        if (fwrite(fragmento_datos, sizeof(uint32_t), 1, bloques_file) != 1) {
-            pthread_mutex_lock(mutex_logs);
+        void *  fragmento_datos = (char*) datos + ((i-1)*block_size);
+        pthread_mutex_lock(mutex_logs);
+        if (fwrite(fragmento_datos, block_sizeAUX, 1, bloques_file) != 1) {
             log_error(logger, "Error al escribir en el bloque de punteros");
             pthread_mutex_unlock(mutex_logs);
             return -1;
         }
+        pthread_mutex_unlock(mutex_logs);
     }
 
     fclose(bloques_file);
