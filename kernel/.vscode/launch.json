@@ -6,7 +6,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/bin/${workspaceFolderBasename}",
-      "args": ["MEM_DINAMICA_BASE", 128, 0],
+      "args": ["PLANI_PROC", 32, 0],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],

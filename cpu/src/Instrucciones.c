@@ -258,8 +258,9 @@ void decode( char *inst) {
         // Instrucción JNZ: Salta si el valor de un registro no es cero 
 
             execute(6,texto); // 6 = JNZ
-    else if (strcmp(texto[0], "MUTEX_CREATE") == 0 && texto[1]) 
-            execute(7,texto); // 7 = MUTEX_CREATE
+    else if (strcmp(texto[0], "MUTEX_CREATE") == 0 && texto[1])
+            execute(7,texto); // 7 = MUTEX_CREATE}
+            
 
     else if (strcmp(texto[0], "MUTEX_LOCK") == 0 && texto[1]) 
             execute(8,texto); // 8 = MUTEX_LOCK
@@ -426,34 +427,34 @@ void execute(int instruccion, char **texto) {
 
         //Syscalls
         case 7: // MUTEX_CREATE
-            encolar_interrupcion(MUTEX_CREATE_OP,5,texto);
+            encolar_interrupcion(MUTEX_CREATE_OP,2,texto);
         break;
         case 8: // MUTEX_LOCK
-            encolar_interrupcion(MUTEX_LOCK_OP,6,texto);
+            encolar_interrupcion(MUTEX_LOCK_OP,2,texto);
         break;
         case 9: // DUMP_MEMORY
-            encolar_interrupcion(DUMP_MEMORY_OP,7,texto);
+            encolar_interrupcion(DUMP_MEMORY_OP,2,texto);
         break;
         case 10: // PROCESS_CREATE
             encolar_interrupcion(PROCESS_CREATE_OP,2,texto);
         break;
         case 11: // THREAD_CREATE
-            encolar_interrupcion(THREAD_CREATE_OP,4,texto);     
+            encolar_interrupcion(THREAD_CREATE_OP,2,texto);     
         break;
         case 12: // THREAD_CANCEL
-            encolar_interrupcion(THREAD_CANCEL_OP,3,texto);
+            encolar_interrupcion(THREAD_CANCEL_OP,2,texto);
         break;
         case 13: // THREAD_JOIN
-            encolar_interrupcion(THREAD_JOIN_OP,3,texto);
+            encolar_interrupcion(THREAD_JOIN_OP,2,texto);
         break;
         case 14: // THREAD_EXIT
-            encolar_interrupcion(THREAD_EXIT_OP,3,texto);
+            encolar_interrupcion(THREAD_EXIT_OP,2,texto);
         break;
         case 15: // PROCESS_EXIT
             encolar_interrupcion(PROCESS_EXIT_OP,2,texto);
         break;
         case 16: // MUTEX_UNLOCK
-            encolar_interrupcion(MUTEX_UNLOCK_OP,6,texto);
+            encolar_interrupcion(MUTEX_UNLOCK_OP,2,texto);
         break;
         case 17: // LOG_OP
             uint32_t * registro_a_leer = registro_aux(texto[1]);
@@ -647,6 +648,9 @@ void devolver_motivo_a_kernel(protocolo_socket cod_op, char** texto) {
         case LOG_OP:
         case MUTEX_LOCK_OP: 
         case MUTEX_UNLOCK_OP:
+            agregar_a_paquete(paquete_notify,texto[1], strlen(texto[1]) + 1);
+            break;
+
         case THREAD_JOIN_OP: 
         case THREAD_CANCEL_OP:
         case IO_SYSCALL:
@@ -720,7 +724,6 @@ t_interrupcion* obtener_interrupcion() {
     pthread_mutex_lock(mutex_lista_interrupciones);
 
     list_remove(lista_interrupciones, indice_mayor_prioridad);
-    log_error(logger, "TAMAÑO RESTANTE DE LA LISTA DE INTERRUPCIONES: %d",list_size(lista_interrupciones));
     pthread_mutex_unlock(mutex_lista_interrupciones);
 
     return interrupcion_mayor_prioridad;

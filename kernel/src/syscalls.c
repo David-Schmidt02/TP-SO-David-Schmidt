@@ -52,14 +52,12 @@ extern sem_t * sem_estado_colaIO;
 
 extern sem_t * sem_proceso_finalizado;
 
-t_pcb* obtener_pcb_por_tid(int tid) {
-    for (int i = 0; i < list_size(procesos_cola_ready->lista_procesos); i++) {
-        t_pcb* pcb = list_get(procesos_cola_ready->lista_procesos, i);
-        for (int j = 0; j < list_size(pcb->listaTCB); j++) {
-            t_tcb* tcb_actual = list_get(pcb->listaTCB, j);
-            if (tcb_actual->tid == tid) {
-                return pcb;
-            }
+t_pcb* obtener_pcb_por_tid(int tid, int pid) {
+    t_pcb* pcb = obtener_pcb_por_pid(pid);
+    for (int j = 0; j < list_size(pcb->listaTCB); j++) {
+        t_tcb* tcb_actual = list_get(pcb->listaTCB, j);
+        if (tcb_actual->tid == tid) {
+            return pcb;
         }
     }
     return NULL;
@@ -322,7 +320,7 @@ void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad) {
 }
 
 void THREAD_JOIN(int tid_a_esperar) {
-    t_tcb* hilo_a_esperar = obtener_tcb_por_tid(hilos_cola_ready->lista_hilos, tid_a_esperar);
+    t_tcb* hilo_a_esperar = obtener_tcb_por_tid_pid(hilos_cola_ready->lista_hilos, tid_a_esperar, proceso_actual->pid);
 
     if (hilo_a_esperar == NULL || hilo_a_esperar->estado == EXIT) {
         log_info(logger, "THREAD_JOIN: Hilo TID %d no encontrado o ya finalizado.", tid_a_esperar);
@@ -350,7 +348,7 @@ void finalizar_hilo(t_tcb* hilo) {
 }
 
 void THREAD_CANCEL(int tid_hilo_a_cancelar) { // Esta sys recibe el tid solamente del hilo a cancelar
-    t_tcb* hilo_a_cancelar = obtener_tcb_por_tid(hilos_cola_ready->lista_hilos,tid_hilo_a_cancelar);
+    t_tcb* hilo_a_cancelar = obtener_tcb_por_tid_pid(hilos_cola_ready->lista_hilos,tid_hilo_a_cancelar, proceso_actual->pid);
     if (hilo_a_cancelar == NULL) {
         log_warning(logger, "TID %d no existe o ya fue finalizado.", tid_hilo_a_cancelar);
         return;
@@ -358,10 +356,10 @@ void THREAD_CANCEL(int tid_hilo_a_cancelar) { // Esta sys recibe el tid solament
 
     hilo_a_cancelar->estado = EXIT;
     log_info(logger, "Hilo TID %d movido a EXIT.", tid_hilo_a_cancelar);
-    t_pcb * proceso = obtener_pcb_por_tid(tid_hilo_a_cancelar);
+    t_pcb * proceso = obtener_pcb_por_tid(tid_hilo_a_cancelar->tid, tid_hilo_a_cancelar->pid);
     for (int i = 0; i < list_size(proceso->listaTCB); i++) {
         t_tcb *hilo = list_get(hilos_cola_ready->lista_hilos, i);
-        if (hilo->pid == tid_hilo_a_cancelar) {
+        if (hilo->tid == tid_hilo_a_cancelar) {
             list_remove(proceso->listaTCB, i);
             i--;
             break;
@@ -420,7 +418,7 @@ void eliminar_tcb(t_tcb* hilo) {
         free(hilo->registro);
     }
     t_pcb * pcb = malloc(sizeof(t_pcb));
-    pcb = obtener_pcb_por_tid(hilo->tid);
+    pcb = obtener_pcb_por_tid(hilo->tid, hilo->pid);
     for (int i = 0; i < list_size(proceso_actual->listaTCB); i++) {
         t_tcb * tcb = list_get(proceso_actual->listaTCB, i);
         if (hilo->tid == tcb->tid) {
@@ -441,7 +439,7 @@ void THREAD_EXIT() {// No recibe ningún parámetro, trabaja con hilo_actual
     hilo_a_salir->estado = EXIT;
 
     // Obtengo el PCB correspondiente al hilo
-    t_pcb* pcb_hilo_a_salir = obtener_pcb_por_tid(hilo_a_salir->tid);
+    t_pcb* pcb_hilo_a_salir = obtener_pcb_por_pid(hilo_a_salir->pid);
     if (pcb_hilo_a_salir == NULL) {
         log_warning(logger, "No se encontró el PCB para el TID %d.", hilo_a_salir->tid);
         return;
@@ -525,7 +523,7 @@ void MUTEX_LOCK(char* nombre_mutex) {
 
         if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
             eliminar_hilo_de_cola_fifo_prioridades_thread_exit(hilo_actual);
-            encolar_en_exit(hilo_actual);//se agrega a la cola de exit
+            encolar_en_block(hilo_actual);//se agrega a la cola de exit
         } else if (strcmp(algoritmo, "CMN") == 0) {
             eliminar_hilo_de_cola_multinivel_thread_exit(hilo_actual);
             encolar_en_block(hilo_actual);//se agrega a la cola de exit
@@ -541,7 +539,7 @@ void MUTEX_LOCK(char* nombre_mutex) {
 
         if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
             eliminar_hilo_de_cola_fifo_prioridades_thread_exit(hilo_actual);
-            encolar_en_exit(hilo_actual);//se agrega a la cola de exit
+            encolar_en_block(hilo_actual);//se agrega a la cola de exit
         } else if (strcmp(algoritmo, "CMN") == 0) {
             eliminar_hilo_de_cola_multinivel_thread_exit(hilo_actual);
             encolar_en_block(hilo_actual);//se agrega a la cola de exit
@@ -568,7 +566,7 @@ void MUTEX_UNLOCK(char* nombre_mutex) {
         return;
     }
 
-    if (mutex_encontrado->hilo_asignado = hilo_actual){
+    if (mutex_encontrado->hilo_asignado == hilo_actual){
         if (mutex_encontrado->estado == 1) {
             log_info(logger, "Se libera el primer hilo bloqueado por el Mutex %s.", nombre_mutex);
 
@@ -648,10 +646,10 @@ void liberarInstrucciones(t_list* instrucciones) {
 }
 
 
-t_tcb* obtener_tcb_por_tid(t_list * lista, int tid) {
+t_tcb* obtener_tcb_por_tid_pid(t_list * lista, int tid, int pid) {
     t_tcb* hilo;
-
-    for (int i = 0; i < list_size(lista); i++) {
+    t_pcb * proceso = obtener_pcb_por_pid(pid);
+    for (int i = 0; i < list_size(proceso->listaTCB); i++) {
         hilo = list_get(lista, i);
         if (hilo->tid == tid) {
             return hilo;
