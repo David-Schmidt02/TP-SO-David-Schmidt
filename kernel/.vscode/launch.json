@@ -6,7 +6,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/bin/${workspaceFolderBasename}",
-      "args": ["PLANI_PROC", 32, 0],
+      "args": ["FIBO_10", 64, 0],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],
