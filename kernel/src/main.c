@@ -58,7 +58,7 @@ t_cola_hilo* hilos_cola_ready;
 pthread_mutex_t * mutex_hilos_cola_ready;
 sem_t * sem_estado_hilos_cola_ready;
 
-sem_t * sem_hilo_principal_process_create_encolado;
+sem_t * sem_hilo_actual_encolado;
 
 t_cola_hilo* hilos_cola_exit;
 pthread_mutex_t * mutex_hilos_cola_exit;
@@ -194,7 +194,6 @@ void *administrador_peticiones_memoria(void* arg_server){
 	
 	while(1){
 		sem_wait(sem_lista_t_peticiones);
-        log_warning(logger, "SEMWAIT del semáforo de peticiones hecho");
 		pthread_mutex_lock(mutex_lista_t_peticiones);
 		peticion = list_remove(lista_t_peticiones, 0);
 		pthread_mutex_unlock(mutex_lista_t_peticiones);
@@ -233,7 +232,7 @@ void *peticion_kernel(void *args) {
             send_protocolo = crear_paquete(PROCESS_EXIT_OP);
             agregar_a_paquete(send_protocolo, &proceso->pid, sizeof(int));
 			log_info(logger, "Se envió la peticion de PROCESS EXIT del PID: %d", proceso->pid);
-			sem_post(sem_proceso_finalizado);
+			//sem_post(sem_proceso_finalizado);
             break;
 
         case THREAD_CREATE_OP:
@@ -315,10 +314,8 @@ void encolar_peticion_memoria(t_peticion * peticion){
         // Encolar la petición
         pthread_mutex_lock(mutex_lista_t_peticiones);
         list_add(lista_t_peticiones, peticion);
-        log_info(logger, "Encole la peticion a memoria");
         pthread_mutex_unlock(mutex_lista_t_peticiones);
         sem_post(sem_lista_t_peticiones);
-        log_warning(logger, "SEMPOST del semáforo de peticiones hecho");
 }
 
 void inicializar_estructuras(){

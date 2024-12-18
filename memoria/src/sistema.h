@@ -10,7 +10,7 @@
 
 //cpu
 bool recibir_pid_tid(t_list *paquete_recv, int *pid, int *tid);
-bool obtener_pcb_y_tcb(int pid, int tid, t_pcb *pcb_out, t_tcb *tcb_out);
+bool obtener_pcb_y_tcb(int pid, int tid, t_pcb **pcb_out, t_tcb **tcb_out);
 void enviar_contexto(int pid, int tid);
 uint32_t read_memory(uint32_t direccion, int pid, int tid);
 int write_memory(uint32_t direccion, uint32_t valor, int pid, int tid);

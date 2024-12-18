@@ -14,7 +14,7 @@ extern t_cola_hilo* hilos_cola_ready;
 extern pthread_mutex_t * mutex_hilos_cola_ready;
 extern sem_t * sem_estado_hilos_cola_ready;
 
-extern sem_t * sem_hilo_principal_process_create_encolado;
+extern sem_t * sem_hilo_actual_encolado;
 
 extern t_cola_hilo* hilos_cola_exit;
 extern pthread_mutex_t * mutex_hilos_cola_exit;
@@ -40,6 +40,7 @@ extern struct timeval tiempo_inicio_quantum;
 extern pthread_mutex_t mutex_tiempo_inicio;
 
 void* planificador_corto_plazo_hilo(void* arg) {
+    sem_wait(sem_hilo_actual_encolado);
     if (strcmp(algoritmo, "FIFO") == 0) {
         corto_plazo_fifo();
     } else if (strcmp(algoritmo, "PRIORIDADES") == 0) {
@@ -374,8 +375,8 @@ void recibir_motivo_devolucion_cpu() {
             prioridad = * (int *)list_remove(paquete_respuesta, 0);
             pid = proceso_actual->pid;
             PROCESS_CREATE(archivo, tamanio, prioridad);
-            sem_wait(sem_hilo_principal_process_create_encolado);
             encolar_hilo_corto_plazo(hilo_actual);
+            sem_post(sem_hilo_actual_encolado);
             break; 
 
         case PROCESS_EXIT_OP:
@@ -394,6 +395,7 @@ void recibir_motivo_devolucion_cpu() {
             pid = proceso_actual->pid;
             THREAD_CREATE(archivo, prioridad);
             encolar_hilo_corto_plazo(hilo_actual);
+            sem_post(sem_hilo_actual_encolado);
             break;
 
         case THREAD_EXIT_OP:

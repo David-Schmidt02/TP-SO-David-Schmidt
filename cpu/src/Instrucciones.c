@@ -187,7 +187,7 @@ void fetch() {
         paquete = crear_paquete(OBTENER_INSTRUCCION); 
         agregar_a_paquete(paquete, &cpu_actual->PC , sizeof(uint32_t));
         agregar_a_paquete(paquete, &tid_actual, sizeof(tid_actual)); 
-        
+        agregar_a_paquete(paquete, &pid_actual, sizeof(pid_actual)); 
 
         enviar_paquete(paquete, socket_conexion_memoria);
         log_error(logger, "Se solicitó la siguiente instruccion (PC:%d) a memoria", cpu_actual->PC);

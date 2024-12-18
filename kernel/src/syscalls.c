@@ -107,6 +107,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     pthread_mutex_lock(mutex_procesos_a_crear);
     list_add(procesos_a_crear->lista_procesos, nuevo_pcb);
     sem_post(sem_estado_procesos_a_crear);
+    log_error(logger, "Se hace un post del semáforo de procesos a crear.");
     pthread_mutex_unlock(mutex_procesos_a_crear);
 
 }
@@ -178,6 +179,7 @@ void PROCESS_EXIT() {
     log_info(logger, "Todos los hilos del proceso %d eliminados de READY.", pid_buscado);
 
     // Notificar a la memoria que el proceso ha finalizado
+    log_error(logger, "Agrego la peticion a memoria.");
     notificar_memoria_fin_proceso(pcb_encontrado->pid);
     usleep(1);
 

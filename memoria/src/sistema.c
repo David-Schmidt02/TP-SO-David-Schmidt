@@ -12,23 +12,24 @@ extern pthread_mutex_t * mutex_espacio;
 
 extern pthread_mutex_t * mutex_conexion_cpu;
 
-bool obtener_pcb_y_tcb(int pid, int tid, t_pcb *pcb_out, t_tcb *tcb_out) {
+bool obtener_pcb_y_tcb(int pid, int tid, t_pcb **pcb_out, t_tcb **tcb_out) {
 
     int index_pcb = buscar_pid(memoria_usuario->lista_pcb, pid);
     if (index_pcb == -1) {
         log_error(logger, "PID %d no encontrado en memoria.", pid);
         return false;
     }
-    pcb_out = list_get(memoria_usuario->lista_pcb, index_pcb);
+    *pcb_out = list_get(memoria_usuario->lista_pcb, index_pcb); // Actualizamos el puntero al que apunta pcb_out
 
-    int index_tcb = buscar_tid(pcb_out->listaTCB, tid);
+    int index_tcb = buscar_tid((*pcb_out)->listaTCB, tid); // Accedemos a listaTCB del PCB obtenido
     if (index_tcb == -1) {
         log_error(logger, "TID %d no encontrado en el proceso PID %d.", tid, pid);
         return false;
     }
-    tcb_out = list_get(pcb_out->listaTCB, index_tcb);
+    *tcb_out = list_get((*pcb_out)->listaTCB, index_tcb); // Actualizamos el puntero al que apunta tcb_out
     return true;
 }
+
 
 bool recibir_pid_tid(t_list *paquete_recv, int *pid, int *tid) {
     if (list_size(paquete_recv) < 2) {
@@ -45,25 +46,28 @@ bool recibir_pid_tid(t_list *paquete_recv, int *pid, int *tid) {
 }
 
 void enviar_contexto(int pid, int tid) {
-    t_pcb *pcb; 
-    t_tcb *tcb;
+    t_pcb *pcb = NULL; 
+    t_tcb *tcb = NULL;
 
-    if (!obtener_pcb_y_tcb(pid, tid, pcb, tcb)) {
+    // Pasamos punteros a punteros para que la función pueda modificar pcb y tcb
+    if (!obtener_pcb_y_tcb(pid, tid, &pcb, &tcb)) {
         log_error(logger, "No se pudo obtener el contexto para PID %d, TID %d.", pid, tid);
         return;
     }
 
     t_paquete *paquete = crear_paquete(CONTEXTO_RECEIVE);
 
+    // Agregamos los datos del TCB y del PCB al paquete
     agregar_a_paquete(paquete, tcb->registro, sizeof(RegistroCPU));
     agregar_a_paquete(paquete, &pcb->base, sizeof(pcb->base));
     agregar_a_paquete(paquete, &pcb->limite, sizeof(pcb->limite));
+    
     enviar_paquete(paquete, socket_cliente_cpu);
     eliminar_paquete(paquete);
 
     log_info(logger, "## Contexto solicitado enviado- (PID:TID) - (%d:%d)", pid, tid);
-
 }
+
 
 /// @brief Read memory
 /// @param direccion 
@@ -763,7 +767,8 @@ int obtener_instruccion(int PC, int tid, int pid){ // envia el paquete instrucci
 
 
     index_pid = buscar_pid(memoria_usuario->lista_pcb, pid);
-    pcb_aux = list_remove(memoria_usuario->lista_pcb, index_pid);
+    //LO MODIFIQUÉ 18/12 1:42
+    pcb_aux = list_get(memoria_usuario->lista_pcb, index_pid);
 
     index_tid = buscar_tid(pcb_aux->listaTCB, tid);
     
