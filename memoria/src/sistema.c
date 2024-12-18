@@ -123,8 +123,9 @@ void actualizar_contexto_ejecucion() {
         return;
     }
 
-    tid = *(int *)list_remove(paquete_recv_list, 0);
+    
     pid = *(int *)list_remove(paquete_recv_list, 0);
+    tid = *(int *)list_remove(paquete_recv_list, 0);
 
     registros_actualizados = list_remove(paquete_recv_list, 0);
     
