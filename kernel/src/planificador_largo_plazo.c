@@ -12,12 +12,17 @@ extern t_cola_procesos_a_crear* procesos_a_crear;
 extern pthread_mutex_t * mutex_procesos_a_crear;
 extern sem_t * sem_estado_procesos_a_crear;
 
+extern t_cola_procesos_a_crear* lista_procesos_a_crear_reintento;
+extern pthread_mutex_t * mutex_lista_procesos_a_crear_reintento;
+extern sem_t * sem_estado_lista_procesos_a_crear_reintento;
+
 extern t_list * lista_t_peticiones;
 extern pthread_mutex_t * mutex_lista_t_peticiones;
 extern sem_t * sem_lista_t_peticiones; 
 extern sem_t * sem_estado_respuesta_desde_memoria;
 
 extern sem_t * sem_hilo_actual_encolado;
+extern sem_t *  sem_hilo_nuevo_encolado;
 //extern pthread_mutex_t * mutex_respuesta_desde_memoria;
 //extern pthread_cond_t * cond_respuesta_desde_memoria;
 
@@ -27,6 +32,8 @@ extern int conexion_kernel_cpu_interrupt;
 extern sem_t * sem_proceso_finalizado;
 
 extern char* algoritmo;
+
+extern pthread_mutex_t * mutex_socket_memoria;
 
 t_cola_proceso* inicializar_cola_procesos_ready(){
 
@@ -61,55 +68,40 @@ void inicializar_cola_procesos_a_crear(){
 }
 
 void inicializar_semaforos_largo_plazo(){
+
+    mutex_lista_procesos_a_crear_reintento = malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(mutex_lista_procesos_a_crear_reintento, NULL);
+
     mutex_procesos_cola_ready = malloc(sizeof(pthread_mutex_t));
-    if (mutex_procesos_cola_ready == NULL) {
-        perror("Error al asignar memoria para mutex de cola");
-        exit(EXIT_FAILURE);
-    }
     pthread_mutex_init(mutex_procesos_cola_ready, NULL);
 
     mutex_procesos_a_crear = malloc(sizeof(pthread_mutex_t));
-    if (mutex_procesos_a_crear == NULL) {
-        perror("Error al asignar memoria para mutex de cola");
-        exit(EXIT_FAILURE);
-    }
     pthread_mutex_init(mutex_procesos_a_crear, NULL);
 
     sem_estado_procesos_cola_ready = malloc(sizeof(sem_t));
-    if (sem_estado_procesos_cola_ready == NULL) {
-        perror("Error al asignar memoria para semáforo de cola");
-        exit(EXIT_FAILURE);
-    }
     sem_init(sem_estado_procesos_cola_ready, 0, 0);
 
     sem_estado_procesos_a_crear = malloc(sizeof(sem_t));
-    if (sem_estado_procesos_a_crear == NULL) {
-        perror("Error al asignar memoria para semáforo de cola");
-        exit(EXIT_FAILURE);
-    }
     sem_init(sem_estado_procesos_a_crear, 0, 0);
 
     sem_proceso_finalizado = malloc(sizeof(sem_t));
-    if (sem_proceso_finalizado == NULL) {
-        perror("Error al asignar memoria para semáforo de cola");
-        exit(EXIT_FAILURE);
-    }
     sem_init(sem_proceso_finalizado, 0, 0);
 
     sem_hilo_actual_encolado = malloc(sizeof(sem_t));
-    if (sem_hilo_actual_encolado == NULL) {
-        perror("Error al asignar memoria para semáforo de cola");
-        exit(EXIT_FAILURE);
-    }
     sem_init(sem_hilo_actual_encolado, 0, 0);
+
+    sem_hilo_nuevo_encolado = malloc(sizeof(sem_t));
+    sem_init(sem_hilo_nuevo_encolado, 0, 0);
+
+    sem_estado_lista_procesos_a_crear_reintento = malloc(sizeof(sem_t));
+    sem_init(sem_estado_lista_procesos_a_crear_reintento, 0, 0);
 }
 
-void* largo_plazo_fifo(void* args)
-{   int i= 0;
+void* largo_plazo_fifo(void* args){
     while (1)
     {
         sem_wait(sem_estado_procesos_a_crear);
-        log_error(logger, "Llego otro proceso a crear, generando la peticion para memoria...");
+        log_info(logger, "Llego otro proceso a crear, generando la peticion para memoria...");
         pthread_mutex_lock(mutex_procesos_a_crear);
         t_pcb *proceso = desencolar_proceso_a_crear();
         
@@ -117,30 +109,27 @@ void* largo_plazo_fifo(void* args)
         t_peticion *peticion = malloc(sizeof(t_peticion));
         peticion->tipo = PROCESS_CREATE_OP;
         peticion->proceso = proceso;
-        peticion->hilo = NULL; // No aplica en este caso
+        peticion->hilo = NULL;
+        pthread_mutex_lock(mutex_socket_memoria);
         encolar_peticion_memoria(peticion);
         sem_wait(sem_estado_respuesta_desde_memoria);
         if (peticion->respuesta_exitosa) {
             proceso->estado = READY;
             encolar_proceso_en_ready(proceso);
             encolar_hilo_principal_corto_plazo(proceso);
-            if (proceso->pid == 1)
-            {
-                sem_post(sem_hilo_actual_encolado);
-            }
+            sem_post(sem_hilo_nuevo_encolado);
+            pthread_mutex_unlock(mutex_socket_memoria);
             pthread_mutex_unlock(mutex_procesos_a_crear);
-        } else {
-            log_warning(logger, "Memoria no tiene espacio suficiente, reintentando cuando un proceso se termine...");
+        } 
+        else {
+            pthread_mutex_unlock(mutex_socket_memoria);
             pthread_mutex_unlock(mutex_procesos_a_crear);
-            while(!peticion->respuesta_exitosa){
-                i++;
-                sem_wait(sem_proceso_finalizado);
-                pthread_mutex_lock(mutex_procesos_a_crear);
-                list_add_in_index(procesos_a_crear->lista_procesos, -1, proceso);
-                pthread_mutex_unlock(mutex_procesos_a_crear);
-                sem_post(sem_estado_procesos_a_crear);
+            log_warning(logger, "No se pudo crear el proceso, reitentando cuando otro proceso finalice...");
+            sem_post(sem_hilo_nuevo_encolado);
+            list_add(lista_procesos_a_crear_reintento->lista_procesos, proceso);
+            sem_post(sem_estado_lista_procesos_a_crear_reintento);
+            //reintentar_creacion_proceso(proceso);
             }
-        }
         free(peticion);
     }
 }
@@ -166,6 +155,10 @@ void encolar_hilo_principal_corto_plazo(t_pcb * proceso){
     encolar_peticion_memoria(peticion);
     log_error(logger, "Se encoló la peticion del hilo a memoria ...");
     sem_wait(sem_estado_respuesta_desde_memoria);
+    if (hilo->pid == 1 && hilo->tid == 0)
+        sem_post(sem_hilo_actual_encolado);
+    if (!(hilo->pid == 1 && hilo->tid == 0))
+        sem_post(sem_hilo_nuevo_encolado);
     if (strcmp(algoritmo, "FIFO") == 0) {
         encolar_corto_plazo_fifo(hilo);
     } else if (strcmp(algoritmo, "PRIORIDADES") == 0) {
