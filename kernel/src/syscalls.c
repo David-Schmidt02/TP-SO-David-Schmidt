@@ -52,8 +52,8 @@ extern sem_t * sem_estado_colaIO;
 
 extern sem_t * sem_proceso_finalizado;
 
-t_pcb* obtener_pcb_por_tid(int tid, int pid) {
-    t_pcb* pcb = obtener_pcb_por_pid(pid);
+t_tcb* obtener_tcb(int tid, int pid) {
+    t_pcb* pcb = obtener_pcb(pid);
     for (int j = 0; j < list_size(pcb->listaTCB); j++) {
         t_tcb* tcb_actual = list_get(pcb->listaTCB, j);
         if (tcb_actual->tid == tid) {
@@ -63,7 +63,7 @@ t_pcb* obtener_pcb_por_tid(int tid, int pid) {
     return NULL;
 }
 
-t_pcb* obtener_pcb_por_pid(int pid) {
+t_pcb* obtener_pcb(int pid) {
     for (int i = 0; i < list_size(procesos_cola_ready->lista_procesos); i++) {
         t_pcb* pcb = list_get(procesos_cola_ready->lista_procesos, i);
         if (pcb->pid== pid)
@@ -83,7 +83,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
 
     log_info(logger, "## (%d) Se crea el Proceso - Estado: NEW", nuevo_pcb->pid);
 
-    t_tcb* tcb_principal = crear_tcb(pid, ultimo_tid++, prioridadTID);
+    t_tcb* tcb_principal = crear_tcb(pid, nuevo_pcb->ultimo_tid++, prioridadTID);
     tcb_principal->estado = NEW;
 
 
@@ -207,7 +207,7 @@ void notificar_memoria_fin_proceso(int pid) {
 
     t_peticion *peticion = malloc(sizeof(t_peticion));
         peticion->tipo = PROCESS_EXIT_OP;
-        peticion->proceso = obtener_pcb_por_pid(pid); 
+        peticion->proceso = obtener_pcb(pid); 
         peticion->hilo = NULL; // No aplica en este caso  
         encolar_peticion_memoria(peticion);
         sem_wait(sem_estado_respuesta_desde_memoria);
@@ -307,8 +307,8 @@ void encolar_en_block(t_tcb * hilo){
 //HILOS
 
 void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad) {
-    int tid = ++ultimo_tid;
     pthread_mutex_lock(mutex_procesos_cola_ready);
+    int tid = proceso_actual->ultimo_tid++;
     t_tcb* nuevo_tcb = crear_tcb(proceso_actual->pid, tid, prioridad);
     cambiar_estado(nuevo_tcb, READY);
     nuevo_tcb->instrucciones = interpretarArchivo(archivo_instrucciones);
@@ -320,7 +320,7 @@ void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad) {
 }
 
 void THREAD_JOIN(int tid_a_esperar) {
-    t_tcb* hilo_a_esperar = obtener_tcb_por_tid_pid(hilos_cola_ready->lista_hilos, tid_a_esperar, proceso_actual->pid);
+    t_tcb* hilo_a_esperar = obtener_tcb(tid_a_esperar, proceso_actual->pid);
 
     if (hilo_a_esperar == NULL || hilo_a_esperar->estado == EXIT) {
         log_info(logger, "THREAD_JOIN: Hilo TID %d no encontrado o ya finalizado.", tid_a_esperar);
@@ -348,7 +348,7 @@ void finalizar_hilo(t_tcb* hilo) {
 }
 
 void THREAD_CANCEL(int tid_hilo_a_cancelar) { // Esta sys recibe el tid solamente del hilo a cancelar
-    t_tcb* hilo_a_cancelar = obtener_tcb_por_tid_pid(hilos_cola_ready->lista_hilos,tid_hilo_a_cancelar, proceso_actual->pid);
+    t_tcb* hilo_a_cancelar = obtener_tcb(tid_hilo_a_cancelar, proceso_actual->pid);
     if (hilo_a_cancelar == NULL) {
         log_warning(logger, "TID %d no existe o ya fue finalizado.", tid_hilo_a_cancelar);
         return;
@@ -356,7 +356,7 @@ void THREAD_CANCEL(int tid_hilo_a_cancelar) { // Esta sys recibe el tid solament
 
     hilo_a_cancelar->estado = EXIT;
     log_info(logger, "Hilo TID %d movido a EXIT.", tid_hilo_a_cancelar);
-    t_pcb * proceso = obtener_pcb_por_tid(tid_hilo_a_cancelar->tid, tid_hilo_a_cancelar->pid);
+    t_pcb * proceso = obtener_pcb(hilo_a_cancelar->pid);
     for (int i = 0; i < list_size(proceso->listaTCB); i++) {
         t_tcb *hilo = list_get(hilos_cola_ready->lista_hilos, i);
         if (hilo->tid == tid_hilo_a_cancelar) {
@@ -418,7 +418,7 @@ void eliminar_tcb(t_tcb* hilo) {
         free(hilo->registro);
     }
     t_pcb * pcb = malloc(sizeof(t_pcb));
-    pcb = obtener_pcb_por_tid(hilo->tid, hilo->pid);
+    pcb = obtener_pcb(hilo->pid);
     for (int i = 0; i < list_size(proceso_actual->listaTCB); i++) {
         t_tcb * tcb = list_get(proceso_actual->listaTCB, i);
         if (hilo->tid == tcb->tid) {
@@ -439,7 +439,7 @@ void THREAD_EXIT() {// No recibe ningún parámetro, trabaja con hilo_actual
     hilo_a_salir->estado = EXIT;
 
     // Obtengo el PCB correspondiente al hilo
-    t_pcb* pcb_hilo_a_salir = obtener_pcb_por_pid(hilo_a_salir->pid);
+    t_pcb* pcb_hilo_a_salir = obtener_pcb(hilo_a_salir->pid);
     if (pcb_hilo_a_salir == NULL) {
         log_warning(logger, "No se encontró el PCB para el TID %d.", hilo_a_salir->tid);
         return;
@@ -597,7 +597,7 @@ void DUMP_MEMORY(int pid) {
 
     t_peticion *peticion = malloc(sizeof(t_peticion));
     peticion->tipo = DUMP_MEMORY_OP;
-    peticion->proceso = obtener_pcb_por_pid(pid);
+    peticion->proceso = obtener_pcb(pid);
     peticion->hilo = NULL; 
     encolar_peticion_memoria(peticion);
     sem_wait(sem_estado_respuesta_desde_memoria);
@@ -646,9 +646,9 @@ void liberarInstrucciones(t_list* instrucciones) {
 }
 
 
-t_tcb* obtener_tcb_por_tid_pid(t_list * lista, int tid, int pid) {
+t_tcb* obtener_tcb_lista(t_list * lista, int tid, int pid) {
     t_tcb* hilo;
-    t_pcb * proceso = obtener_pcb_por_pid(pid);
+    t_pcb * proceso = obtener_pcb(pid);
     for (int i = 0; i < list_size(proceso->listaTCB); i++) {
         hilo = list_get(lista, i);
         if (hilo->tid == tid) {

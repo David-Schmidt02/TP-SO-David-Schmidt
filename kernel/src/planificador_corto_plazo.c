@@ -88,7 +88,7 @@ void corto_plazo_fifo(){
         pthread_mutex_unlock(mutex_hilos_cola_ready);
         pthread_mutex_lock(mutex_socket_cpu_dispatch);
         hilo_actual = hilo;
-        proceso_actual = obtener_pcb_por_tid(hilo_actual->tid);
+        proceso_actual = obtener_pcb(hilo_actual->pid);
         t_tcb * tcb=malloc(sizeof(t_tcb));
         enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
         log_info(logger,"Cola de FIFO: Ejecutando hilo TID=%d, PID=%d\n", hilo->tid, hilo->pid);
@@ -120,7 +120,7 @@ void corto_plazo_prioridades()
         pthread_mutex_unlock(mutex_hilos_cola_ready);
         pthread_mutex_lock(mutex_socket_cpu_dispatch);
         hilo_actual = hilo;
-        proceso_actual = obtener_pcb_por_tid(hilo_actual->tid);
+        proceso_actual = obtener_pcb(hilo_actual->pid);
         enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
         log_info(logger,"Cola de PRIORIDADES %d: Ejecutando hilo TID=%d, PID=%d\n", hilo->prioridad,hilo->tid, hilo->pid);
         recibir_motivo_devolucion_cpu();
@@ -211,7 +211,7 @@ void ejecutar_round_robin(t_tcb * hilo_a_ejecutar) {
     // Enviamos el hilo a la CPU mediante el canal de dispatch
     pthread_mutex_lock(mutex_socket_cpu_dispatch);
     hilo_actual = hilo_a_ejecutar;
-    proceso_actual = obtener_pcb_por_tid(hilo_actual->tid);
+    proceso_actual = obtener_pcb(hilo_actual->pid);
     enviar_a_cpu_dispatch(hilo_a_ejecutar->tid, hilo_a_ejecutar->pid); // Envía el TID y PID al CPU
     log_info(logger,"Cola de RR: Ejecutando hilo TID=%d, PID=%d\n", hilo_a_ejecutar->tid, hilo_a_ejecutar->pid);
     pthread_mutex_unlock(mutex_socket_cpu_dispatch);
@@ -334,7 +334,7 @@ void enviar_a_cpu_interrupt(int tid, protocolo_socket motivo) {
         send_interrupt = crear_paquete(FIN_QUANTUM);
         agregar_a_paquete(send_interrupt, &tid, sizeof(tid)); 
         enviar_paquete(send_interrupt, conexion_kernel_cpu_interrupt);
-        proceso_actual = obtener_pcb_por_tid(hilo_actual->tid);
+        proceso_actual = obtener_pcb(hilo_actual->pid);
         eliminar_paquete(send_interrupt);
         break;
     default:
@@ -517,7 +517,7 @@ void desbloquear_hilos(int tid) {
 }
 
 void esperar_desbloqueo_ejecutar_hilo(int tid){
-    t_tcb* hilo_esperando = obtener_tcb_por_tid_pid(hilos_cola_bloqueados->lista_hilos, tid, proceso_actual->pid);
+    t_tcb* hilo_esperando = obtener_tcb_lista(hilos_cola_bloqueados->lista_hilos, tid, proceso_actual->pid);
     sem_wait(hilo_esperando->cant_hilos_block);
     pthread_mutex_lock(mutex_socket_cpu_dispatch); 
     enviar_a_cpu_dispatch(hilo_esperando->tid, hilo_esperando->pid);   
