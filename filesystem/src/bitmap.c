@@ -172,6 +172,11 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
             bloques_reservados++;
         }// sale porque ya se reservaron todos los bloques o porque recorrio todo 
     }
+    /*
+        indice 
+        bloquedatos
+        
+    */
     pthread_mutex_unlock(mutex_bitmap);
 
     // Verificar si todos los bloques de datos fueron reservados

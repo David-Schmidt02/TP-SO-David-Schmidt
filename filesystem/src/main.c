@@ -9,9 +9,10 @@ char* mount_dir;
 char * ruta_files;
 uint32_t num_bloque;
 pthread_mutex_t *mutex_bitmap; 
+pthread_mutex_t *mutex_logs;
 uint32_t tamanio;
 t_list * lista_indices;
-extern FILE *bloques_file;
+
 
 int main() {
 
@@ -19,6 +20,7 @@ int main() {
 	
 	argumentos_thread arg_memoria;
 	mutex_bitmap = malloc(sizeof(pthread_mutex_t));
+	mutex_logs = malloc(sizeof(pthread_mutex_t));
 
     logger = log_create("filesystem.log", "filesystem", 1, LOG_LEVEL_DEBUG);
     t_config *config = config_create("config/filesystem.config");
@@ -36,6 +38,7 @@ int main() {
 	mount_dir = config_get_string_value(config, "MOUNT_DIR");
 	// Inicializar estructuras
 	pthread_mutex_init(mutex_bitmap, NULL);
+	pthread_mutex_init(mutex_logs, NULL);
 	mount_dir = crear_directorio("/mount_dir");
 	inicializar_bitmap();
 	inicializar_bloques();
@@ -86,8 +89,9 @@ void *conexion_memoria(void* arg_memoria)
 					tamanio = *(int *)list_remove(recv_list,0);
 					datos = list_remove(recv_list,0);
 					log_info(logger, "Nombre del archivo recibido: %s", nombre_archivo);
-
+					crear_archivo_metadata(nombre_archivo, tamanio);
 					check = crear_archivo_dump(nombre_archivo,tamanio,datos);
+
 					if (check != -1){
 						send = crear_paquete(OK);
 						agregar_a_paquete(send, nombre_archivo, strlen(nombre_archivo)+1);
@@ -114,7 +118,6 @@ void *conexion_memoria(void* arg_memoria)
 			}
 		}
 	
-	fclose(bloques_file);
 	close(server);
 	close(socket_cliente_memoria);
 	config_destroy(config);
@@ -130,7 +133,7 @@ char* crear_directorio(char* ruta_a_agregar) {
     size_t path_length = strlen(mount_dir) + strlen(ruta_a_agregar) + 1;
     char* ruta = malloc(path_length);
     if (!ruta) {
-        fprintf(stderr, "Error: No se pudo asignar memoria para la ruta del directorio.\n");
+        log_info(logger, "Error: No se pudo asignar memoria para la ruta del directorio.\n");
         exit(EXIT_FAILURE);
     }
 

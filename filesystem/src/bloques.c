@@ -3,7 +3,7 @@ extern t_config* config;
 extern t_log* logger;
 extern int retardo_acceso;
 static FILE* metadata_file;
-static FILE* bloques_file;
+
 int index_block=0;
 extern uint32_t block_count;
 extern int block_size;
@@ -19,7 +19,10 @@ extern char * ruta_files;
 extern uint32_t bits_ocupados;
 extern int libres;
 
+extern pthread_mutex_t *mutex_logs;
+
 void inicializar_bloques() {
+    
     if (mount_dir == NULL) {
         log_info(logger, "Error: No se encontró 'MOUNT_DIR' en la configuración.");
         return exit(EXIT_FAILURE);
@@ -36,7 +39,7 @@ void inicializar_bloques() {
     // Construir la ruta completa
     snprintf(path_bloques, path_length, "%s/bloques.dat", mount_dir);
     log_info(logger, "path bloques:%s",path_bloques);
-    bloques_file = fopen(path_bloques, "rb+");
+    FILE* bloques_file = fopen(path_bloques, "rb+");
     if (!bloques_file) {
         bloques_file = fopen(path_bloques, "wb+");
         if (!bloques_file) {
@@ -53,12 +56,18 @@ void inicializar_bloques() {
         exit(EXIT_FAILURE);
     }
     free(path_bloques);
+    fclose(bloques_file);
     log_info(logger, "Bloques inicializado correctamente.");
 
     
 }
 
 void escribir_bloque(int bloque, void *contenido, size_t tamanio) {
+    size_t path_length = strlen(mount_dir) + strlen("/bloques.dat") + 1;
+    char* path_bloques = malloc(path_length);
+    strcat(path_bloques, mount_dir);
+    strcat(path_bloques, "/bloques.dat");
+    FILE* bloques_file = fopen(path_bloques, "rb+");
     if (bloque < 0 || bloque >= block_count) {
         log_error(logger, "El índice de bloque %d está fuera del rango permitido.", bloque);
         return;
@@ -125,15 +134,15 @@ int crear_archivo_metadata(char* nombre_archivo,uint32_t tamanio) {
         log_info(logger, "Archivo metadata creado con éxito: %s", path_metadata);
     } else {
         log_info(logger, "Archivo metadata ya existe: %s", path_metadata);
-        fclose(metadata_file);
+        return 0; 
     }
     log_info(logger, "Archivo Creado: %s - Tamaño: %d", nombre_archivo, tamanio);
     free(path_metadata);
-
     return 0;
 }
 
 int crear_archivo_dump(char* nombre_archivo, uint32_t tamanio, void* datos) {
+    
     // Verificar si hay espacio suficiente en el bitmap
     uint32_t num_bloques_necesarios = (uint32_t)ceil((double)tamanio / block_size); // Redondear hacia arriba
     if (!espacio_disponible(num_bloques_necesarios + 1)) { // 1 adicional para el bloque de índices
@@ -152,90 +161,59 @@ int crear_archivo_dump(char* nombre_archivo, uint32_t tamanio, void* datos) {
     for (int i = 0; i < reserva->cantidad_bloques; i++) {
         log_info(logger,"Bloque de datos %d: %u\n", i, reserva->bloques_datos[i]);
     }
-
-    cargar_bloques(reserva->bloques_datos, reserva->cantidad_bloques, datos);
-    
-    return 0;
-
-    // Reservar los bloques de datos
-    //agarrar los datos, ponerlos en los bloques arrancando desde bits_ocupados +1
-    
-    //uint32_t indice_datos[num_bloques_necesarios];
-    //
-    //for (int i = 0; i < num_bloques_necesarios; i++){
-    //    indice_datos[i] = reservar_bloques();
-    //}
-
-
-    // escribir_bloque(bits_ocupados, indice_datos, block_size);
-    // escribir_bloque(bits_ocupados+1, datos, tamanio*block_size);
-/*
-    // Crear el archivo de metadata
-    int resultado_metadata = crear_archivo_metadata(nombre_archivo, tamanio);
-    if (resultado_metadata != 0) {
-        log_error(logger, "Error al crear el archivo de metadata.");
-        // Liberar los bloques reservados
-        liberar_bloque(bloque_indice);
-        for (uint32_t i = bloque_indice; i < num_bloques_necesarios; i++) {
-            liberar_bloque(i);
-        }
+    int check;
+    check = cargar_bloques(reserva->bloques_datos, reserva->cantidad_bloques, datos);
+    if (check){
+        log_info(logger,"no cargo los bloques");
         return -1;
-    }
-
-    // // Escribir referencias a los bloques de datos en el bloque de índices
-    // FILE* fs = fopen("filesystem.dat", "rb+"); // Abrir el sistema de archivos
-    // if (fs == NULL) {
-    //     log_error(logger, "Error al abrir el archivo del filesystem.");
-    //     liberar_bloque(bloque_indice);
-    //     for (uint32_t i = 0; i < num_bloques_necesarios; i++) {
-    //         liberar_bloque(bloques_datos[i]);
-    //     }
-    //     return -1;
-    // }
-
-    // fseek(fs, bloque_indice * block_size, SEEK_SET); // Posicionar en el bloque de índices
-    // if (fwrite(bloques_datos, sizeof(uint32_t), num_bloques_necesarios, fs) != num_bloques_necesarios) {
-    //     log_error(logger, "Error al escribir en el bloque de índices.");
-    //     fclose(fs);
-    //     liberar_bloque(bloque_indice);
-    //     for (uint32_t i = 0; i < num_bloques_necesarios; i++) {
-    //         liberar_bloque(bloques_datos[i]);
-    //     }
-    //     return -1;
-    // }
-
-    // // Escribir los datos en los bloques de datos
-    // for (uint32_t i = 0; i < num_bloques_necesarios; i++) {
-    //     fseek(fs, bloques_datos[i] * block_size, SEEK_SET); // Posicionar en el bloque de datos
-
-    //     size_t bytes_a_escribir = (tamanio > block_size) ? block_size : tamanio; // Bytes a escribir en este bloque
-    //     if (fwrite(datos, 1, bytes_a_escribir, fs) != bytes_a_escribir) {
-    //         log_error(logger, "Error al escribir datos en el bloque %u.", bloques_datos[i]);
-    //         fclose(fs);
-    //         liberar_bloque(bloque_indice);
-    //         for (uint32_t j = 0; j < num_bloques_necesarios; j++) {
-    //             liberar_bloque(bloques_datos[j]);
-    //         }
-    //         return -1;
-    //     }
-
-    //     datos += bytes_a_escribir / sizeof(uint32_t); // Avanzar el puntero de datos
-    //     tamanio -= bytes_a_escribir; // Reducir los bytes restantes
-    // }
-
-    log_info(logger, "Archivo dump creado exitosamente: %s", nombre_archivo);
-    */
+    } 
+    log_info(logger,"cargo los bloques");
+    return 0;
 }
 
-int cargar_bloques(uint32_t* bloques_datos, uint32_t cantidad_bloques, uint32_t *datos){
+int cargar_bloques(uint32_t* bloques_datos, uint32_t cantidad_bloques, void *datos){
+    //size_t uy = strlen(mount_dir) + strlen("/bloques.dat") + 1;
+    //char *path_bloques = malloc(uy);
+//
+    //snprintf(path_bloques, sizeof(path_bloques), "%s/bloques.dat", mount_dir);
+    FILE* bloques_file = fopen("/home/utnso/mount_dir/bloques.dat", "rb+"); //hardcodeado->cambiar
 
-    FILE* archivo_bloque = fopen("bloques.dat", "rb+"); 
-    if (archivo_bloque == NULL) {
+    if (bloques_file == NULL) {
         log_error(logger, "Error al abrir el archivo de bloques");
     }
-    
+
     for (uint32_t i = 0; i < cantidad_bloques; i++) {
 
+        size_t posicion = bloques_datos[i]*block_size;
+
+        if(fseek(bloques_file,posicion,SEEK_SET) != 0){
+            log_error(logger, "error al mover el puntero: %d", bloques_datos[i]);
+            return -1;
+        }
+        void *  fragmento_datos = (char*) datos + (i*block_size);
+        if (fwrite(fragmento_datos, sizeof(uint32_t), 1, bloques_file) != 1) {
+            pthread_mutex_lock(mutex_logs);
+            log_error(logger, "Error al escribir en el bloque de punteros");
+            pthread_mutex_unlock(mutex_logs);
+            return -1;
+        }
     }
-    fclose(archivo_bloque);
+
+    fclose(bloques_file);
+    return 0;
 }
+
+/*void escribir_bloque_de_puntero(uint32_t* bloques_datos, uint32_t cantidad_bloques) {
+    FILE* archivo_bloque = fopen("bloques.dat", "rb+"); 
+    int indice_bloque_puntero = bloques_datos[0];
+    
+    off_t offset = indice_bloque_puntero * block_size;
+    fseek(archivo_bloque, offset, SEEK_SET);
+    for (int i = 1; i < cantidad_bloques; i++) {
+        if (fwrite(&bloques_datos[i], sizeof(uint32_t), 1, archivo_bloque) != 1) {
+            pthread_mutex_lock(&mutex_logs);
+            log_error(logger, "Error al escribir en el bloque de punteros");
+            pthread_mutex_unlock(&mutex_logs);
+        }
+    }
+}*/
