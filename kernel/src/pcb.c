@@ -54,5 +54,6 @@ void cambiar_estado(t_tcb* tcb, t_estado estado)
 }
 
 int generar_pid_unico() {
-    return ++pid_actual;
+    pid_actual +=1;
+    return pid_actual;
 }

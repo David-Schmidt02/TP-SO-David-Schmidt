@@ -194,6 +194,7 @@ void *administrador_peticiones_memoria(void* arg_server){
 	
 	while(1){
 		sem_wait(sem_lista_t_peticiones);
+        log_warning(logger, "SEMWAIT del semáforo de peticiones hecho");
 		pthread_mutex_lock(mutex_lista_t_peticiones);
 		peticion = list_remove(lista_t_peticiones, 0);
 		pthread_mutex_unlock(mutex_lista_t_peticiones);
@@ -314,8 +315,10 @@ void encolar_peticion_memoria(t_peticion * peticion){
         // Encolar la petición
         pthread_mutex_lock(mutex_lista_t_peticiones);
         list_add(lista_t_peticiones, peticion);
+        log_info(logger, "Encole la peticion a memoria");
         pthread_mutex_unlock(mutex_lista_t_peticiones);
         sem_post(sem_lista_t_peticiones);
+        log_warning(logger, "SEMPOST del semáforo de peticiones hecho");
 }
 
 void inicializar_estructuras(){

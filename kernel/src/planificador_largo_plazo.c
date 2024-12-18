@@ -104,13 +104,15 @@ void inicializar_semaforos_largo_plazo(){
     sem_init(sem_hilo_principal_process_create_encolado, 0, 0);
 }
 
-void largo_plazo_fifo()
-{
+void* largo_plazo_fifo(void* args)
+{   int i= 0;
     while (1)
     {
         sem_wait(sem_estado_procesos_a_crear);
+        log_error(logger, "Llego otro proceso a crear, generando la peticion para memoria...");
         pthread_mutex_lock(mutex_procesos_a_crear);
         t_pcb *proceso = desencolar_proceso_a_crear();
+        
     // Crear petición
         t_peticion *peticion = malloc(sizeof(t_peticion));
         peticion->tipo = PROCESS_CREATE_OP;
@@ -129,11 +131,13 @@ void largo_plazo_fifo()
             pthread_mutex_unlock(mutex_procesos_a_crear);
         } else {
             log_warning(logger, "Memoria no tiene espacio suficiente, reintentando cuando un proceso se termine...");
-            //probar como funciona
+            pthread_mutex_unlock(mutex_procesos_a_crear);
             while(!peticion->respuesta_exitosa){
-                pthread_mutex_unlock(mutex_procesos_a_crear);
+                i--;
                 sem_post(sem_hilo_principal_process_create_encolado);
                 sem_post(sem_hilo_principal_process_create_encolado);
+                log_warning(logger, "Entraste a este while: %d veces", i);
+                sem_post(sem_estado_procesos_a_crear);
                 sem_wait(sem_proceso_finalizado);
                 pthread_mutex_lock(mutex_procesos_a_crear);
                 list_add_in_index(procesos_a_crear->lista_procesos, -1, proceso);

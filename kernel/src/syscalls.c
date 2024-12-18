@@ -103,7 +103,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     }
 
     tcb_principal->instrucciones = lista_instrucciones;
-    
+    log_error(logger, "Agrego la peticion a memoria.");
     pthread_mutex_lock(mutex_procesos_a_crear);
     list_add(procesos_a_crear->lista_procesos, nuevo_pcb);
     sem_post(sem_estado_procesos_a_crear);
