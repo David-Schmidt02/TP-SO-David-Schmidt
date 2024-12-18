@@ -154,6 +154,7 @@ int comparar_prioridades(t_tcb *a, t_tcb *b) {
 }
 
 void corto_plazo_colas_multinivel() {
+    int i=0;
     while (1) {
         int replanificar = 0; // Variable para saber si hay que replanificar
         sem_wait(sem_estado_multinivel);
@@ -244,17 +245,7 @@ void enviar_interrupcion_fin_quantum(void *hilo_void) {
 void encolar_corto_plazo_multinivel(t_tcb* hilo) {
     int prioridad = hilo->prioridad;
 
-    if (colas_multinivel == NULL) {
-        perror("Error: colas_multinivel no está inicializado");
-        exit(EXIT_FAILURE);
-    }
-
-    if (colas_multinivel->niveles_prioridad == NULL) {
-        perror("Error: niveles_prioridad no está inicializado");
-        exit(EXIT_FAILURE);
-    }
-
-    // Buscar si existe un nivel de prioridad correspondiente
+    // Buscar si existe EL nivel de prioridad correspondiente
     t_nivel_prioridad* nivel = NULL;
     for (int i = 0; i < list_size(colas_multinivel->niveles_prioridad); i++) {
         t_nivel_prioridad* actual = list_get(colas_multinivel->niveles_prioridad, i);
@@ -266,29 +257,13 @@ void encolar_corto_plazo_multinivel(t_tcb* hilo) {
     if (nivel == NULL) {
         log_info(logger,"Nivel de prioridad %d no existe. Creando nueva cola...\n", prioridad);
 
-        // Crear una nueva cola de hilos
         t_cola_hilo* nueva_cola = malloc(sizeof(t_cola_hilo));
-        if (nueva_cola == NULL) {
-            perror("Error al asignar memoria para nueva cola de hilos");
-            exit(EXIT_FAILURE);
-        }
 
         nueva_cola->nombre_estado = READY;
         nueva_cola->lista_hilos = list_create();
-        if (nueva_cola->lista_hilos == NULL) {
-            perror("Error al crear lista de hilos en la nueva cola");
-            free(nueva_cola);
-            exit(EXIT_FAILURE);
-        }
 
         // Crear un nuevo nivel de prioridad y asociarlo con la nueva cola
         t_nivel_prioridad* nuevo_nivel = malloc(sizeof(t_nivel_prioridad));
-        if (nuevo_nivel == NULL) {
-            perror("Error al asignar memoria para nuevo nivel de prioridad");
-            list_destroy(nueva_cola->lista_hilos);
-            free(nueva_cola);
-            exit(EXIT_FAILURE);
-        }
 
         nuevo_nivel->nivel_prioridad = prioridad;
         nuevo_nivel->cola_hilos = nueva_cola;
@@ -399,7 +374,7 @@ void recibir_motivo_devolucion_cpu() {
             break;
 
         case THREAD_EXIT_OP:
-            log_info(logger, "PID:%d TID:%d inicio un Thread exit\n", hilo_actual->pid, tid);
+            log_info(logger, "PID:%d TID:%d inicio un THREAD EXIT\n", hilo_actual->pid, tid);
             desbloquear_hilos(hilo_actual->tid);
             THREAD_EXIT();
             ok_recibido = list_remove(paquete_respuesta, 0);
@@ -408,16 +383,15 @@ void recibir_motivo_devolucion_cpu() {
             break; 
         
         case THREAD_CANCEL_OP:
-            log_info(logger, "PID:%d TID:%d inicio un Thread Cancel\n", hilo_actual->pid, tid);
+            log_info(logger, "PID:%d TID:%d inicio un THREAD CANCEL\n", hilo_actual->pid, tid);
             tid = *(int *)list_remove(paquete_respuesta, 0);
             desbloquear_hilos(tid);
             THREAD_CANCEL(tid);
             break;   
 
         case THREAD_JOIN_OP:
-            t_tcb* tcb = malloc(sizeof(t_tcb));
             tid = *(int *)list_remove(paquete_respuesta, 0);
-            log_info(logger, "## (%d:%d) - Bloqueado por: PTHREAD_JOIN, esperando al hilo ## (%d)\n", hilo_actual->pid, hilo_actual->tid, tcb->tid);
+            log_info(logger, "## (%d:%d) - Bloqueado por: THREAD_JOIN, esperando al hilo %d\n", hilo_actual->pid, hilo_actual->tid, tid);
             // Transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
             THREAD_JOIN(tid);
             //encolar_hilo_corto_plazo(hilo_actual);
@@ -474,11 +448,9 @@ void actualizar_quantum(int tiempo_transcurrido){
 }
 
 void desbloquear_hilos(int tid) {
-    if (!hilo_actual) {
-        log_warning(logger,"Error: No se encontró el hilo con TID %d\n", tid);
-        return;
-    }
     // Iterar sobre los hilos en la lista de espera
+    log_info(logger, "Entraste a desbloquear hilos");
+    log_info(logger, "La cantidad de hilos bloqueados por este hilo es: %d", list_size(hilo_actual->lista_espera));
     for (int i = 0; i < list_size(hilo_actual->lista_espera); i++) {
         t_tcb* hilo_bloqueado = list_get(hilo_actual->lista_espera, i);
 

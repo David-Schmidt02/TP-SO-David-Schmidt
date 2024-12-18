@@ -57,7 +57,7 @@ t_tcb* obtener_tcb(int tid, int pid) {
     for (int j = 0; j < list_size(pcb->listaTCB); j++) {
         t_tcb* tcb_actual = list_get(pcb->listaTCB, j);
         if (tcb_actual->tid == tid) {
-            return pcb;
+            return tcb_actual;
         }
     }
     return NULL;
@@ -259,7 +259,7 @@ void eliminar_hilo_de_cola_multinivel_thread_exit(t_tcb* tcb_asociado) {
         t_nivel_prioridad *nivel = list_get(colas_multinivel->niveles_prioridad, i);
         for (int j = 0; j < list_size(nivel->cola_hilos->lista_hilos); j++) {
             t_tcb *hilo = list_get(nivel->cola_hilos->lista_hilos, j);
-            if (hilo->pid == tcb_asociado->pid) {
+            if (hilo->pid == tcb_asociado->pid && hilo->tid == tcb_asociado->tid) {
                 list_remove(nivel->cola_hilos->lista_hilos, j);
                 j--;
                 //sem_wait(sem_estado_multinivel);
@@ -283,7 +283,7 @@ void eliminar_hilo_de_cola_multinivel_cancel(t_tcb* tcb_asociado) {
             if (hilo->pid == tcb_asociado->pid) {
                 list_remove(nivel->cola_hilos->lista_hilos, j);
                 j--;
-                sem_wait(sem_estado_multinivel);
+                //sem_wait(sem_estado_multinivel);
                 pthread_mutex_unlock(mutex_colas_multinivel);
                 break;
             }
@@ -330,12 +330,8 @@ void THREAD_JOIN(int tid_a_esperar) {
         return;
     }
 
-    //trabajar con los semáforos
     cambiar_estado(hilo_actual, BLOCK);
     agregar_hilo_a_lista_de_espera(hilo_a_esperar, hilo_actual);
-    //agregar una interrupcion a CPU para que deje de ejecutarlo y ejecute el siguiente hilo de la cola
-
-    // Obtengo el PCB correspondiente al hilo actual
     encolar_en_block(hilo_actual);
     //free(pcb_hilo_actual);/
 }
@@ -670,6 +666,7 @@ void agregar_hilo_a_lista_de_espera(t_tcb* hilo_a_esperar, t_tcb* hilo_actual) {
     }
     list_add(hilo_a_esperar->lista_espera, hilo_actual);
     hilo_actual->contador_joins--;
+    log_info(logger, "El hilo TID: %d tiene en su lista de espera al hilo TID: %d", hilo_a_esperar->tid, hilo_actual->tid);
 }
 
 t_list* obtener_lista_de_hilos_que_esperan(t_tcb* hilo) {
