@@ -27,10 +27,9 @@ t_cola_proceso* inicializar_cola_procesos_ready();
 void encolar_hilo_principal_corto_plazo(t_pcb * proceso);
 void inicializar_cola_procesos_a_crear();
 void inicializar_semaforos_largo_plazo();
-void largo_plazo_fifo();
 t_pcb* desencolar_proceso_a_crear();
 void encolar_proceso_en_ready(t_pcb * proceso);
-
+void* largo_plazo_fifo(void* args);
 
 
 void* planificador_corto_plazo_hilo(void* arg);

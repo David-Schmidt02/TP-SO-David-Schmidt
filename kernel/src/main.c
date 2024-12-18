@@ -58,7 +58,7 @@ t_cola_hilo* hilos_cola_ready;
 pthread_mutex_t * mutex_hilos_cola_ready;
 sem_t * sem_estado_hilos_cola_ready;
 
-sem_t * sem_hilo_principal_process_create_encolado;
+sem_t * sem_hilo_actual_encolado;
 
 t_cola_hilo* hilos_cola_exit;
 pthread_mutex_t * mutex_hilos_cola_exit;
@@ -232,7 +232,7 @@ void *peticion_kernel(void *args) {
             send_protocolo = crear_paquete(PROCESS_EXIT_OP);
             agregar_a_paquete(send_protocolo, &proceso->pid, sizeof(int));
 			log_info(logger, "Se envió la peticion de PROCESS EXIT del PID: %d", proceso->pid);
-			sem_post(sem_proceso_finalizado);
+			//sem_post(sem_proceso_finalizado);
             break;
 
         case THREAD_CREATE_OP:

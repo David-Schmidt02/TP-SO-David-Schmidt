@@ -11,6 +11,7 @@ t_pcb* crear_pcb(int pid, int prioridadTID)
 {
     t_pcb* pcb = (t_pcb*)(malloc(sizeof(t_pcb)));
     pcb->pid = pid;
+    pcb->ultimo_tid = 0;
     
     pcb->listaTCB = list_create();
     pcb->listaMUTEX = list_create();
@@ -23,7 +24,7 @@ t_pcb* crear_pcb(int pid, int prioridadTID)
     return pcb;
 }
 
-t_tcb* crear_tcb(int pid,int tid, int prioridad)
+t_tcb* crear_tcb(int pid, int tid, int prioridad)
 {
     //falta agregar a la listaTCB
     t_tcb* tcb = (t_tcb*)(malloc(sizeof(t_tcb)));
@@ -53,5 +54,6 @@ void cambiar_estado(t_tcb* tcb, t_estado estado)
 }
 
 int generar_pid_unico() {
-    return ++pid_actual;
+    pid_actual +=1;
+    return pid_actual;
 }

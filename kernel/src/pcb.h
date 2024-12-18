@@ -37,6 +37,7 @@ typedef struct {
 typedef struct {
     int pid;
     int memoria_necesaria;
+    int ultimo_tid;
     t_estado estado;
     t_list *listaTCB;
     t_list *listaMUTEX;
