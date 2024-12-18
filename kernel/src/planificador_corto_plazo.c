@@ -28,7 +28,12 @@ extern t_colas_multinivel *colas_multinivel;
 extern pthread_mutex_t * mutex_colas_multinivel;
 extern sem_t * sem_estado_multinivel;
 
-//extern t_config *config;
+//extern t_cola_procesos_a_crear* lista_procesos_a_crear_reintento;
+extern pthread_mutex_t * mutex_lista_procesos_a_crear_reintento;
+extern sem_t * sem_estado_lista_procesos_a_crear_reintento;
+
+extern sem_t * sem_hilo_nuevo_encolado;
+
 extern char* algoritmo;
 extern int quantum;
 
@@ -36,11 +41,8 @@ extern pthread_mutex_t * mutex_socket_cpu_dispatch;
 extern sem_t * sem_estado_conexion_cpu_dispatch;
 extern pthread_mutex_t * mutex_socket_cpu_interrupt;
 
-extern struct timeval tiempo_inicio_quantum; 
-extern pthread_mutex_t mutex_tiempo_inicio;
 
 void* planificador_corto_plazo_hilo(void* arg) {
-    sem_wait(sem_hilo_actual_encolado);
     if (strcmp(algoritmo, "FIFO") == 0) {
         corto_plazo_fifo();
     } else if (strcmp(algoritmo, "PRIORIDADES") == 0) {
@@ -154,9 +156,9 @@ int comparar_prioridades(t_tcb *a, t_tcb *b) {
 }
 
 void corto_plazo_colas_multinivel() {
-    int i=0;
     while (1) {
-        int replanificar = 0; // Variable para saber si hay que replanificar
+        //sem_wait(sem_hilo_nuevo_encolado);
+        sem_wait(sem_hilo_actual_encolado);
         sem_wait(sem_estado_multinivel);
         t_nivel_prioridad *nivel_a_ejecutar = NULL;
         t_cola_hilo *cola_a_ejecutar = buscar_cola_menor_prioridad(colas_multinivel, &nivel_a_ejecutar);
@@ -170,16 +172,6 @@ void corto_plazo_colas_multinivel() {
             log_info(logger,"Cola de prioridad %d: Ejecutando hilo TID=%d, PID=%d\n", nivel_a_ejecutar->nivel_prioridad, hilo_a_ejecutar->tid, hilo_a_ejecutar->pid);
             hilo_a_ejecutar->estado = EXEC;  
             ejecutar_round_robin(hilo_a_ejecutar);
-            // Indicamos que hay que replanificar, ya que se ha ejecutado un hilo
-            replanificar = 1;
-        }
-
-        if (!replanificar) {
-            usleep(100); 
-        }
-        // Si se ejecutó un hilo, volvemos a planificar
-        if (replanificar) {
-            continue;
         }
     }
 }
@@ -227,10 +219,6 @@ void ejecutar_round_robin(t_tcb * hilo_a_ejecutar) {
 // Función para contar el quantum y enviar una interrupción si se agota
 void enviar_interrupcion_fin_quantum(void *hilo_void) {
     t_tcb* hilo = (t_tcb*) hilo_void;
-
-    pthread_mutex_lock(&mutex_tiempo_inicio);
-    gettimeofday(&tiempo_inicio_quantum, NULL); // Marcar el inicio del quantum
-    pthread_mutex_unlock(&mutex_tiempo_inicio);
 
     usleep(hilo->quantum_restante*1000);
     // Si el quantum se agotó, enviamos una interrupción al CPU por el canal de interrupt
@@ -337,6 +325,7 @@ void recibir_motivo_devolucion_cpu() {
         case FIN_QUANTUM:
             log_info(logger, "## (%d:%d) - Desalojado por fin de Quantum\n", hilo_actual->pid, tid);
             encolar_corto_plazo_multinivel(hilo_actual);
+            sem_post(sem_hilo_actual_encolado);
             ok_recibido = list_remove(paquete_respuesta, 0);
             free(ok_recibido);
             list_destroy(paquete_respuesta);
@@ -350,13 +339,17 @@ void recibir_motivo_devolucion_cpu() {
             prioridad = * (int *)list_remove(paquete_respuesta, 0);
             pid = proceso_actual->pid;
             PROCESS_CREATE(archivo, tamanio, prioridad);
+            sem_wait(sem_hilo_nuevo_encolado);
+            sem_wait(sem_hilo_nuevo_encolado);
             encolar_hilo_corto_plazo(hilo_actual);
             sem_post(sem_hilo_actual_encolado);
+            log_warning(logger, "Despues de encolar el hilo nuevo del PROCESS CREATE se hace un post y comienza la ejecucion de nuevo");
             break; 
 
         case PROCESS_EXIT_OP:
             log_info(logger, "## (%d:%d) - Solicitó syscall: PROCESS_EXIT", hilo_actual->pid, tid);
             PROCESS_EXIT();
+            sem_post(sem_hilo_actual_encolado);
             ok_recibido = list_remove(paquete_respuesta, 0);
             free(ok_recibido);
             list_destroy(paquete_respuesta);
@@ -377,6 +370,7 @@ void recibir_motivo_devolucion_cpu() {
             log_info(logger, "PID:%d TID:%d inicio un THREAD EXIT\n", hilo_actual->pid, tid);
             desbloquear_hilos(hilo_actual->tid);
             THREAD_EXIT();
+            sem_post(sem_hilo_actual_encolado);
             ok_recibido = list_remove(paquete_respuesta, 0);
             free(ok_recibido);
             list_destroy(paquete_respuesta);
@@ -387,6 +381,7 @@ void recibir_motivo_devolucion_cpu() {
             tid = *(int *)list_remove(paquete_respuesta, 0);
             desbloquear_hilos(tid);
             THREAD_CANCEL(tid);
+            sem_post(sem_hilo_actual_encolado);
             break;   
 
         case THREAD_JOIN_OP:
@@ -394,6 +389,7 @@ void recibir_motivo_devolucion_cpu() {
             log_info(logger, "## (%d:%d) - Bloqueado por: THREAD_JOIN, esperando al hilo %d\n", hilo_actual->pid, hilo_actual->tid, tid);
             // Transicionar el hilo al estado block (se hace en la syscall) y esperar a que termine el otro hilo para poder seguir ejecutando
             THREAD_JOIN(tid);
+            sem_post(sem_hilo_actual_encolado);
             //encolar_hilo_corto_plazo(hilo_actual);
             //esperar_desbloqueo_ejecutar_hilo(tid); -> ya no se usá, la lógica está en finalizacion -> "desbloquear hilos"
             break;
@@ -421,6 +417,7 @@ void recibir_motivo_devolucion_cpu() {
             tiempo = *(int *)list_remove(paquete_respuesta, 0);
             log_info(logger, "## (%d:%d) - Bloqueado por: IO\n", hilo_actual->pid, tid);
             IO(tiempo, hilo_actual->tid);
+            sem_post(sem_hilo_actual_encolado);
             break;   
 
         case DUMP_MEMORY_OP:
@@ -464,6 +461,7 @@ void desbloquear_hilos(int tid) {
             log_info(logger, "Hilo TID %d listo para ejecutar.\n", hilo_bloqueado->tid);
             cambiar_estado(hilo_bloqueado, READY);
             encolar_hilo_ya_creado_corto_plazo(hilo_bloqueado);// se encola el hilo nuevamente sin generar una peticion a memoria
+            sem_post(sem_hilo_actual_encolado);
         }
     }
     //free(hilo_actual);

@@ -6,7 +6,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/bin/${workspaceFolderBasename}",
-      "args": ["FIBO_10", 64, 0],
+      "args": ["MEM_FIJA_BASE", 12, 0],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],

@@ -81,6 +81,7 @@ void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad);
 void THREAD_JOIN(int tid_a_esperar) ;
 void finalizar_hilo(t_tcb* hilo);
 void THREAD_CANCEL(int tid_hilo_a_cancelar);
+//void reintentar_creacion_proceso(t_pcb* proceso);
 void notificar_memoria_creacion_hilo(t_tcb* hilo);
 void notificar_memoria_fin_hilo(t_tcb* hilo);
 void eliminar_tcb(t_tcb* hilo);

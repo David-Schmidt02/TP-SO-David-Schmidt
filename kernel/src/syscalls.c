@@ -44,6 +44,7 @@ extern t_list* lista_procesos; // Lista global de procesos
 extern int ultimo_tid;
 //
 
+extern sem_t * sem_hilo_actual_encolado;
 extern sem_t * sem_estado_respuesta_desde_memoria;
 
 extern t_cola_IO *colaIO;
@@ -51,6 +52,8 @@ extern pthread_mutex_t * mutex_colaIO;
 extern sem_t * sem_estado_colaIO;
 
 extern sem_t * sem_proceso_finalizado;
+
+extern pthread_mutex_t *mutex_socket_memoria;
 
 t_tcb* obtener_tcb(int tid, int pid) {
     t_pcb* pcb = obtener_pcb(pid);
@@ -199,7 +202,6 @@ void PROCESS_EXIT() {
             break;
         }
     }
-    
     sem_wait(sem_estado_procesos_cola_ready);
     pthread_mutex_unlock(mutex_procesos_cola_ready);
     sem_post(sem_proceso_finalizado);
@@ -210,7 +212,8 @@ void notificar_memoria_fin_proceso(int pid) {
     t_peticion *peticion = malloc(sizeof(t_peticion));
         peticion->tipo = PROCESS_EXIT_OP;
         peticion->proceso = obtener_pcb(pid); 
-        peticion->hilo = NULL; // No aplica en este caso  
+        peticion->hilo = NULL; 
+        pthread_mutex_lock(mutex_socket_memoria);
         encolar_peticion_memoria(peticion);
         sem_wait(sem_estado_respuesta_desde_memoria);
     if (peticion->respuesta_exitosa) {
@@ -218,6 +221,8 @@ void notificar_memoria_fin_proceso(int pid) {
     } else {
         log_info(logger, "Error al finalizar el proceso con PID %d en la Memoria.", pid);
         }   
+        sem_post(sem_proceso_finalizado);
+        pthread_mutex_unlock(mutex_socket_memoria);
 }
 
 //Ademas de eliminar el hilo de acá me tengo que asegurar de que memoria destruya las estructuras de los mismos
@@ -321,6 +326,36 @@ void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad) {
     log_info(logger, "## (%d:%d) Se crea el Hilo - Estado: READY", proceso_actual->pid, tid);
 }
 
+/*
+void reintentar_creacion_proceso(t_pcb* proceso) {
+    log_warning(logger, "Memoria no tiene espacio suficiente, reintentando cuando un proceso se termine...");
+    sem_wait(sem_proceso_finalizado);
+    t_peticion *peticion = malloc(sizeof(t_peticion));
+    peticion->tipo = PROCESS_CREATE_OP;
+    peticion->proceso = proceso;
+    peticion->hilo = NULL; 
+    log_warning(logger, "Finalizó un proceso, se encola el PROCESS CREATE del PID:%d", proceso->pid);
+    encolar_peticion_memoria(peticion);
+    sem_wait(sem_estado_respuesta_desde_memoria);
+    if (peticion->respuesta_exitosa) {
+        proceso->estado = READY;
+        encolar_proceso_en_ready(proceso);
+        encolar_hilo_principal_corto_plazo(proceso);
+        if (proceso->pid == 1)
+            {
+                sem_post(sem_hilo_actual_encolado);
+            }
+        pthread_mutex_unlock(mutex_procesos_a_crear);
+    } else {
+        pthread_mutex_unlock(mutex_procesos_a_crear);
+        while(!peticion->respuesta_exitosa){
+            sem_post(sem_hilo_actual_encolado);
+            reintentar_creacion_proceso(proceso);
+        }
+        free(peticion);
+    }
+}
+*/
 void THREAD_JOIN(int tid_a_esperar) {
     t_tcb* hilo_a_esperar = obtener_tcb(tid_a_esperar, proceso_actual->pid);
 
@@ -385,6 +420,7 @@ void notificar_memoria_creacion_hilo(t_tcb* hilo) {
         peticion->tipo = THREAD_CREATE_OP;
         peticion->proceso = NULL; // No aplica en este caso
         peticion->hilo = hilo; 
+        pthread_mutex_lock(mutex_socket_memoria);
         encolar_peticion_memoria(peticion);
         sem_wait(sem_estado_respuesta_desde_memoria);
     if (peticion->respuesta_exitosa) {
@@ -392,13 +428,15 @@ void notificar_memoria_creacion_hilo(t_tcb* hilo) {
     } else {
         log_info(logger, "Error al informar sobre la creacion del hilo con TID %d a Memoria.", hilo->tid);
         }
-    }
+        pthread_mutex_unlock(mutex_socket_memoria);
+}
 
 void notificar_memoria_fin_hilo(t_tcb* hilo) {
     t_peticion *peticion = malloc(sizeof(t_peticion));
     peticion->tipo = THREAD_EXIT_OP;
     peticion->proceso = NULL; // No aplica en este caso
     peticion->hilo = hilo; 
+    pthread_mutex_lock(mutex_socket_memoria);
     encolar_peticion_memoria(peticion);
     sem_wait(sem_estado_respuesta_desde_memoria);
     if (peticion->respuesta_exitosa) {
@@ -406,6 +444,7 @@ void notificar_memoria_fin_hilo(t_tcb* hilo) {
     } else {
         log_info(logger, "Error al finalizar el hilo con TID %d en la Memoria.", hilo->tid);
         }   
+    pthread_mutex_unlock(mutex_socket_memoria);
 }
 
 void eliminar_tcb(t_tcb* hilo) {
@@ -597,8 +636,10 @@ void DUMP_MEMORY(int pid) {
     peticion->tipo = DUMP_MEMORY_OP;
     peticion->proceso = obtener_pcb(pid);
     peticion->hilo = NULL; 
+    pthread_mutex_lock(mutex_socket_memoria);
     encolar_peticion_memoria(peticion);
     sem_wait(sem_estado_respuesta_desde_memoria);
+    pthread_mutex_unlock(mutex_socket_memoria);
 }
 
 void element_destroyer(void* elemento) 

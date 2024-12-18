@@ -168,7 +168,7 @@ void *server_multihilo_kernel(void* arg_server){
 				pthread_mutex_lock(mutex_lista_peticiones);
 				list_add(lista_t_peticiones, thread_copia);
 				pthread_mutex_unlock(mutex_lista_peticiones);
-				log_info(logger, "nueva peticion de process create");
+				log_info(logger, "Nueva petición de PROCESS CREATE");
 				break;
 			case THREAD_CREATE_OP:
 				pthread_create(&aux_thread, NULL, peticion_kernel_NEW_THREAD, (void *)&socket_cliente_kernel);
@@ -177,7 +177,7 @@ void *server_multihilo_kernel(void* arg_server){
 				*thread_copia = aux_thread;
 				list_add(lista_t_peticiones, thread_copia);
 				pthread_mutex_unlock(mutex_lista_peticiones);
-				log_info(logger, "nueva peticion de thread create");
+				log_info(logger, "Nueva petición de THREAD CREATE");
 				break;
 			case PROCESS_EXIT_OP:
 				pthread_create(&aux_thread, NULL, peticion_kernel_END_PROCESS, (void *)&socket_cliente_kernel);
@@ -186,7 +186,7 @@ void *server_multihilo_kernel(void* arg_server){
 				*thread_copia = aux_thread;
 				list_add(lista_t_peticiones, thread_copia);
 				pthread_mutex_unlock(mutex_lista_peticiones);
-				log_info(logger, "nueva de Process Exit");
+				log_info(logger, "Nueva petición de PROCESS EXIT");
 				break;
 			case THREAD_EXIT_OP:
 				pthread_create(&aux_thread, NULL, peticion_kernel_END_THREAD, (void *)&socket_cliente_kernel);
@@ -195,7 +195,7 @@ void *server_multihilo_kernel(void* arg_server){
 				*thread_copia = aux_thread;
 				list_add(lista_t_peticiones, thread_copia);
 				pthread_mutex_unlock(mutex_lista_peticiones);
-				log_info(logger, "nueva peticion de Thread Exit");
+				log_info(logger, "Nueva petición de THREAD EXIT");
 				break;
 			case DUMP_MEMORY_OP:
 				pthread_create(&aux_thread, NULL, peticion_kernel_DUMP, (void *)&socket_cliente_kernel);
@@ -204,7 +204,7 @@ void *server_multihilo_kernel(void* arg_server){
 				*thread_copia = aux_thread;
 				list_add(lista_t_peticiones, thread_copia);
 				pthread_mutex_unlock(mutex_lista_peticiones);
-				log_info(logger, "nueva peticion de Dump Memory");
+				log_info(logger, "Nueva petición de DUMP MEMORY");
 				break;
 			case TERMINATE:
 				log_error(logger, "TERMINATE recibido de KERNEL");

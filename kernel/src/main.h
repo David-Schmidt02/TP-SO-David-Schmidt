@@ -42,6 +42,7 @@ void *conexion_cpu_interrupt(void * arg_cpu_interrupt);
 void *administrador_peticiones_memoria(void* arg_server);
 void *peticion_kernel(void * args);
 void encolar_peticion_memoria(t_peticion * peticion);
+void *reintentar_creacion_proceso(void * args);
 void inicializar_estructuras();
 void inicializar_semaforos();
 void inicializar_semaforos_conexion_cpu();
