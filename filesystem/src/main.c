@@ -126,7 +126,7 @@ void *conexion_memoria(void* arg_memoria)
 
 char* crear_directorio(char* ruta_a_agregar) {
     if (!mount_dir) {
-        fprintf(stderr, "Error: La ruta base es NULL.\n");
+        log_error(logger, "Error: La ruta base es NULL.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -140,11 +140,11 @@ char* crear_directorio(char* ruta_a_agregar) {
     snprintf(ruta, path_length, "%s%s", mount_dir,ruta_a_agregar);
 
     if (mkdir(ruta, 0700) == 0) {
-        printf("Directorio '%s' creado correctamente.\n", ruta);
+        log_info(logger,"Directorio '%s' creado correctamente.\n", ruta);
     } else if (errno == EEXIST) {
-        printf("El directorio '%s' ya existe.\n", ruta);
+        log_error(logger,"El directorio '%s' ya existe.\n", ruta);
     } else {
-        perror("Error al crear el directorio");
+        log_error(logger,"Error al crear el directorio");
         free(ruta); // Liberar memoria en caso de error
         exit(EXIT_FAILURE);
     }

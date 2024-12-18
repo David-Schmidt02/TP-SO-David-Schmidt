@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
 	fit_text = config_get_string_value(config, "ALGORITMO_BUSQUEDA");
 	if(!strcmp(fit_text, "FIRST")){
 		fit = FIRST_FIT;
-	}else if(strcmp(fit_text, "BEST")){
+	}else if(!strcmp(fit_text, "BEST")){
 		fit = BEST_FIT;
 	}else fit = WORST_FIT;
 	if(!strcmp(tipo_particion_text,"FIJAS")){

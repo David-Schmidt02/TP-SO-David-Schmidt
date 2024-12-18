@@ -172,11 +172,10 @@ int crear_archivo_dump(char* nombre_archivo, uint32_t tamanio, void* datos) {
 }
 
 int cargar_bloques(uint32_t* bloques_datos, uint32_t cantidad_bloques, void *datos){
-    //size_t uy = strlen(mount_dir) + strlen("/bloques.dat") + 1;
-    //char *path_bloques = malloc(uy);
-//
-    //snprintf(path_bloques, sizeof(path_bloques), "%s/bloques.dat", mount_dir);
-    FILE* bloques_file = fopen("/home/utnso/mount_dir/bloques.dat", "rb+"); //hardcodeado->cambiar
+    size_t uy = strlen(mount_dir) + strlen("/bloques.dat") + 1;
+    char *path_bloques = malloc(uy);
+    snprintf(path_bloques, sizeof(path_bloques), "%s/bloques.dat", mount_dir);
+    FILE* bloques_file = fopen(path_bloques, "rb+"); //hardcodeado->cambiar
 
     if (bloques_file == NULL) {
         log_error(logger, "Error al abrir el archivo de bloques");

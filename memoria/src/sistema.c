@@ -123,8 +123,8 @@ void actualizar_contexto_ejecucion() {
         return;
     }
 
+    
     pid = *(int *)list_remove(paquete_recv_list, 0);
-   
     tid = *(int *)list_remove(paquete_recv_list, 0);
 
     registros_actualizados = list_remove(paquete_recv_list, 0);
@@ -307,6 +307,8 @@ int agregar_a_dinamica(t_pcb *pcb){
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_huecos);
     elemento_huecos *aux_hueco, *aux_hueco_nuevo;
     elemento_huecos *mejor_hueco, *peor_hueco;
+    mejor_hueco = NULL;
+    peor_hueco = NULL;
     elemento_procesos *aux_proceso=malloc(sizeof(elemento_procesos));
     int index;
 
@@ -404,6 +406,7 @@ int agregar_a_dinamica(t_pcb *pcb){
 }
 int remover_proceso_de_tabla_dinamica(int pid){
     int index = buscar_en_dinamica(pid);
+    int size;
 
     elemento_huecos *aux_hueco, *aux_hueco_iterator;
     elemento_procesos *aux_proceso;
@@ -415,6 +418,7 @@ int remover_proceso_de_tabla_dinamica(int pid){
     aux_hueco->inicio = aux_proceso->inicio;
     aux_hueco->size = aux_proceso->size;
 
+    size = aux_proceso->size;
     free(aux_proceso);
 
     pthread_mutex_unlock(mutex_procesos_din);
@@ -433,7 +437,7 @@ int remover_proceso_de_tabla_dinamica(int pid){
     pthread_mutex_unlock(mutex_huecos);
     consolidar_huecos();
 
-    return aux_proceso->size;
+    return size;
 }
 void consolidar_huecos(){
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_huecos);
@@ -630,8 +634,8 @@ int crear_proceso(t_pcb *pcb) {
             elemento_procesos *aux_din = list_get(memoria_usuario->tabla_procesos, index_dinamica);
             pthread_mutex_lock(mutex_pcb);
             list_add(memoria_usuario->lista_pcb, pcb);
-            pcb->base = aux_fija->base;
-            pcb->limite = aux_fija->size;
+            pcb->base = aux_din->inicio;
+            pcb->limite = aux_din->size;
             pcb->listaTCB = list_create();
             pcb->listaMUTEX = list_create();
 
