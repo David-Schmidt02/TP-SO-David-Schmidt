@@ -16,7 +16,7 @@ extern char* nombre_archivo;
 extern uint32_t tamanio;
 extern uint32_t *datos;
 extern char * ruta_files;
-extern uint32_t index_libre;
+extern uint32_t bits_ocupados;
 extern int libres;
 
 void inicializar_bloques() {
@@ -140,23 +140,36 @@ int crear_archivo_dump(char* nombre_archivo, uint32_t tamanio, void* datos) {
         log_error(logger, "No hay suficiente espacio en el bitmap para crear el archivo.");
         return -1;
     }  
-    // Reservar el bloque de índices
-    uint32_t bloque_indice = reservar_bloques(num_bloques_necesarios+1);
-    if (bloque_indice == -1) {
-        log_error(logger, "Error al reservar el bloque de índices.");
+    
+    // Reservar el bloque + indice
+    t_reserva_bloques *reserva = reservar_bloques(num_bloques_necesarios+1);
+    if (reserva == NULL) {
+        log_error(logger, "Error al reservar el bloque completo");
         return -1;
     }
+    log_info(logger,"Bloque índice: %u\n", reserva->bloque_indice);
+    
+    for (int i = 0; i < reserva->cantidad_bloques; i++) {
+        log_info(logger,"Bloque de datos %d: %u\n", i, reserva->bloques_datos[i]);
+    }
+
+    cargar_bloques(reserva->bloques_datos, reserva->cantidad_bloques, datos);
+    
+    return 0;
 
     // Reservar los bloques de datos
-    //agarrar los datos, ponerlos en los bloques arrancando desde index_libre +1
+    //agarrar los datos, ponerlos en los bloques arrancando desde bits_ocupados +1
     
-    uint32_t indice_datos[num_bloques_necesarios];
-    for (int i = 0; i < num_bloques_necesarios; i++){
-        indice_datos[i] = (i+bloque_indice)*block_size;
-    }
-    escribir_bloque(index_libre, indice_datos, block_size);
-    escribir_bloque(index_libre+1, datos, tamanio*block_size);
+    //uint32_t indice_datos[num_bloques_necesarios];
+    //
+    //for (int i = 0; i < num_bloques_necesarios; i++){
+    //    indice_datos[i] = reservar_bloques();
+    //}
 
+
+    // escribir_bloque(bits_ocupados, indice_datos, block_size);
+    // escribir_bloque(bits_ocupados+1, datos, tamanio*block_size);
+/*
     // Crear el archivo de metadata
     int resultado_metadata = crear_archivo_metadata(nombre_archivo, tamanio);
     if (resultado_metadata != 0) {
@@ -211,5 +224,18 @@ int crear_archivo_dump(char* nombre_archivo, uint32_t tamanio, void* datos) {
     // }
 
     log_info(logger, "Archivo dump creado exitosamente: %s", nombre_archivo);
-    return 0;
+    */
+}
+
+int cargar_bloques(uint32_t* bloques_datos, uint32_t cantidad_bloques, uint32_t *datos){
+
+    FILE* archivo_bloque = fopen("bloques.dat", "rb+"); 
+    if (archivo_bloque == NULL) {
+        log_error(logger, "Error al abrir el archivo de bloques");
+    }
+    
+    for (uint32_t i = 0; i < cantidad_bloques; i++) {
+
+    }
+    fclose(archivo_bloque);
 }
