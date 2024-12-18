@@ -388,7 +388,7 @@ void recibir_motivo_devolucion_cpu() {
             break;
 
         case THREAD_CREATE_OP:
-            log_info(logger, "## (%d:%d) - Solicitó syscall: PROCESS_EXIT", hilo_actual->pid, hilo_actual->tid);
+            log_info(logger, "## (%d:%d) - Solicitó syscall: THREAD_CREATE", hilo_actual->pid, hilo_actual->tid);
             nombre_archivo = list_remove(paquete_respuesta, 0);
             archivo = fopen(nombre_archivo, "r");
             prioridad = *(int *)list_remove(paquete_respuesta, 0);

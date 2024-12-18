@@ -626,7 +626,6 @@ void enviar_contexto_de_memoria() {
 
 void devolver_motivo_a_kernel(protocolo_socket cod_op, char** texto) {
     t_paquete *paquete_notify = crear_paquete(cod_op);
-    log_info(logger, "Entra a la primera parte de devolver motivo a kernel");
     // Enviamos el PID y TID para notificar al Kernel que el proceso fue interrumpido
     char * ok_send = "OK";
     int texto1;

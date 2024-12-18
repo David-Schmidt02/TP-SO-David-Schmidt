@@ -256,12 +256,14 @@ void *peticion_kernel(void *args) {
         case THREAD_EXIT_OP:
             send_protocolo = crear_paquete(THREAD_EXIT_OP);
             agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(hilo->tid));
+            agregar_a_paquete(send_protocolo, &hilo->pid, sizeof(hilo->tid));
 			log_info(logger, "Se envió la peticion de THREAD EXIT");
             break;
 
 		case THREAD_CANCEL_OP:
             send_protocolo = crear_paquete(THREAD_CANCEL_OP);
-            agregar_a_paquete(send_protocolo, hilo, sizeof(t_tcb));
+            agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(hilo->tid));
+            agregar_a_paquete(send_protocolo, &hilo->pid, sizeof(hilo->tid));
 			log_info(logger, "Se crea la peticion de THREAD CANCEL");
             break;
 
