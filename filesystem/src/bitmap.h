@@ -22,5 +22,7 @@ t_reserva_bloques* reservar_bloques(uint32_t size);
 bool espacio_disponible(uint32_t cantidad);
 void liberar_bloque(uint32_t bloque);
 void destruir_bitmap();
+int cargar_bitmap();
+
 
 #endif
