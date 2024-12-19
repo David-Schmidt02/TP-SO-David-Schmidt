@@ -219,7 +219,7 @@ int cargar_bloques(uint32_t cantidad_bloques, void *datos, t_list* lista_indices
             log_error(logger, "error al mover el puntero: %d", list_get(lista_indices,i-1));
             return -1;
         }
-        void *  fragmento_datos = (char*) datos + ((i-1)*block_size);
+        void *  fragmento_datos = datos + ((i-1)*block_size);
         pthread_mutex_lock(mutex_logs);
         if (fwrite(fragmento_datos, block_sizeAUX, 1, bloques_file) != 1) {
             log_error(logger, "Error al escribir en el bloque de punteros");
