@@ -113,7 +113,7 @@ int crear_archivo_metadata(char* nombre_archivo,uint32_t tamanio, int indice_blo
             log_error(logger, "Error al crear el archivo metadata");
             free(path_metadata);
             exit(EXIT_FAILURE);
-        }else log_info(logger, "Archivo Creado: %s - Tamaño: %d", nombre_archivo, tamanio);
+        }
 
         size_t buffer_size = snprintf(NULL, 0, "SIZE=%u\nINDEX_BLOCK=%d\n", cant_bloque, indice_bloque) + 1;
         char *buffer = malloc(buffer_size);

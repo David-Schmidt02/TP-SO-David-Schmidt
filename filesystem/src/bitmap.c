@@ -162,7 +162,7 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
         return NULL;
     }
 
-    log_info(logger, "Bloque índice reservado: %u", reserva->bloque_indice);
+    log_info(logger, "Bloque índice reservado: %u", list_get(reserva->lista_indices,0));
 
     // Reservar los bloques de datos
     uint32_t i = 0; 
@@ -218,8 +218,7 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
         return NULL;
     }
 
-    log_info(logger, "Reserva exitosa: Bloque índice %u, %u bloques de datos asignados.",
-             reserva->bloque_indice, size);
+    log_info(logger, "Reserva exitosa: Bloque índice %u, %u bloques de datos asignados.", list_get(reserva->lista_indices,0), size);
 
     return reserva;
 }    
