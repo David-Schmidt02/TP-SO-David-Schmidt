@@ -273,8 +273,8 @@ void *peticion_kernel(void *args) {
 
         case DUMP_MEMORY_OP:
             send_protocolo = crear_paquete(DUMP_MEMORY_OP);
-			agregar_a_paquete(send_protocolo, &proceso_actual->pid, sizeof(int));
             agregar_a_paquete(send_protocolo, &hilo_actual->tid, sizeof(int));
+			agregar_a_paquete(send_protocolo, &proceso_actual->pid, sizeof(int));
 			log_info(logger, "Se envió la peticion de DUMP MEMORY");
             break;
 

@@ -547,9 +547,6 @@ int send_dump(int pid, int tid){
             contenido = memoria_usuario->espacio;
             contenido_segmento = malloc(size);
             memcpy(contenido_segmento, &contenido[base], size);
-            for(int i=0;i<size;i++){
-                log_error(logger, "%d", contenido_segmento[i]);
-            }     
             pthread_mutex_unlock(mutex_espacio);
             break;
 
@@ -562,8 +559,8 @@ int send_dump(int pid, int tid){
             pthread_mutex_unlock(mutex_part_fijas);
             pthread_mutex_lock(mutex_espacio);
             contenido = memoria_usuario->espacio;
-            contenido_segmento = malloc(sizeof(uint32_t) * size);
-            memcpy(contenido_segmento, &contenido[base], sizeof(uint32_t) * size);
+            contenido_segmento = malloc(size);
+            memcpy(contenido_segmento, &contenido[base],size);
             pthread_mutex_unlock(mutex_espacio);
             break;
     }
