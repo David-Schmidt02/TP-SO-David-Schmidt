@@ -112,6 +112,7 @@ void *conexion_memoria(void* arg_memoria)
 					log_warning(logger,"Operacion desconocida. No quieras meter la pata");
 					break;
 			}
+			free(datos);
 		}
 	
 	close(server);
