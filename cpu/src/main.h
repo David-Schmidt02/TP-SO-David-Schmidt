@@ -3,43 +3,44 @@
 #include <string.h>
 #include <commons/log.h>
 #include <utils/utils.h>
-#include <instrucciones.h>
 #include "../../kernel/src/pcb.h"
-typedef enum  
+
+
+typedef struct {
+    protocolo_socket tipo;      
+    int prioridad;                  
+    char** parametro;
+                        
+} t_interrupcion;
+
+typedef struct
 {
-    SET,
-    SUB,
-    SUM,
-    JNZ,
-    LOG
-}t_operaciones;  
+    char ** texto_partido;
+    protocolo_socket tipo;
+    protocolo_socket operacion;
+    protocolo_socket syscall;
+    int prioridad;
+}
+t_instruccion_partida;
 
 void inicializar_estructuras_cpu();
+void inicializar_semaforos_cpu();
 void *conexion_kernel_dispatch(void * arg_kernelD);
 void *conexion_kernel_interrupt(void* arg_kernelI);
 void *cliente_conexion_memoria(void * arg_memoria);
-
+void *ciclo_instruccion(void* args);
 void levantar_conexiones();
 
-/*
-SET AX 1
-SET BX 1
-SET PC 5
-SUM AX BX
-SUB AX BX 
-READ_MEM AX BX
-WRITE_MEM AX BX
-JNZ AX BX
-LOG AX
-MUTEX_CREATE RECURSO_1
-MUTEX_LOCK RECURSO_1
-MUTEX_UNLOCK RECURSO_1
-DUMP_MEMORY
-IO 1500
-PROCESS_CREATE PROCESO_1 256 1
-THREAD_CREATE HILO_1 3
-THREAD_CANCEL 1
-THREAD_JOIN 1
-THREAD_EXIT 
-PROCESS_EXIT
-*/
+void devolver_motivo_a_kernel(protocolo_socket cod_op, char** texto);
+void enviar_contexto_de_memoria();
+void obtener_contexto_de_memoria();
+void fetch();
+t_instruccion_partida * decode(char *inst);
+void execute(t_instruccion_partida *instruccion_partida);
+void manejar_syscall(protocolo_socket syscall, int prioridad, char ** texto);
+void encolar_interrupcion(protocolo_socket tipo, int prioridad, char** texto);
+void checkInterrupt();
+t_interrupcion* obtener_interrupcion();
+uint32_t* registro_aux(char* reg);
+void traducir_direccion( uint32_t dir_logica, uint32_t *dir_fisica);
+

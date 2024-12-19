@@ -366,9 +366,6 @@ void *reintentar_creacion_proceso(void * args){
 void inicializar_estructuras(){
 	logger = log_create("kernel.log", "Kernel", 1, LOG_LEVEL_DEBUG);
     config = config_create("config/kernel.config");
-	if (config == NULL) {
-        perror("Error al cargar el archivo de configuración");
-    }
 	algoritmo = config_get_string_value(config, "ALGORITMO_PLANIFICACION");
 	quantum = config_get_int_value(config, "QUANTUM");
 
@@ -380,33 +377,17 @@ void inicializar_estructuras(){
 	inicializar_colas_corto_plazo();
 
 	colaIO = malloc(sizeof(t_cola_IO));
-    if (procesos_cola_ready == NULL) {
-        perror("Error al asignar memoria para cola de IO");
-        exit(EXIT_FAILURE);
-    }
 	colaIO->lista_io = list_create();
 }
 
 void inicializar_semaforos(){
 	mutex_colaIO = malloc(sizeof(pthread_mutex_t));
-    if (mutex_colaIO == NULL) {
-        perror("Error al asignar memoria para mutex de cola IO");
-        exit(EXIT_FAILURE);
-    }
 	pthread_mutex_init(mutex_colaIO, NULL);
 
 	sem_estado_colaIO = malloc(sizeof(sem_t));
-    if (sem_estado_colaIO == NULL) {
-        perror("Error al asignar memoria para semáforo de cola IO");
-        exit(EXIT_FAILURE);
-    }
 	sem_init(sem_estado_colaIO, 0, 0);
 
     mutex_socket_memoria = malloc(sizeof(pthread_mutex_t));
-    if (mutex_socket_memoria == NULL) {
-        perror("Error al asignar memoria para mutex de cola IO");
-        exit(EXIT_FAILURE);
-    }
 	pthread_mutex_init(mutex_socket_memoria, NULL);
 
 
@@ -418,24 +399,12 @@ void inicializar_semaforos(){
 
 void inicializar_semaforos_conexion_cpu(){
 	mutex_socket_cpu_dispatch = malloc(sizeof(pthread_mutex_t));
-    if (mutex_socket_cpu_dispatch == NULL) {
-        perror("Error al asignar memoria para mutex de CPU dispatch");
-        exit(EXIT_FAILURE);
-    }
     pthread_mutex_init(mutex_socket_cpu_dispatch, NULL);
 
 	mutex_socket_cpu_interrupt = malloc(sizeof(pthread_mutex_t));
-    if (mutex_socket_cpu_interrupt == NULL) {
-        perror("Error al asignar memoria para mutex de CPU interrupt");
-        exit(EXIT_FAILURE);
-    }
     pthread_mutex_init(mutex_socket_cpu_interrupt, NULL);
 
     sem_estado_conexion_cpu_dispatch = malloc(sizeof(sem_t));
-    if (sem_estado_conexion_cpu_dispatch == NULL) {
-        perror("Error al asignar memoria para semáforo de cola");
-        exit(EXIT_FAILURE);
-    }
 	sem_init(sem_estado_conexion_cpu_dispatch, 0, 0);
 
 }
@@ -443,24 +412,12 @@ void inicializar_semaforos_conexion_cpu(){
 void inicializar_semaforos_peticiones(){
 	
     mutex_lista_t_peticiones = malloc(sizeof(pthread_mutex_t));
-    if (mutex_lista_t_peticiones == NULL) {
-        perror("Error al asignar memoria para mutex de cola");
-        exit(EXIT_FAILURE);
-    }
     pthread_mutex_init(mutex_lista_t_peticiones, NULL);
 
     sem_lista_t_peticiones = malloc(sizeof(sem_t));
-    if (sem_lista_t_peticiones == NULL) {
-        perror("Error al asignar memoria para semáforo de cola");
-        exit(EXIT_FAILURE);
-    }
 	sem_init(sem_lista_t_peticiones, 0, 0);
 
 	sem_estado_respuesta_desde_memoria = malloc(sizeof(sem_t));
-    if (sem_estado_respuesta_desde_memoria == NULL) {
-        perror("Error al asignar memoria para semáforo de cola");
-        exit(EXIT_FAILURE);
-    }
 	sem_init(sem_estado_respuesta_desde_memoria, 0, 0);
 }
 

@@ -76,6 +76,13 @@ typedef enum
     FINALIZACION,
     FIN_QUANTUM,
     IO_SYSCALL,
+    SET,
+    SUB,
+    SUM,
+    JNZ,
+    LOG,
+    SYSCALL,
+    INSTRUCCION_NORMAL,
     // para filesystem
     INIT_BITMAP
     
