@@ -8,7 +8,6 @@ extern int retardo_acceso;
 extern char* mount_dir;
 extern t_config *config;
 extern t_log *logger;
-extern pthread_mutex_t *mutex_bitmap;
 extern pthread_mutex_t *mutex_logs;
 int libres;
 uint32_t bits_ocupados;
@@ -16,14 +15,12 @@ uint32_t bits_ocupados;
 void inicializar_libres() {
     libres = 0;
     int i = 0;
-    pthread_mutex_lock(mutex_bitmap);
     for (i; i < bitarray_get_max_bit(bitmap); i++) {
         if (!bitarray_test_bit(bitmap, i)) {
             libres++;
         }
     }
     bits_ocupados = (i+1) - libres;
-    pthread_mutex_unlock(mutex_bitmap);
 }
 
 void inicializar_bitmap() {
@@ -114,7 +111,8 @@ bool espacio_disponible(uint32_t cantidad) {
 }
 
 t_reserva_bloques* reservar_bloques(uint32_t size) {
-    pthread_mutex_lock(mutex_bitmap);
+
+    
     if (size == 0) {
         log_error(logger, "Error: El tamaño solicitado debe ser mayor que 0.");
         return NULL;
@@ -124,101 +122,81 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
     if (reserva == NULL) {
         log_error(logger, "Error al asignar memoria para la reserva.");
         free(reserva);
-        pthread_mutex_unlock(mutex_bitmap);
+
         return NULL;
     }
-
-    reserva->bloques_datos = calloc(size, sizeof(uint32_t)); // bloques_datos es un array de tamano size inicializado en 0.
+/*
+    reserva->bloques_datos = calloc(size-1, sizeof(uint32_t)); // bloques_datos es un array de tamano size inicializado en 0.
     if (reserva->bloques_datos == NULL) {
         log_error(logger, "Error al asignar memoria para los bloques de datos.");
         free(reserva);
-        pthread_mutex_unlock(mutex_bitmap);
+
         return NULL;
     }
+*/
     reserva->cantidad_bloques = size;
-
     
     if (!espacio_disponible(size)) { // YA SE LE AGREGA +1 EN LA ASIGNACION
         log_error(logger, "No hay suficiente espacio en el bitmap.");
-        free(reserva->bloques_datos);
         free(reserva);
-        pthread_mutex_unlock(mutex_bitmap);
+        
         return NULL;
     }
 
     // Reservar el bloque índice
-    reserva->bloque_indice = -1; // un check, si se mantiene asi es un error
+    reserva->lista_indices =list_create();
     for (uint32_t i = 0; i < block_count; i++) {
         if (!bitarray_test_bit(bitmap, i)) { // Bloque libre encontrado
             bitarray_set_bit(bitmap, i);
-            reserva->bloque_indice = i;
+            list_add(reserva->lista_indices,i);  
             break;
         }
     }
 
-    if (reserva->bloque_indice == (uint32_t)-1) {
+    if (!list_size(reserva->lista_indices)) {
         log_error(logger, "Error: No se pudo reservar el bloque índice.");
-        free(reserva->bloques_datos);
+        list_destroy(reserva->lista_indices);
         free(reserva);
-        pthread_mutex_unlock(mutex_bitmap);
         return NULL;
     }
 
-    log_info(logger, "Bloque índice reservado: %u", reserva->bloque_indice);
+    log_info(logger, "Bloque índice reservado: %u", list_get(reserva->lista_indices,0));
 
     // Reservar los bloques de datos
     uint32_t i = 0; 
-    uint32_t bloques_reservados = 0;
 
-    for (i; bloques_reservados < size-1 && i < block_count ; i++) {
+    for (i; list_size(reserva->lista_indices) < size && i < block_count ; i++) {
         if (!bitarray_test_bit(bitmap, i)) { 
             bitarray_set_bit(bitmap, i);
-            reserva->bloques_datos[bloques_reservados] = i;
-            bloques_reservados++;
+            list_add(reserva->lista_indices, i);
         }// sale porque ya se reservaron todos los bloques o porque recorrio todo 
     }
-
-    
-    // Verificar si todos los bloques de datos fueron reservados
-    for (uint32_t i = 0; i < size; i++) {
-        if (reserva->bloques_datos[i] == 0) { // como estan inicializados, si alguna pos siguie valiendo 0 es porque 
-                                              // se recorrio todo el block_count y no se encontro un espacio para asignarle un bit
-            log_error(logger, "Error: No se pudieron reservar todos los bloques de datos.");
+ 
+    if(list_size(reserva->lista_indices) > (block_size/4)+1){
+        log_error(logger, "Error: No entran los bloques en el indice");
             // Liberar los bloques ya asignados
-            pthread_mutex_lock(mutex_bitmap);
-            for (uint32_t j = 0; j <= i; j++) {
-                bitarray_clean_bit(bitmap, reserva->bloques_datos[j]); // se recorre el array, liberando todos los bloques
-            }
-            bitarray_clean_bit(bitmap, reserva->bloque_indice);// lo pone en 0
-            pthread_mutex_unlock(mutex_bitmap);
+            for (uint32_t i = 0; i < list_size(reserva->lista_indices); i++) 
+                bitarray_clean_bit(bitmap, list_get(reserva->lista_indices,i)); // se recorre el array, liberando todos los bloques
 
-            free(reserva->bloques_datos);
+            list_destroy(reserva->lista_indices);
             free(reserva);
+            
+            
             return NULL;
-        }
     }
+
     if (cargar_bitmap() != 0) {
         log_error(logger, "Error al sincronizar el bitmap con el archivo.");
-        pthread_mutex_unlock(mutex_bitmap);
+        list_destroy(reserva->lista_indices);
+        free(reserva);
         return NULL;
     }
 
-    log_info(logger, "Reserva exitosa: Bloque índice %u, %u bloques de datos asignados.",
-             reserva->bloque_indice, size);
-    pthread_mutex_unlock(mutex_bitmap);
+    log_info(logger, "Reserva exitosa: Bloque índice %u, %u bloques de datos asignados.", list_get(reserva->lista_indices,0), size);
+    
     return reserva;
 }    
 
-void liberar_bloque(uint32_t bloque) {
-    pthread_mutex_lock(mutex_bitmap);
-    fseek(bitmap_file, 0, SEEK_SET);
-    size_t bytes_a_escribir = (bitarray_get_max_bit(bitmap) + 7) / 8;
-    pthread_mutex_lock(mutex_logs);
-    fwrite(bitmap->bitarray, sizeof(uint32_t), bytes_a_escribir, bitmap_file);
-    pthread_mutex_unlock(mutex_logs);
-    fflush(bitmap_file);
-    pthread_mutex_unlock(mutex_bitmap);
-}
 
 
 int cargar_bitmap() {
@@ -247,11 +225,10 @@ int cargar_bitmap() {
     return 0;
 }
 void destruir_bitmap() {
-    pthread_mutex_lock(mutex_bitmap);
+
 
     if (!bitmap_file) {
         log_error(logger, "Error al abrir el archivo bitmap.dat para escribir.");
-        pthread_mutex_unlock(mutex_bitmap);
         exit(EXIT_FAILURE);
     }
 
@@ -261,7 +238,6 @@ void destruir_bitmap() {
     pthread_mutex_lock(mutex_logs);
     if (fwrite(bitmap->bitarray, sizeof(uint8_t), bytes_a_escribir, bitmap_file) != bytes_a_escribir) {
         log_error(logger, "Error al escribir el archivo bitmap.dat.");
-        pthread_mutex_unlock(mutex_bitmap);
         pthread_mutex_unlock(mutex_logs);
         exit(EXIT_FAILURE);
     }
@@ -272,6 +248,4 @@ void destruir_bitmap() {
     bitarray_destroy(bitmap);
     fclose(bitmap_file);
 
-    pthread_mutex_unlock(mutex_bitmap);
-    pthread_mutex_destroy(mutex_bitmap);
 }

@@ -8,19 +8,15 @@ int block_size;
 char* mount_dir;
 char * ruta_files;
 uint32_t num_bloque;
-pthread_mutex_t *mutex_bitmap; 
 pthread_mutex_t *mutex_logs;
 uint32_t tamanio;
-t_list * lista_indices;
+t_list * lista_bloque_indices;
 
 
 int main() {
-	char* hola="hola mundo hola mundohola mundohola mundohola mundoO";
-	tamanio = strlen(hola)+1;
     pthread_t tid_memoria;
 	
 	argumentos_thread arg_memoria;
-	mutex_bitmap = malloc(sizeof(pthread_mutex_t));
 	mutex_logs = malloc(sizeof(pthread_mutex_t));
 
     logger = log_create("filesystem.log", "filesystem", 1, LOG_LEVEL_DEBUG);
@@ -38,25 +34,20 @@ int main() {
 	retardo_acceso = config_get_int_value(config, "RETARDO_ACCESO_BLOQUE");
 	mount_dir = config_get_string_value(config, "MOUNT_DIR");
 	// Inicializar estructuras
-	pthread_mutex_init(mutex_bitmap, NULL);
 	pthread_mutex_init(mutex_logs, NULL);
 	mount_dir = crear_directorio("/mount_dir");
 	inicializar_bitmap();
 	inicializar_bloques();
 	ruta_files = crear_directorio("/files");
-	inicializar_libres();
 	//esto es lo que tiene que hacer cuando recibe la peticion
-	//
-	crear_archivo_metadata("test.dmp", tamanio);
-	crear_archivo_dump("test.dmp",tamanio,(void*)hola);
     
     //conexiones
-	//pthread_create(&tid_memoria, NULL, conexion_memoria, (void *)&arg_memoria);
+	pthread_create(&tid_memoria, NULL, conexion_memoria, (void *)&arg_memoria);
 	//conexiones
 
     //espero fin conexiones
 	
-	//pthread_join(tid_memoria, ret_value);
+	pthread_join(tid_memoria, ret_value);
 
 	//espero fin conexiones
 	return 0;
@@ -89,16 +80,12 @@ void *conexion_memoria(void* arg_memoria)
 
 
 					nombre_archivo = list_remove(recv_list,0);
-					tamanio = *(int *)list_remove(recv_list,0);
+					tamanio = *(uint32_t *)list_remove(recv_list,0);
 					datos = list_remove(recv_list,0);
 
-					unsigned char* bin_data = (unsigned char*)datos;
-					for (int i = 0; i < tamanio; i++) {
-						log_info(logger,"%02X ", bin_data[i]);
-					}
 
 					log_info(logger, "Nombre del archivo recibido: %s", nombre_archivo);
-					crear_archivo_metadata(nombre_archivo, tamanio);
+					inicializar_libres();
 					check = crear_archivo_dump(nombre_archivo,tamanio,datos);
 
 					if (check != -1){

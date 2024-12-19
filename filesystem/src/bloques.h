@@ -28,8 +28,8 @@ extern int block_size;
 void inicializar_bloques();
 void escribir_bloque(int bloque, void *contenido, size_t tamanio);
 void *leer_bloque(int bloque);
-int crear_archivo_metadata(char* nombre_archivo, uint32_t tamanio);
-int cargar_bloques(uint32_t* bloques_datos, uint32_t cantidad_bloques, void *datos);
+int crear_archivo_metadata(char* nombre_archivo,uint32_t tamanio, int indice_bloque, int cant_bloque);
+int cargar_bloques(uint32_t cantidad_bloques, void *datos, t_list* lista_indices);
 
 int crear_archivo_dump(char* nombre_archivo, uint32_t tamanio, void* datos);
 #endif

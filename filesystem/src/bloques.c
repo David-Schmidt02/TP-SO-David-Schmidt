@@ -4,7 +4,6 @@ extern t_log* logger;
 extern int retardo_acceso;
 static FILE* metadata_file;
 
-int index_block=0;
 extern uint32_t block_count;
 extern int block_size;
 extern int retardo_acceso;
@@ -94,7 +93,7 @@ void *leer_bloque(int bloque) {
 }
 
 
-int crear_archivo_metadata(char* nombre_archivo,uint32_t tamanio) {
+int crear_archivo_metadata(char* nombre_archivo,uint32_t tamanio, int indice_bloque, int cant_bloque) {
     log_info(logger, "## Bloque asignado: %d - Archivo: %s - Bloques Libres: %d", num_bloque, nombre_archivo, bloques_libres);
     if (block_count == 0) {
         log_error(logger, "No se encontró el valor BLOCK_COUNT en el archivo de configuración.");
@@ -114,9 +113,9 @@ int crear_archivo_metadata(char* nombre_archivo,uint32_t tamanio) {
             log_error(logger, "Error al crear el archivo metadata");
             free(path_metadata);
             exit(EXIT_FAILURE);
-        }else log_info(logger, "Archivo Creado: %s - Tamaño: %d", nombre_archivo, tamanio);
-        index_block++;
-        size_t buffer_size = snprintf(NULL, 0, "SIZE=%u\nINDEX_BLOCK=%d\n", block_size, index_block) + 1;
+        }
+
+        size_t buffer_size = snprintf(NULL, 0, "SIZE=%u\nINDEX_BLOCK=%d\n", cant_bloque, indice_bloque) + 1;
         char *buffer = malloc(buffer_size);
         if (buffer == NULL) {
             log_error(logger, "Error al asignar memoria para el buffer.");
@@ -124,7 +123,7 @@ int crear_archivo_metadata(char* nombre_archivo,uint32_t tamanio) {
             free(path_metadata);
             exit(EXIT_FAILURE);
         }
-        snprintf(buffer, buffer_size, "SIZE=%d\nINDEX_BLOCK=%d\n", block_size, index_block);
+        snprintf(buffer, buffer_size, "SIZE=%d\nINDEX_BLOCK=%d\n", cant_bloque, indice_bloque);
         if (fwrite(buffer, sizeof(char), strlen(buffer), metadata_file) != strlen(buffer)) {
             log_error(logger, "Error al escribir en el archivo metadata.");
             fclose(metadata_file);
@@ -139,7 +138,6 @@ int crear_archivo_metadata(char* nombre_archivo,uint32_t tamanio) {
         return 0; 
     }
     log_info(logger, "Archivo Creado: %s - Tamaño: %d", nombre_archivo, tamanio);
-    index_block++;
     free(path_metadata);
     return 0;
 }
@@ -153,28 +151,32 @@ int crear_archivo_dump(char* nombre_archivo, uint32_t tamanio, void* datos) {
         return -1;
     }  
     
-    // Reservar el bloque + indice
+    // Reservar el bloque + bloque_indice
     t_reserva_bloques *reserva = reservar_bloques(num_bloques_necesarios+1);
     if (reserva == NULL) {
         log_error(logger, "Error al reservar el bloque completo");
         return -1;
     }
-    log_info(logger,"Bloque índice: %u\n", reserva->bloque_indice);
+    log_info(logger,"Bloque índice: %u\n", list_get(reserva->lista_indices,0));
     
-    for (int i = 0; i < reserva->cantidad_bloques; i++) {
-        log_info(logger,"Bloque de datos %d: %u\n", i, reserva->bloques_datos[i]);
+    for (int i = 1; i < list_size(reserva->lista_indices); i++) { // -1 porque cuenta el bloque_indice
+        log_info(logger,"Bloque de datos %d: %u\n", i, list_get(reserva->lista_indices,i));
     }
     int check;
-    check = cargar_bloques(reserva->bloques_datos, reserva->cantidad_bloques, datos);
+    int indice_bloque = list_get(reserva->lista_indices,0); 
+    int cant_bloque = list_size(reserva->lista_indices);
+
+    check = cargar_bloques(list_size(reserva->lista_indices), datos, reserva->lista_indices);
     if (check){
         log_info(logger,"no cargo los bloques");
         return -1;
     } 
     log_info(logger,"cargo los bloques");
+    crear_archivo_metadata(nombre_archivo, tamanio, indice_bloque, cant_bloque);
     return 0;
 }
 
-int cargar_bloques(uint32_t* bloques_datos, uint32_t cantidad_bloques, void *datos){
+int cargar_bloques(uint32_t cantidad_bloques, void *datos, t_list* lista_indices){
     size_t path_length = strlen(mount_dir) + strlen("/bloques.dat") + 1;
     char* path_bloques = malloc(path_length);
     strcpy(path_bloques,"");
@@ -185,20 +187,36 @@ int cargar_bloques(uint32_t* bloques_datos, uint32_t cantidad_bloques, void *dat
         log_error(logger, "Error al abrir el archivo de bloques");
     }
     int block_sizeAUX;
+    uint32_t dir_bloque[block_size/4];
+    size_t posicion = list_remove(lista_indices,0);
+    posicion *= block_size;
+    int index=0;
+    for(int i = 0; i<block_size/4;i++)
+        dir_bloque[i] = 0;
+    t_list_iterator* iterador = list_iterator_create(lista_indices);
+    while (list_iterator_has_next(iterador))
+    {
+        dir_bloque[index] = list_iterator_next(iterador);
+        dir_bloque[index]*=32;
+        index++;   
+    }
+    
     for (uint32_t i = 0; i < cantidad_bloques; i++) {
-        if (i==0) {
+        if (i==0){
+            fseek(bloques_file,posicion,SEEK_SET);
+            fwrite(dir_bloque, block_size, 1, bloques_file);
             continue;
         }
-        if (i == cantidad_bloques-1){
-            block_sizeAUX=(tamanio%32);
-        }
-        else{
+        if (i == cantidad_bloques-1)
+            block_sizeAUX=(tamanio%block_size);
+            if(block_sizeAUX == 0)
+                block_sizeAUX=block_size;
+        else
             block_sizeAUX=block_size;
-        }
-        size_t posicion = bloques_datos[i]*block_size;
-
+        
+        posicion = (int)list_get(lista_indices,i-1)*block_size;
         if(fseek(bloques_file,posicion,SEEK_SET) != 0){
-            log_error(logger, "error al mover el puntero: %d", bloques_datos[i]);
+            log_error(logger, "error al mover el puntero: %d", list_get(lista_indices,i-1));
             return -1;
         }
         void *  fragmento_datos = (char*) datos + ((i-1)*block_size);
@@ -217,9 +235,9 @@ int cargar_bloques(uint32_t* bloques_datos, uint32_t cantidad_bloques, void *dat
 
 /*void escribir_bloque_de_puntero(uint32_t* bloques_datos, uint32_t cantidad_bloques) {
     FILE* archivo_bloque = fopen("bloques.dat", "rb+"); 
-    int indice_bloque_puntero = bloques_datos[0];
+    int bloque_indice_bloque_puntero = bloques_datos[0];
     
-    off_t offset = indice_bloque_puntero * block_size;
+    off_t offset = bloque_indice_bloque_puntero * block_size;
     fseek(archivo_bloque, offset, SEEK_SET);
     for (int i = 1; i < cantidad_bloques; i++) {
         if (fwrite(&bloques_datos[i], sizeof(uint32_t), 1, archivo_bloque) != 1) {
