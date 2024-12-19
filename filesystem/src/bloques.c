@@ -2,7 +2,6 @@
 extern t_config* config;
 extern t_log* logger;
 extern int retardo_acceso;
-static FILE* metadata_file;
 
 extern uint32_t block_count;
 extern int block_size;
@@ -99,7 +98,7 @@ int crear_archivo_metadata(char* nombre_archivo,uint32_t tamanio, int indice_blo
         log_error(logger, "No se encontró el valor BLOCK_COUNT en el archivo de configuración.");
         return -1;
     }
-
+    FILE* metadata_file = NULL;
     size_t path_length = strlen(ruta_files) + strlen(nombre_archivo) + 2;
     char *path_metadata = malloc(path_length);
     if (path_metadata == NULL) {
