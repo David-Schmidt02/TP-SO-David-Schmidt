@@ -425,6 +425,7 @@ void recibir_motivo_devolucion_cpu() {
             pid = proceso_actual->pid;
             encolar_hilo_corto_plazo(hilo_actual);
             DUMP_MEMORY(pid);
+            sem_post(sem_hilo_actual_encolado);
             break;   
 
         case SEGMENTATION_FAULT:

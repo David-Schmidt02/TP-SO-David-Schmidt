@@ -125,7 +125,7 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
 
         return NULL;
     }
-
+/*
     reserva->bloques_datos = calloc(size-1, sizeof(uint32_t)); // bloques_datos es un array de tamano size inicializado en 0.
     if (reserva->bloques_datos == NULL) {
         log_error(logger, "Error al asignar memoria para los bloques de datos.");
@@ -133,18 +133,17 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
 
         return NULL;
     }
+*/
     reserva->cantidad_bloques = size;
     
     if (!espacio_disponible(size)) { // YA SE LE AGREGA +1 EN LA ASIGNACION
         log_error(logger, "No hay suficiente espacio en el bitmap.");
-        free(reserva->bloques_datos);
         free(reserva);
-
+        
         return NULL;
     }
 
     // Reservar el bloque índice
-    reserva->bloque_indice = -1; // un check, si se mantiene asi es un error
     reserva->lista_indices =list_create();
     for (uint32_t i = 0; i < block_count; i++) {
         if (!bitarray_test_bit(bitmap, i)) { // Bloque libre encontrado
@@ -156,9 +155,8 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
 
     if (!list_size(reserva->lista_indices)) {
         log_error(logger, "Error: No se pudo reservar el bloque índice.");
-        free(reserva->bloques_datos);
+        list_destroy(reserva->lista_indices);
         free(reserva);
-
         return NULL;
     }
 
@@ -166,60 +164,36 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
 
     // Reservar los bloques de datos
     uint32_t i = 0; 
-    uint32_t bloques_reservados = 0;
 
-    for (i; bloques_reservados < size-1 && i < block_count ; i++) {
+    for (i; list_size(reserva->lista_indices) < size && i < block_count ; i++) {
         if (!bitarray_test_bit(bitmap, i)) { 
             bitarray_set_bit(bitmap, i);
-            reserva->bloques_datos[bloques_reservados] = i;
             list_add(reserva->lista_indices, i);
-            bloques_reservados++;
         }// sale porque ya se reservaron todos los bloques o porque recorrio todo 
     }
  
-    if(list_size(reserva->lista_indices) > (block_size/4)-1){
-        log_error(logger, "Error: No se pudieron reservar todos los bloques de datos.");
+    if(list_size(reserva->lista_indices) > (block_size/4)+1){
+        log_error(logger, "Error: No entran los bloques en el indice");
             // Liberar los bloques ya asignados
-            for (uint32_t j = 0; j <= i; j++) {
-                bitarray_clean_bit(bitmap, reserva->bloques_datos[j]); // se recorre el array, liberando todos los bloques
-            }
-            bitarray_clean_bit(bitmap, list_get(reserva->lista_indices,0));// lo pone en 0
+            for (uint32_t i = 0; i < list_size(reserva->lista_indices); i++) 
+                bitarray_clean_bit(bitmap, list_get(reserva->lista_indices,i)); // se recorre el array, liberando todos los bloques
 
-            free(reserva->bloques_datos);
-            free(reserva);
             list_destroy(reserva->lista_indices);
+            free(reserva);
+            
             
             return NULL;
     }
 
-    // Verificar si todos los bloques de datos fueron reservados
-    for (uint32_t i = 0; i < size-1; i++) {
-
-        if (reserva->bloques_datos[i] == 0) { // como estan inicializados, si alguna pos siguie valiendo 0 es porque 
-                                              // se recorrio todo el block_count y no se encontro un espacio para asignarle un bit
-            log_error(logger, "Error: No se pudieron reservar todos los bloques de datos.");
-            // Liberar los bloques ya asignados
-
-            for (uint32_t j = 0; j <= i; j++) {
-                bitarray_clean_bit(bitmap, reserva->bloques_datos[j]); // se recorre el array, liberando todos los bloques
-            }
-            bitarray_clean_bit(bitmap, list_get(reserva->lista_indices,0));// lo pone en 0
-
-
-            free(reserva->bloques_datos);
-            free(reserva);
-            list_destroy(reserva->lista_indices);
-            return NULL;
-        }
-    }
     if (cargar_bitmap() != 0) {
         log_error(logger, "Error al sincronizar el bitmap con el archivo.");
-
+        list_destroy(reserva->lista_indices);
+        free(reserva);
         return NULL;
     }
 
     log_info(logger, "Reserva exitosa: Bloque índice %u, %u bloques de datos asignados.", list_get(reserva->lista_indices,0), size);
-
+    
     return reserva;
 }    
 

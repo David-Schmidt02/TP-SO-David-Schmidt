@@ -39,7 +39,6 @@ int main() {
 	inicializar_bitmap();
 	inicializar_bloques();
 	ruta_files = crear_directorio("/files");
-	inicializar_libres();
 	//esto es lo que tiene que hacer cuando recibe la peticion
     
     //conexiones
@@ -86,7 +85,7 @@ void *conexion_memoria(void* arg_memoria)
 
 
 					log_info(logger, "Nombre del archivo recibido: %s", nombre_archivo);
-					
+					inicializar_libres();
 					check = crear_archivo_dump(nombre_archivo,tamanio,datos);
 
 					if (check != -1){

@@ -159,14 +159,14 @@ int crear_archivo_dump(char* nombre_archivo, uint32_t tamanio, void* datos) {
     }
     log_info(logger,"Bloque índice: %u\n", list_get(reserva->lista_indices,0));
     
-    for (int i = 0; i < list_size(reserva->lista_indices)-1; i++) { // -1 porque cuenta el bloque_indice
-        log_info(logger,"Bloque de datos %d: %u\n", i, reserva->bloques_datos[i]);
+    for (int i = 1; i < list_size(reserva->lista_indices); i++) { // -1 porque cuenta el bloque_indice
+        log_info(logger,"Bloque de datos %d: %u\n", i, list_get(reserva->lista_indices,i));
     }
     int check;
     int indice_bloque = list_get(reserva->lista_indices,0); 
     int cant_bloque = list_size(reserva->lista_indices);
 
-    check = cargar_bloques(reserva->bloques_datos, list_size(reserva->lista_indices), datos, reserva->lista_indices);
+    check = cargar_bloques(list_size(reserva->lista_indices), datos, reserva->lista_indices);
     if (check){
         log_info(logger,"no cargo los bloques");
         return -1;
@@ -176,7 +176,7 @@ int crear_archivo_dump(char* nombre_archivo, uint32_t tamanio, void* datos) {
     return 0;
 }
 
-int cargar_bloques(uint32_t* bloques_datos, uint32_t cantidad_bloques, void *datos, t_list* lista_indices){
+int cargar_bloques(uint32_t cantidad_bloques, void *datos, t_list* lista_indices){
     size_t path_length = strlen(mount_dir) + strlen("/bloques.dat") + 1;
     char* path_bloques = malloc(path_length);
     strcpy(path_bloques,"");
@@ -202,21 +202,21 @@ int cargar_bloques(uint32_t* bloques_datos, uint32_t cantidad_bloques, void *dat
     }
     
     for (uint32_t i = 0; i < cantidad_bloques; i++) {
-        
-
         if (i==0){
             fseek(bloques_file,posicion,SEEK_SET);
             fwrite(dir_bloque, block_size, 1, bloques_file);
             continue;
         }
         if (i == cantidad_bloques-1)
-            block_sizeAUX=(tamanio%32);
+            block_sizeAUX=(tamanio%block_size);
+            if(block_sizeAUX == 0)
+                block_sizeAUX=block_size;
         else
             block_sizeAUX=block_size;
-
-        posicion = bloques_datos[i-1]*block_size;
+        
+        posicion = (int)list_get(lista_indices,i-1)*block_size;
         if(fseek(bloques_file,posicion,SEEK_SET) != 0){
-            log_error(logger, "error al mover el puntero: %d", bloques_datos[i-1]);
+            log_error(logger, "error al mover el puntero: %d", list_get(lista_indices,i-1));
             return -1;
         }
         void *  fragmento_datos = (char*) datos + ((i-1)*block_size);

@@ -12,7 +12,6 @@
 
 typedef struct {
     uint32_t bloque_indice;      // Número del bloque donde esta el bloque_indice
-    uint32_t* bloques_datos;     // un array que en cada pos indica donde esta cada bloque
     uint32_t cantidad_bloques;   // Cantidad de bloques reservados
     t_list* lista_indices;
 } t_reserva_bloques;

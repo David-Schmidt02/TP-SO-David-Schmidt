@@ -73,7 +73,7 @@ void enviar_contexto(int pid, int tid) {
 /// @param direccion 
 /// @return devuelve el contenido de la direccion, o -1 para error
 uint32_t read_memory(uint32_t direccion, int pid, int tid){
-    uint32_t * aux;
+    char * aux;
 
     if(direccion < 0 || direccion > memoria_usuario->size){
         log_error(logger, "Direccion %d invalida", direccion);
@@ -92,7 +92,7 @@ uint32_t read_memory(uint32_t direccion, int pid, int tid){
 /// @param valor
 /// @return devuelve 0 para ok o -1 para error
 int write_memory(uint32_t direccion, uint32_t valor, int pid, int tid){
-    uint32_t * aux;
+    char * aux;
     
     if(direccion < 0 || direccion > memoria_usuario->size){
         log_error(logger, "Direccion %d invalida", direccion);
@@ -529,8 +529,8 @@ int send_dump(int pid, int tid){
     protocolo_socket respuesta;
     uint32_t size;
     uint32_t base;
-    uint32_t *contenido = NULL;
-    uint32_t *contenido_segmento;
+    char *contenido = NULL;
+    char *contenido_segmento;
     int index_pid;
     elemento_procesos *aux_din;
     elemento_particiones_fijas *aux_fij;
@@ -541,11 +541,12 @@ int send_dump(int pid, int tid){
             pthread_mutex_lock(mutex_procesos_din);
             aux_din = list_get(memoria_usuario->tabla_procesos, index_pid);
             size = aux_din->size;
+            base = aux_din->inicio;
             pthread_mutex_unlock(mutex_procesos_din);
             pthread_mutex_lock(mutex_espacio);
             contenido = memoria_usuario->espacio;
-            contenido_segmento = malloc(sizeof(uint32_t) * size);
-            memcpy(contenido_segmento, contenido, sizeof(uint32_t) * size);
+            contenido_segmento = malloc(size);
+            memcpy(contenido_segmento, &contenido[base], size);
             pthread_mutex_unlock(mutex_espacio);
             break;
 

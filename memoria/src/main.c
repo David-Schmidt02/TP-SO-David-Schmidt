@@ -104,7 +104,7 @@ void inicializar_memoria(particiones tipo_particion, int size, t_list *particion
 
 	memoria_usuario = malloc(sizeof(t_memoria));
 	memoria_usuario->lista_pcb = list_create();
-	memoria_usuario->espacio=malloc(size*sizeof(uint32_t));
+	memoria_usuario->espacio=malloc(size);
 	memoria_usuario->size = size;
 	memoria_usuario->fit = fit;
 
