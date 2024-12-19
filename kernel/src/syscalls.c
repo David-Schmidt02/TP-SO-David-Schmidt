@@ -520,7 +520,7 @@ void MUTEX_CREATE(char* nombre_mutex) {
     for (int i = 0; i < list_size(proceso_actual->listaMUTEX); i++) {
         t_mutex* mutex = list_get(proceso_actual->listaMUTEX, i);
         if (strcmp(mutex->nombre, nombre_mutex) == 0) {
-            log_warning(logger, "El mutex %s ya existe.", nombre_mutex);
+            log_warning(logger, "El mutex '%s' ya existe.", nombre_mutex);
             return;
         }
     }
@@ -533,7 +533,7 @@ void MUTEX_CREATE(char* nombre_mutex) {
 
     list_add(proceso_actual->listaMUTEX, nuevo_mutex);
     list_add(lista_mutexes, nuevo_mutex);
-    log_info(logger, "Mutex %s creado exitosamente.", nombre_mutex);
+    log_info(logger, "Mutex '%s' creado exitosamente.", nombre_mutex);
 }
 
 void MUTEX_LOCK(char* nombre_mutex) {
@@ -555,10 +555,10 @@ void MUTEX_LOCK(char* nombre_mutex) {
     if (mutex_encontrado->estado == 0) {
         mutex_encontrado->estado = 1; // Bloqueo
         mutex_encontrado->hilo_asignado = hilo_actual;
-        cambiar_estado(hilo_actual, BLOCK);
-        log_info(logger, "Mutex %s adquirido por el hilo TID %d que entra en espera.", nombre_mutex, hilo_actual->tid);
+        //cambiar_estado(hilo_actual, BLOCK); -> El hilo asignado no se bloqueaaaaa
+        log_info(logger, "Mutex %s adquirido por el hilo PID: %d TID %d.", nombre_mutex,hilo_actual->pid ,hilo_actual->tid);
 
-        if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
+        /*if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
             eliminar_hilo_de_cola_fifo_prioridades_thread_exit(hilo_actual);
             encolar_en_block(hilo_actual);//se agrega a la cola de exit
         } else if (strcmp(algoritmo, "CMN") == 0) {
@@ -567,6 +567,8 @@ void MUTEX_LOCK(char* nombre_mutex) {
         } else {
             log_info(logger, "Error: Algoritmo no reconocido.\n");
         }
+        */
+       encolar_corto_plazo_multinivel(hilo_actual);
 
     } 
     else {
@@ -599,33 +601,46 @@ void MUTEX_UNLOCK(char* nombre_mutex) {
     }
 
     if (mutex_encontrado == NULL) {
-        log_warning(logger, "El mutex %s no existe.", nombre_mutex);
+        log_warning(logger, "El mutex '%s' no existe.", nombre_mutex);
         return;
     }
 
     if (mutex_encontrado->hilo_asignado == hilo_actual){
         if (mutex_encontrado->estado == 1) {
-            log_info(logger, "Se libera el primer hilo bloqueado por el Mutex %s.", nombre_mutex);
-
+            log_info(logger, "Se asigna el Mutex al primer hilo bloqueado por el Mutex '%s' (hilo actual ejecutando PID: %d TID: %d).", nombre_mutex, hilo_actual->pid, hilo_actual->tid);
+            enviar_a_cpu_dispatch_mutex_lock(hilo_actual);
             // Despertar un hilo de la lista de espera, si hay alguno
             if (list_size(mutex_encontrado->hilos_esperando) > 0) {
-                t_tcb* hilo_despertar = list_remove(mutex_encontrado->hilos_esperando, 0); // Quitar el primer hilo
-                cambiar_estado(hilo_despertar, READY); // Cambiar su estado a READY
-                encolar_hilo_corto_plazo(hilo_despertar);
-                enviar_a_cpu_dispatch(hilo_despertar->pid, hilo_despertar->tid);
-                log_info(logger, "Hilo TID %d ha sido despertado y ahora tiene el mutex %s.", hilo_despertar->tid, nombre_mutex);
+                t_tcb* nuevo_hilo_asignado = list_remove(mutex_encontrado->hilos_esperando, 0); // Quitar el primer hilo
+                mutex_encontrado->hilo_asignado = nuevo_hilo_asignado;
+                cambiar_estado(nuevo_hilo_asignado, READY); // Cambiar su estado a READY
+                encolar_hilo_corto_plazo(mutex_encontrado->hilo_asignado);
+                log_info(logger, "Se asignó el Mutex '%s' al hilo PID: %d TID: %d.", nombre_mutex, nuevo_hilo_asignado->pid, nuevo_hilo_asignado->tid);
             }
         } 
         else {
-            log_warning(logger, "El mutex %s ya estaba libre.", nombre_mutex);
+            log_warning(logger, "El mutex '%s' ya estaba libre.", nombre_mutex);
+             enviar_a_cpu_dispatch_mutex_lock(hilo_actual);
             }
     }
     else{
-        log_warning(logger, "El mutex %s tenía asignado otro hilo", nombre_mutex);
+        log_warning(logger, "El mutex '%s' tenía asignado otro hilo", nombre_mutex);
+         enviar_a_cpu_dispatch_mutex_lock(hilo_actual);
     }
 
 }
 
+void enviar_a_cpu_dispatch_mutex_lock(t_tcb * hilo){
+    if (strcmp(algoritmo, "FIFO") == 0) {
+        ejecutar_fifo(hilo);
+    } else if (strcmp(algoritmo, "PRIORIDADES") == 0) {
+        ejecutar_prioridades(hilo);
+    } else if (strcmp(algoritmo, "CMN") == 0) {
+        ejecutar_round_robin(hilo);
+    } else {
+        log_info(logger,"Error: Algoritmo no reconocido.\n");
+    }
+}
 
 void DUMP_MEMORY(int pid) {
     log_info(logger, "=== DUMP DE MEMORIA ===");

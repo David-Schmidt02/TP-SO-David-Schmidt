@@ -46,9 +46,11 @@ void encolar_hilo_corto_plazo(t_tcb *hilo);
 
 void encolar_hilo_ya_creado_corto_plazo(t_tcb *hilo);
 void corto_plazo_fifo();
+void ejecutar_fifo(t_tcb * hilo_a_ejecutar);
 void encolar_corto_plazo_fifo(t_tcb * hilo);
 t_tcb* desencolar_hilos_fifo();
 void corto_plazo_prioridades();
+void ejecutar_prioridades(t_tcb * hilo_a_ejecutar);
 void encolar_corto_plazo_prioridades(t_tcb * hilo);
 t_tcb* desencolar_hilos_prioridades();
 int comparar_prioridades(t_tcb *a, t_tcb *b);

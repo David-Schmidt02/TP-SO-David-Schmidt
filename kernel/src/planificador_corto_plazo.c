@@ -87,15 +87,21 @@ void corto_plazo_fifo(){
         t_tcb *hilo = desencolar_hilos_fifo();
         hilo->estado = EXEC; 
         pthread_mutex_unlock(mutex_hilos_cola_ready);
-        pthread_mutex_lock(mutex_socket_cpu_dispatch);
         hilo_actual = hilo;
         proceso_actual = obtener_pcb(hilo_actual->pid);
-        t_tcb * tcb=malloc(sizeof(t_tcb));
-        enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
-        log_info(logger,"Cola de FIFO: Ejecutando hilo TID=%d, PID=%d\n", hilo->tid, hilo->pid);
-        recibir_motivo_devolucion_cpu();
-        pthread_mutex_unlock(mutex_socket_cpu_dispatch);
+        ejecutar_fifo(hilo);
     }
+}
+
+void ejecutar_fifo(t_tcb * hilo_a_ejecutar) {
+
+    pthread_mutex_lock(mutex_socket_cpu_dispatch);
+    hilo_actual = hilo_a_ejecutar;
+    proceso_actual = obtener_pcb(hilo_actual->pid);
+    enviar_a_cpu_dispatch(hilo_a_ejecutar->tid, hilo_a_ejecutar->pid); 
+    log_info(logger,"Cola de FIFO: Ejecutando hilo TID=%d, PID=%d\n", hilo_a_ejecutar->tid, hilo_a_ejecutar->pid);
+    pthread_mutex_unlock(mutex_socket_cpu_dispatch);
+    recibir_motivo_devolucion_cpu(); 
 }
 
 void encolar_corto_plazo_fifo(t_tcb * hilo){
@@ -119,14 +125,19 @@ void corto_plazo_prioridades()
         t_tcb *hilo = desencolar_hilos_prioridades();
         hilo->estado = EXEC;  
         pthread_mutex_unlock(mutex_hilos_cola_ready);
-        pthread_mutex_lock(mutex_socket_cpu_dispatch);
-        hilo_actual = hilo;
-        proceso_actual = obtener_pcb(hilo_actual->pid);
-        enviar_a_cpu_dispatch(hilo->tid, hilo->pid);
-        log_info(logger,"Cola de PRIORIDADES %d: Ejecutando hilo TID=%d, PID=%d\n", hilo->prioridad,hilo->tid, hilo->pid);
-        recibir_motivo_devolucion_cpu();
-        pthread_mutex_unlock(mutex_socket_cpu_dispatch);
+        ejecutar_prioridades(hilo);
     }
+}
+
+void ejecutar_prioridades(t_tcb * hilo_a_ejecutar) {
+
+    pthread_mutex_lock(mutex_socket_cpu_dispatch);
+    hilo_actual = hilo_a_ejecutar;
+    proceso_actual = obtener_pcb(hilo_actual->pid);
+    enviar_a_cpu_dispatch(hilo_a_ejecutar->tid, hilo_a_ejecutar->pid); 
+    log_info(logger,"Cola de PRIORIDADES %d: Ejecutando hilo TID=%d, PID=%d\n", hilo_a_ejecutar->prioridad, hilo_a_ejecutar->tid, hilo_a_ejecutar->pid);
+    pthread_mutex_unlock(mutex_socket_cpu_dispatch);
+    recibir_motivo_devolucion_cpu(); 
 }
 
 void encolar_corto_plazo_prioridades(t_tcb * hilo){
@@ -158,6 +169,25 @@ int comparar_prioridades(t_tcb *a, t_tcb *b) {
 void corto_plazo_colas_multinivel() {
     while (1) {
         //sem_wait(sem_hilo_nuevo_encolado);
+        
+        t_list_iterator *niveles_iterator = list_iterator_create(colas_multinivel->niveles_prioridad);
+        while (list_iterator_has_next(niveles_iterator)) {
+            t_nivel_prioridad *nivel = list_iterator_next(niveles_iterator);
+            log_info(logger, "### Nivel de Prioridad: %d", nivel->nivel_prioridad);
+            if (!nivel->cola_hilos || !nivel->cola_hilos->lista_hilos) {
+                log_info(logger, "No hay hilos en este nivel.");
+                continue;
+            }
+            // Iterar sobre los hilos en la cola del nivel actual
+            t_list_iterator *hilos_iterator = list_iterator_create(nivel->cola_hilos->lista_hilos);
+            while (list_iterator_has_next(hilos_iterator)) {
+                t_tcb *hilo = list_iterator_next(hilos_iterator);
+                log_info(logger, "Hilo PID: %d TID: %d", hilo->pid, hilo->tid);
+            }
+            list_iterator_destroy(hilos_iterator);
+            }
+        list_iterator_destroy(niveles_iterator);
+        
         sem_wait(sem_hilo_actual_encolado);
         sem_wait(sem_estado_multinivel);
         t_nivel_prioridad *nivel_a_ejecutar = NULL;
@@ -205,7 +235,7 @@ void ejecutar_round_robin(t_tcb * hilo_a_ejecutar) {
     hilo_actual = hilo_a_ejecutar;
     proceso_actual = obtener_pcb(hilo_actual->pid);
     enviar_a_cpu_dispatch(hilo_a_ejecutar->tid, hilo_a_ejecutar->pid); // Envía el TID y PID al CPU
-    log_info(logger,"Cola de RR: Ejecutando hilo TID=%d, PID=%d\n", hilo_a_ejecutar->tid, hilo_a_ejecutar->pid);
+    log_info(logger,"Cola de RR: Ejecutando hilo PID=%d TID=%d Prioridad:%d\n", hilo_a_ejecutar->tid, hilo_a_ejecutar->pid, hilo_a_ejecutar->prioridad);
     pthread_mutex_unlock(mutex_socket_cpu_dispatch);
 
     // Lanzamos un nuevo hilo que cuente el quantum y envíe una interrupción si se agota
@@ -396,21 +426,60 @@ void recibir_motivo_devolucion_cpu() {
 
         case MUTEX_CREATE_OP:
             nombre_mutex = list_remove(paquete_respuesta, 0);
-            log_info(logger, "## (%d:%d) creo un NUEVO MUTEX: %s\n", hilo_actual->pid, hilo_actual->tid, nombre_mutex);
+            log_info(logger, "## (%d:%d) creo un NUEVO MUTEX: '%s'\n", hilo_actual->pid, hilo_actual->tid, nombre_mutex);
             MUTEX_CREATE(nombre_mutex);
             encolar_corto_plazo_multinivel(hilo_actual);
+            sem_post(sem_hilo_actual_encolado);
             break;
 
         case MUTEX_LOCK_OP:
             nombre_mutex = list_remove(paquete_respuesta, 0);
-            log_info(logger, "## (%d:%d) - Bloqueado por: MUTEX: %s\n", hilo_actual->pid, hilo_actual->tid, nombre_mutex);
+            log_info(logger, "## (%d:%d) - Bloqueado por MUTEX_LOCK: '%s'\n", hilo_actual->pid, hilo_actual->tid, nombre_mutex);
+            log_info(logger, "## Estado de los Mutex y sus hilos bloqueados:");
             MUTEX_LOCK(nombre_mutex);
+
+            // Iterar sobre los mutex en la lista
+            t_list_iterator *mutex_iterator = list_iterator_create(lista_mutexes);
+            while (list_iterator_has_next(mutex_iterator)) {
+                t_mutex *mutex = list_iterator_next(mutex_iterator);
+
+                // Imprimir información básica del mutex
+                log_info(logger, "### Mutex: %s", mutex->nombre);
+                log_info(logger, "Estado: %s", mutex->estado == 0 ? "Libre" : "Bloqueado");
+                if (mutex->hilo_asignado) {
+                    log_info(logger, "Hilo asignado al mutex: PID %d TID %d", mutex->hilo_asignado->pid,mutex->hilo_asignado->tid);
+                } else {
+                    log_info(logger, "No hay hilo asignado actualmente.");
+                }
+
+                // Imprimir la lista de hilos esperando por el mutex
+                if (!mutex->hilos_esperando || list_is_empty(mutex->hilos_esperando)) {
+                    log_info(logger, "No hay hilos esperando este mutex.");
+                    continue;
+                }
+
+                log_info(logger, "Hilos bloqueados esperando este mutex:");
+                t_list_iterator *hilos_iterator = list_iterator_create(mutex->hilos_esperando);
+                while (list_iterator_has_next(hilos_iterator)) {
+                    t_tcb *hilo = list_iterator_next(hilos_iterator);
+                    log_info(logger, "Hilo ID: %d, Prioridad: %d, Estado: %d", 
+                        hilo->tid, 
+                        hilo->prioridad, 
+                        hilo->estado);
+                }
+                list_iterator_destroy(hilos_iterator);
+            }
+            list_iterator_destroy(mutex_iterator);
+
+            sem_post(sem_hilo_actual_encolado);
             break;
 
         case MUTEX_UNLOCK_OP:
             nombre_mutex = list_remove(paquete_respuesta, 0);
-            log_info(logger, "PID:%d TID:%d está intentando LIBERAR el MUTEX: %s\n", hilo_actual->pid, hilo_actual->tid, nombre_mutex);
+            log_info(logger, "PID:%d TID:%d está intentando LIBERAR el MUTEX: '%s'\n", hilo_actual->pid, hilo_actual->tid, nombre_mutex);
             MUTEX_UNLOCK(nombre_mutex);
+            //enviar_a_cpu_dispatch(hilo_actual->pid, hilo_actual->tid);
+            //sem_post(sem_hilo_actual_encolado);
             break;
 
         case IO_SYSCALL:

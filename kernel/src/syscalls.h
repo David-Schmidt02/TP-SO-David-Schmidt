@@ -90,6 +90,7 @@ void IO(float milisec, int tcb_id);
 void MUTEX_CREATE(char* nombre_mutex);
 void MUTEX_LOCK(char* nombre_mutex);
 void MUTEX_UNLOCK(char* nombre_mutex);
+void enviar_a_cpu_dispatch_mutex_lock(t_tcb * hilo);
 void DUMP_MEMORY(int pid);
 void element_destroyer(void* elemento);
 t_list* interpretarArchivo(FILE* archivo);
