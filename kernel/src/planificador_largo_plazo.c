@@ -104,6 +104,8 @@ void* largo_plazo_fifo(void* args){
         log_info(logger, "Llego otro proceso a crear, generando la peticion para memoria...");
         pthread_mutex_lock(mutex_procesos_a_crear);
         t_pcb *proceso = desencolar_proceso_a_crear();
+        pthread_mutex_unlock(mutex_procesos_a_crear);
+
         
     // Crear petición
         t_peticion *peticion = malloc(sizeof(t_peticion));
@@ -119,15 +121,18 @@ void* largo_plazo_fifo(void* args){
             encolar_hilo_principal_corto_plazo(proceso);
             sem_post(sem_hilo_nuevo_encolado);
             pthread_mutex_unlock(mutex_socket_memoria);
-            pthread_mutex_unlock(mutex_procesos_a_crear);
+            
         } 
         else {
             pthread_mutex_unlock(mutex_socket_memoria);
-            pthread_mutex_unlock(mutex_procesos_a_crear);
             log_warning(logger, "No se pudo crear el proceso, reitentando cuando otro proceso finalice...");
             sem_post(sem_hilo_nuevo_encolado);
-            list_add(lista_procesos_a_crear_reintento->lista_procesos, proceso);
-            sem_post(sem_estado_lista_procesos_a_crear_reintento);
+            pthread_mutex_lock(mutex_procesos_a_crear);
+            list_add(procesos_a_crear->lista_procesos, proceso);
+            sem_post(sem_estado_procesos_a_crear);
+            pthread_mutex_unlock(mutex_procesos_a_crear);
+            // list_add(lista_procesos_a_crear_reintento->lista_procesos, proceso);
+            // sem_post(sem_estado_lista_procesos_a_crear_reintento);
             //reintentar_creacion_proceso(proceso);
             }
         free(peticion);

@@ -317,7 +317,9 @@ void *peticion_kernel(void *args) {
 
 void encolar_peticion_memoria(t_peticion * peticion){
         pthread_mutex_lock(mutex_lista_t_peticiones);
-        list_add(lista_t_peticiones, peticion);
+        if(peticion->tipo == DUMP_MEMORY_OP || peticion->tipo == PROCESS_EXIT_OP){
+            list_add_in_index(lista_t_peticiones, 0, peticion);
+        }else list_add(lista_t_peticiones, peticion);
         pthread_mutex_unlock(mutex_lista_t_peticiones);
         sem_post(sem_lista_t_peticiones);
 }
@@ -329,6 +331,7 @@ void *reintentar_creacion_proceso(void * args){
         sem_wait(sem_estado_lista_procesos_a_crear_reintento);
         pthread_mutex_lock(mutex_lista_procesos_a_crear_reintento);
         t_pcb * proceso = list_remove(lista_procesos_a_crear_reintento->lista_procesos, 0);
+        pthread_mutex_unlock(mutex_lista_procesos_a_crear_reintento);
         t_peticion *peticion = malloc(sizeof(t_peticion));
         peticion->tipo = PROCESS_CREATE_OP;
         peticion->proceso = proceso;
@@ -341,10 +344,9 @@ void *reintentar_creacion_proceso(void * args){
             encolar_proceso_en_ready(proceso);
             encolar_hilo_principal_corto_plazo(proceso);
             sem_post(sem_hilo_actual_encolado);
-            pthread_mutex_unlock(mutex_lista_procesos_a_crear_reintento);
+            
         } else 
             {
-                pthread_mutex_unlock(mutex_lista_procesos_a_crear_reintento);
                 log_error(logger, "No se pudo crear el proceso PID: %d Tamaño: %d, reitentando cuando otro proceso finalice...", proceso->pid, proceso->memoria_necesaria);
                 list_add(lista_procesos_a_crear_reintento->lista_procesos, proceso);
                 i++;
