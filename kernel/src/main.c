@@ -351,11 +351,9 @@ void *reintentar_creacion_proceso(void * args){
                 list_add(lista_procesos_a_crear_reintento->lista_procesos, proceso);
                 i++;
                 if (i < list_size(lista_procesos_a_crear_reintento->lista_procesos))
-                    {
-
-                        sem_post(sem_estado_lista_procesos_a_crear_reintento);
-                    }
+                    sem_post(sem_estado_lista_procesos_a_crear_reintento);
                 else
+                    i = 0;
             }
         pthread_mutex_unlock(mutex_socket_memoria);
         free(peticion);
