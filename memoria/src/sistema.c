@@ -550,10 +550,6 @@ int send_dump(int pid, int tid){
             contenido = memoria_usuario->espacio;
             contenido_segmento = malloc(size);
             memcpy(contenido_segmento, &contenido[(uint8_t)base], size);
-            
-            for(int i = 0; i < size; i++){
-                log_error(logger, "%c", contenido_segmento[i]);
-            }
 
             pthread_mutex_unlock(mutex_espacio);
             break;
