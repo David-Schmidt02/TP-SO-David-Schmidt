@@ -204,7 +204,7 @@ void PROCESS_EXIT() {
     }
     sem_wait(sem_estado_procesos_cola_ready);
     pthread_mutex_unlock(mutex_procesos_cola_ready);
-    sem_post(sem_proceso_finalizado);
+
 }
 
 void notificar_memoria_fin_proceso(int pid) {

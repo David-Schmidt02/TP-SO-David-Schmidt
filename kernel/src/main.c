@@ -242,11 +242,11 @@ void *peticion_kernel(void *args) {
 
         case THREAD_CREATE_OP:
             send_protocolo = crear_paquete(THREAD_CREATE_OP);
-            agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(hilo->tid));
-            agregar_a_paquete(send_protocolo, &hilo->pid, sizeof(hilo->pid));
-            agregar_a_paquete(send_protocolo, &hilo->prioridad, sizeof(hilo->prioridad));
-            agregar_a_paquete(send_protocolo, &hilo->estado, sizeof(hilo->estado));
-            agregar_a_paquete(send_protocolo, &hilo->quantum_restante, sizeof(hilo->quantum_restante));
+            agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(int));
+            agregar_a_paquete(send_protocolo, &hilo->pid, sizeof(int));
+            agregar_a_paquete(send_protocolo, &hilo->prioridad, sizeof(int));
+            agregar_a_paquete(send_protocolo, &hilo->estado, sizeof(t_estado));
+            agregar_a_paquete(send_protocolo, &hilo->quantum_restante, sizeof(int));
             t_list_iterator * iterator = list_iterator_create(hilo->instrucciones);
             char *aux_instruccion;
             while(list_iterator_has_next(iterator)){
@@ -259,15 +259,15 @@ void *peticion_kernel(void *args) {
 
         case THREAD_EXIT_OP:
             send_protocolo = crear_paquete(THREAD_EXIT_OP);
-            agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(hilo->tid));
-            agregar_a_paquete(send_protocolo, &hilo->pid, sizeof(hilo->tid));
+            agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(int));
+            agregar_a_paquete(send_protocolo, &hilo->pid, sizeof(int));
 			log_info(logger, "Se envió la peticion de THREAD EXIT");
             break;
 
 		case THREAD_CANCEL_OP:
             send_protocolo = crear_paquete(THREAD_CANCEL_OP);
-            agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(hilo->tid));
-            agregar_a_paquete(send_protocolo, &hilo->pid, sizeof(hilo->tid));
+            agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(int));
+            agregar_a_paquete(send_protocolo, &hilo->pid, sizeof(int));
 			log_info(logger, "Se crea la peticion de THREAD CANCEL");
             break;
 
@@ -319,7 +319,8 @@ void encolar_peticion_memoria(t_peticion * peticion){
         pthread_mutex_lock(mutex_lista_t_peticiones);
         if(peticion->tipo == DUMP_MEMORY_OP || peticion->tipo == PROCESS_EXIT_OP){
             list_add_in_index(lista_t_peticiones, 0, peticion);
-        }else list_add(lista_t_peticiones, peticion);
+        }else 
+            list_add(lista_t_peticiones, peticion);
         pthread_mutex_unlock(mutex_lista_t_peticiones);
         sem_post(sem_lista_t_peticiones);
 }
