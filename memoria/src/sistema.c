@@ -334,7 +334,7 @@ int agregar_a_dinamica(t_pcb *pcb){
                 aux_hueco_nuevo->size = aux_hueco->size-aux_proceso->size;
 
                 //reemplazo el hueco usado por el nuevo (que es mas chico)
-                aux_hueco = aux_hueco_nuevo;
+                *aux_hueco = *aux_hueco_nuevo;
 
                 //se me quemo el cerebro
                 list_iterator_destroy(iterator);
@@ -377,7 +377,7 @@ int agregar_a_dinamica(t_pcb *pcb){
         aux_hueco_nuevo->inicio = mejor_hueco->inicio+aux_proceso->size;
         aux_hueco_nuevo->size = mejor_hueco->size-aux_proceso->size;
         //reemplazo el hueco usado por el nuevo (que es mas chico)
-        mejor_hueco = aux_hueco_nuevo;
+        *mejor_hueco = *aux_hueco_nuevo;
         //se me quemo el cerebro
         list_iterator_destroy(iterator);
         pthread_mutex_unlock(mutex_procesos_din);
@@ -394,7 +394,7 @@ int agregar_a_dinamica(t_pcb *pcb){
         aux_hueco_nuevo->inicio = peor_hueco->inicio+aux_proceso->size;
         aux_hueco_nuevo->size = peor_hueco->size-aux_proceso->size;
         //reemplazo el hueco usado por el nuevo (que es mas chico)
-        peor_hueco = aux_hueco_nuevo;
+        *peor_hueco = *aux_hueco_nuevo;
         //se me quemo el cerebro
         list_iterator_destroy(iterator);
         pthread_mutex_unlock(mutex_procesos_din);
