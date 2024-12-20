@@ -350,7 +350,7 @@ void recibir_motivo_devolucion_cpu() {
             prioridad = * (int *)list_remove(paquete_respuesta, 0);
             pid = proceso_actual->pid;
             PROCESS_CREATE(archivo, tamanio, prioridad);
-            sem_wait(sem_hilo_nuevo_encolado);
+            //sem_wait(sem_hilo_nuevo_encolado);
             encolar_hilo_corto_plazo(hilo_actual);
             sem_post(sem_hilo_actual_encolado);
             log_warning(logger, "Despues de encolar el hilo nuevo del PROCESS CREATE se hace un post y comienza la ejecucion de nuevo");
