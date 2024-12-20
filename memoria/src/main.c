@@ -156,15 +156,13 @@ void *server_multihilo_kernel(void* arg_server){
 	while (flag)
 	{
 		log_info(logger, "esperando nueva peticion de kernel");
-		//pthread_mutex_lock(mutex_conexion_kernel);
-		socket_cliente_kernel = esperar_cliente(server); //pausado hasta que llegue una peticion nueva (nuevo cliente)
 		pthread_mutex_lock(mutex_conexion_kernel);
+		socket_cliente_kernel = esperar_cliente(server); //pausado hasta que llegue una peticion nueva (nuevo cliente)
 		cod_op = recibir_operacion(socket_cliente_kernel);
 		log_info(logger, "SE RECIBIO UNA PETICION DESDE KERNEL CON EL CODIGO DE OPERACION: %i", cod_op);
 		switch (cod_op)
 		{
 			case PROCESS_CREATE_OP:
-				
 				pthread_create(&aux_thread, NULL, peticion_kernel_NEW_PROCESS, (void *)&socket_cliente_kernel);
 				sleep(1);
 				thread_copia_new_process = malloc(sizeof(pthread_t));
