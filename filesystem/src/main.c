@@ -9,7 +9,6 @@ char* mount_dir;
 char * ruta_files;
 uint32_t num_bloque;
 pthread_mutex_t *mutex_logs;
-uint32_t tamanio;
 t_list * lista_bloque_indices;
 
 
@@ -59,6 +58,7 @@ void *conexion_memoria(void* arg_memoria)
 	t_paquete *send;
 	t_list *recv_list;
 	int check;
+	int tamanio;
 	char * handshake_texto = "conexion filesystem";
 	t_config *config = config_create("config/filesystem.config");
 
