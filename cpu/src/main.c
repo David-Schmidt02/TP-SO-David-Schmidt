@@ -542,7 +542,7 @@ void execute(t_instruccion_partida *instruccion_partida) {
                 }
                 case LOG:  { 
                     uint32_t * registro_a_leer = registro_aux(parametros[2]);
-                    log_info(logger, "Valor del registro %s: %d", parametros[1], *registro_a_leer);
+                    log_info(logger, "Valor del registro %i: %d", parametros[1], *registro_a_leer);
                     break;
                 }
                 default: {

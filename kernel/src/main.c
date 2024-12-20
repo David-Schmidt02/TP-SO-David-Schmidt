@@ -356,13 +356,10 @@ void *reintentar_creacion_proceso(void * args){
                         sem_post(sem_estado_lista_procesos_a_crear_reintento);
                     }
                 else
-                    i = 0;
             }
         pthread_mutex_unlock(mutex_socket_memoria);
         free(peticion);
-
     }
-    
 }
 
 void inicializar_estructuras(){

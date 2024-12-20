@@ -326,36 +326,6 @@ void THREAD_CREATE(FILE* archivo_instrucciones, int prioridad) {
     log_info(logger, "## (%d:%d) Se crea el Hilo - Estado: READY", proceso_actual->pid, tid);
 }
 
-/*
-void reintentar_creacion_proceso(t_pcb* proceso) {
-    log_warning(logger, "Memoria no tiene espacio suficiente, reintentando cuando un proceso se termine...");
-    sem_wait(sem_proceso_finalizado);
-    t_peticion *peticion = malloc(sizeof(t_peticion));
-    peticion->tipo = PROCESS_CREATE_OP;
-    peticion->proceso = proceso;
-    peticion->hilo = NULL; 
-    log_warning(logger, "Finalizó un proceso, se encola el PROCESS CREATE del PID:%d", proceso->pid);
-    encolar_peticion_memoria(peticion);
-    sem_wait(sem_estado_respuesta_desde_memoria);
-    if (peticion->respuesta_exitosa) {
-        proceso->estado = READY;
-        encolar_proceso_en_ready(proceso);
-        encolar_hilo_principal_corto_plazo(proceso);
-        if (proceso->pid == 1)
-            {
-                sem_post(sem_hilo_actual_encolado);
-            }
-        pthread_mutex_unlock(mutex_procesos_a_crear);
-    } else {
-        pthread_mutex_unlock(mutex_procesos_a_crear);
-        while(!peticion->respuesta_exitosa){
-            sem_post(sem_hilo_actual_encolado);
-            reintentar_creacion_proceso(proceso);
-        }
-        free(peticion);
-    }
-}
-*/
 void THREAD_JOIN(int tid_a_esperar) {
     t_tcb* hilo_a_esperar = obtener_tcb(tid_a_esperar, proceso_actual->pid);
 
@@ -466,22 +436,18 @@ void eliminar_tcb(t_tcb* hilo) {
     } // Libero el TCB
 }
 
-void THREAD_EXIT() {// No recibe ningún parámetro, trabaja con hilo_actual
+void THREAD_EXIT() {
     t_tcb* hilo_a_salir = hilo_actual;
     if (hilo_a_salir == NULL) {
         log_warning(logger, "No se encontró el TID %d para finalizar el hilo.", hilo_a_salir->tid);
         return;
     }
-
     hilo_a_salir->estado = EXIT;
-
-    // Obtengo el PCB correspondiente al hilo
     t_pcb* pcb_hilo_a_salir = obtener_pcb(hilo_a_salir->pid);
     if (pcb_hilo_a_salir == NULL) {
         log_warning(logger, "No se encontró el PCB para el TID %d.", hilo_a_salir->tid);
         return;
     }
-    // Elimina el hilo de la cola correspondiente y lo encola en la cola de EXIT
     if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES") == 0) {
             eliminar_hilo_de_cola_fifo_prioridades_thread_exit(hilo_a_salir);
         } else if (strcmp(algoritmo, "CMN") == 0) {
@@ -491,27 +457,21 @@ void THREAD_EXIT() {// No recibe ningún parámetro, trabaja con hilo_actual
         }
 
     log_info(logger, "Hilo TID %d finalizado.", hilo_a_salir->tid);
-
     notificar_memoria_fin_hilo(hilo_a_salir);
     eliminar_tcb(hilo_a_salir);
 }
 
 void IO(float milisec, int tcb_id) {
     pthread_mutex_lock(mutex_colaIO);
-    
-    // Crear la petición y asignar memoria
     t_uso_io *peticion = malloc(sizeof(t_uso_io));
     if (peticion == NULL) {
         log_error(logger, "Error al asignar memoria para la petición de IO.");
         pthread_mutex_unlock(mutex_colaIO);
         return;
     }
-
     peticion->milisegundos = milisec;
     peticion->hilo = hilo_actual;
-
     list_add(colaIO->lista_io, peticion);
-
     pthread_mutex_unlock(mutex_colaIO);
     sem_post(sem_estado_colaIO);
 } 
@@ -524,7 +484,6 @@ void MUTEX_CREATE(char* nombre_mutex) {
             return;
         }
     }
-
     t_mutex* nuevo_mutex = malloc(sizeof(t_mutex));
     nuevo_mutex->nombre = strdup(nombre_mutex);
     nuevo_mutex->estado = 0; // Mutex empieza libre
@@ -538,7 +497,6 @@ void MUTEX_CREATE(char* nombre_mutex) {
 
 void MUTEX_LOCK(char* nombre_mutex) {
     t_mutex* mutex_encontrado = NULL;
-
     for (int i = 0; i < list_size(lista_mutexes); i++) {
         t_mutex* mutex = list_get(lista_mutexes, i);
         if (strcmp(mutex->nombre, nombre_mutex) == 0) {
@@ -546,30 +504,16 @@ void MUTEX_LOCK(char* nombre_mutex) {
             break;
         }
     }
-
     if (mutex_encontrado == NULL) {
         log_warning(logger, "El mutex %s no existe.", nombre_mutex);
         return;
     }
-
     if (mutex_encontrado->estado == 0) {
         mutex_encontrado->estado = 1; // Bloqueo
         mutex_encontrado->hilo_asignado = hilo_actual;
         //cambiar_estado(hilo_actual, BLOCK); -> El hilo asignado no se bloqueaaaaa
         log_info(logger, "Mutex %s adquirido por el hilo PID: %d TID %d.", nombre_mutex,hilo_actual->pid ,hilo_actual->tid);
-
-        /*if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES")) {
-            eliminar_hilo_de_cola_fifo_prioridades_thread_exit(hilo_actual);
-            encolar_en_block(hilo_actual);//se agrega a la cola de exit
-        } else if (strcmp(algoritmo, "CMN") == 0) {
-            eliminar_hilo_de_cola_multinivel_thread_exit(hilo_actual);
-            encolar_en_block(hilo_actual);//se agrega a la cola de exit
-        } else {
-            log_info(logger, "Error: Algoritmo no reconocido.\n");
-        }
-        */
-       encolar_corto_plazo_multinivel(hilo_actual);
-
+        encolar_corto_plazo_multinivel(hilo_actual);
     } 
     else {
         list_add(mutex_encontrado->hilos_esperando, hilo_actual);
@@ -585,7 +529,6 @@ void MUTEX_LOCK(char* nombre_mutex) {
         } else {
             log_info(logger, "Error: Algoritmo no reconocido.\n");
         }
-
     }   
 }
 
@@ -644,9 +587,6 @@ void enviar_a_cpu_dispatch_mutex_lock(t_tcb * hilo){
 
 void DUMP_MEMORY(int pid) {
     log_info(logger, "=== DUMP DE MEMORIA ===");
-
-    log_info(logger, "Envio un mensaje a memoria que vacie el proceso con el pid %d",pid);
-
     t_peticion *peticion = malloc(sizeof(t_peticion));
     peticion->tipo = DUMP_MEMORY_OP;
     peticion->proceso = obtener_pcb(pid);
@@ -654,6 +594,7 @@ void DUMP_MEMORY(int pid) {
     pthread_mutex_lock(mutex_socket_memoria);
     encolar_peticion_memoria(peticion);
     sem_wait(sem_estado_respuesta_desde_memoria);
+    //si la respuesta es ERROR matar el proceso
     pthread_mutex_unlock(mutex_socket_memoria);
 }
 
@@ -671,7 +612,6 @@ t_list* interpretarArchivo(FILE* archivo)
         perror("Error al abrir el archivo");
         return NULL;
     }
-
     char *lineas[1000];
     char *instruccion=malloc(100);
     t_list* instrucciones = list_create();
@@ -679,7 +619,6 @@ t_list* interpretarArchivo(FILE* archivo)
         perror("Error de asignación de memoria");
         return NULL;
     }
-    
     for (int i=0;fgets(instruccion, 100, archivo) != NULL;i++){
         instruccion[strcspn(instruccion, "\n")] = 0;
         lineas[i]=malloc(100);
@@ -688,7 +627,6 @@ t_list* interpretarArchivo(FILE* archivo)
     for(int j=0;j<string_array_size(lineas);j++){
         list_add(instrucciones, lineas[j]);
     }
-
     return instrucciones;
 }
 
