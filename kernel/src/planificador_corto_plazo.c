@@ -169,6 +169,23 @@ int comparar_prioridades(t_tcb *a, t_tcb *b) {
 void corto_plazo_colas_multinivel() {
     while (1) {
         //sem_wait(sem_hilo_nuevo_encolado);
+        t_list_iterator *niveles_iterator = list_iterator_create(colas_multinivel->niveles_prioridad);
+        while (list_iterator_has_next(niveles_iterator)) {
+            t_nivel_prioridad *nivel = list_iterator_next(niveles_iterator);
+            log_info(logger, "### Nivel de Prioridad: %d", nivel->nivel_prioridad);
+            if (!nivel->cola_hilos || !nivel->cola_hilos->lista_hilos) {
+                log_info(logger, "No hay hilos en este nivel.");
+                continue;
+            }
+            // Iterar sobre los hilos en la cola del nivel actual
+            t_list_iterator *hilos_iterator = list_iterator_create(nivel->cola_hilos->lista_hilos);
+            while (list_iterator_has_next(hilos_iterator)) {
+                t_tcb *hilo = list_iterator_next(hilos_iterator);
+                log_info(logger, "Hilo PID: %d TID: %d", hilo->pid, hilo->tid);
+            }
+            list_iterator_destroy(hilos_iterator);
+            }
+        list_iterator_destroy(niveles_iterator);
         sem_wait(sem_hilo_actual_encolado);
         sem_wait(sem_estado_multinivel);
         t_nivel_prioridad *nivel_a_ejecutar = NULL;
@@ -350,7 +367,6 @@ void recibir_motivo_devolucion_cpu() {
             prioridad = * (int *)list_remove(paquete_respuesta, 0);
             pid = proceso_actual->pid;
             PROCESS_CREATE(archivo, tamanio, prioridad);
-            sem_wait(sem_hilo_nuevo_encolado);
             sem_wait(sem_hilo_nuevo_encolado);
             encolar_hilo_corto_plazo(hilo_actual);
             sem_post(sem_hilo_actual_encolado);
