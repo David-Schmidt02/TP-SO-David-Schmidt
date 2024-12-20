@@ -99,7 +99,7 @@ int write_memory(uint32_t direccion, uint32_t valor, int pid, int tid){
         return -1;
     }
     aux = memoria_usuario->espacio;
-    memcpy(aux+direccion, &valor, sizeof(uint32_t));
+    memcpy(&aux[(uint8_t)direccion], &valor, sizeof(uint32_t));
 
     
     log_info(logger, "## Escritura - (PID:TID) - (%d:%d) - Dir. Física: %d - Tamaño: %d", pid, tid, direccion, sizeof(uint32_t));
@@ -549,7 +549,12 @@ int send_dump(int pid, int tid){
             pthread_mutex_lock(mutex_espacio);
             contenido = memoria_usuario->espacio;
             contenido_segmento = malloc(size);
-            memcpy(contenido_segmento, &contenido[base], size);
+            memcpy(contenido_segmento, &contenido[(uint8_t)base], size);
+            
+            for(int i = 0; i < size; i++){
+                log_error(logger, "%c", contenido_segmento[i]);
+            }
+
             pthread_mutex_unlock(mutex_espacio);
             break;
 
