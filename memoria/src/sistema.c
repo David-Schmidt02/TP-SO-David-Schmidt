@@ -432,8 +432,11 @@ int remover_proceso_de_tabla_dinamica(int pid){
             list_iterator_add(iterator, aux_hueco);
             list_iterator_destroy(iterator);
             break;
+        }if(!list_iterator_has_next(iterator)){
+            list_add_in_index(memoria_usuario->tabla_huecos, 0, aux_hueco);
         }
     }
+    
     pthread_mutex_unlock(mutex_huecos);
     consolidar_huecos();
 
