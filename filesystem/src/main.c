@@ -7,7 +7,7 @@ uint32_t block_count;
 int block_size;
 char* mount_dir;
 char * ruta_files;
-uint32_t num_bloque;
+char *nombre_archivo;
 pthread_mutex_t *mutex_logs;
 t_list * lista_bloque_indices;
 
@@ -67,7 +67,7 @@ void *conexion_memoria(void* arg_memoria)
 	log_info(logger, "Servidor listo para recibir al cliente memoria");
 	int socket_cliente_memoria = esperar_cliente(server);
 	pthread_mutex_unlock(mutex_logs);
-	char *nombre_archivo;
+
 	void *datos;
 
 	//HANDSHAKE_end

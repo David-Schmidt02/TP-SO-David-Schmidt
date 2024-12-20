@@ -6,10 +6,13 @@ extern uint32_t block_count;
 extern int block_size;
 extern int retardo_acceso;
 extern char* mount_dir;
+extern 	char *nombre_archivo;
 extern t_config *config;
 extern t_log *logger;
 extern pthread_mutex_t *mutex_logs;
+
 int libres;
+
 uint32_t bits_ocupados;
 
 void inicializar_libres() {
@@ -169,6 +172,7 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
         if (!bitarray_test_bit(bitmap, i)) { 
             bitarray_set_bit(bitmap, i);
             list_add(reserva->lista_indices, i);
+            log_info(logger,"## Bloque asignado: %d - Archivo: %s - Bloques Libres: %d",list_size(reserva->lista_indices)-1+list_get(reserva->lista_indices,0),nombre_archivo,libres);
         }// sale porque ya se reservaron todos los bloques o porque recorrio todo 
     }
  
@@ -221,6 +225,7 @@ int cargar_bitmap() {
     }
     pthread_mutex_unlock(mutex_logs);
     fclose(bitmap_file);
+    
     log_info(logger, "Bitmap actualizado exitosamente en bitmap.dat.");
     return 0;
 }

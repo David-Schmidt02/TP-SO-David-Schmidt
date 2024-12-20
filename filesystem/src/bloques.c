@@ -8,7 +8,6 @@ extern int block_size;
 extern int retardo_acceso;
 extern char* mount_dir;
 int bloques_libres;
-extern uint32_t num_bloque;
 
 extern char* nombre_archivo;
 extern uint32_t tamanio;
@@ -60,40 +59,9 @@ void inicializar_bloques() {
     
 }
 
-void escribir_bloque(int bloque, void *contenido, size_t tamanio) {
-    size_t path_length = strlen(mount_dir) + strlen("/bloques.dat") + 1;
-    char* path_bloques = malloc(path_length);
-    strcat(path_bloques, mount_dir);
-    strcat(path_bloques, "/bloques.dat");
-    FILE* bloques_file = fopen(path_bloques, "rb+");
-    if (bloque < 0 || bloque >= block_count) {
-        log_error(logger, "El índice de bloque %d está fuera del rango permitido.", bloque);
-        return;
-    }
-    usleep(retardo_acceso * 1000);
-    fseek(bloques_file, (bloque * block_size), SEEK_CUR);
-    pthread_mutex_lock(mutex_logs);
-    fwrite(contenido, tamanio, 1, bloques_file);
-    pthread_mutex_unlock(mutex_logs);
-    log_info(logger, "## Bloque asignado: %d con %lu bytes", bloque, libres);
-}
-
-void *leer_bloque(int bloque) {
-    int block_count = config_get_int_value(config, "BLOCK_COUNT");
-    if (bloque < 0 || bloque >= block_count) {
-        log_error(logger, "El índice de bloque %d está fuera del rango permitido (0 - %d).", bloque, block_count - 1);
-        return NULL;
-    }
-    usleep(retardo_acceso * 1000);
-    void *direccion_bloque = bloques + (bloque * block_size);
-    log_info(logger, "## Bloque %d leído correctamente. Dirección: %p, Tamaño: %d bytes", bloque, direccion_bloque, block_size);
-
-    return direccion_bloque;
-}
-
 
 int crear_archivo_metadata(char* nombre_archivo,uint32_t tamanio, int indice_bloque, int cant_bloque) {
-    log_info(logger, "## Bloque asignado: %d - Archivo: %s - Bloques Libres: %d", num_bloque, nombre_archivo, bloques_libres);
+    log_info(logger, "## Bloque asignado: %d - Archivo: %s - Bloques Libres: %d", cant_bloque, nombre_archivo, libres);
     if (block_count == 0) {
         log_error(logger, "No se encontró el valor BLOCK_COUNT en el archivo de configuración.");
         return -1;
@@ -152,15 +120,13 @@ int crear_archivo_dump(char* nombre_archivo, uint32_t tamanio, void* datos) {
     
     // Reservar el bloque + bloque_indice
     t_reserva_bloques *reserva = reservar_bloques(num_bloques_necesarios+1);
+    
     if (reserva == NULL) {
         log_error(logger, "Error al reservar el bloque completo");
         return -1;
     }
-    log_info(logger,"Bloque índice: %u\n", list_get(reserva->lista_indices,0));
+    log_info(logger, "## Acceso Bloque - Archivo: %s - Tipo Bloque: /%d - Bloque File System %d", nombre_archivo,list_get(reserva->lista_indices,0),list_size(reserva->lista_indices));
     
-    for (int i = 1; i < list_size(reserva->lista_indices); i++) { // -1 porque cuenta el bloque_indice
-        log_info(logger,"Bloque de datos %d: %u\n", i, list_get(reserva->lista_indices,i));
-    }
     int check;
     int indice_bloque = list_get(reserva->lista_indices,0); 
     int cant_bloque = list_size(reserva->lista_indices);
@@ -231,18 +197,3 @@ int cargar_bloques(uint32_t cantidad_bloques, void *datos, t_list* lista_indices
     fclose(bloques_file);
     return 0;
 }
-
-/*void escribir_bloque_de_puntero(uint32_t* bloques_datos, uint32_t cantidad_bloques) {
-    FILE* archivo_bloque = fopen("bloques.dat", "rb+"); 
-    int bloque_indice_bloque_puntero = bloques_datos[0];
-    
-    off_t offset = bloque_indice_bloque_puntero * block_size;
-    fseek(archivo_bloque, offset, SEEK_SET);
-    for (int i = 1; i < cantidad_bloques; i++) {
-        if (fwrite(&bloques_datos[i], sizeof(uint32_t), 1, archivo_bloque) != 1) {
-            pthread_mutex_lock(&mutex_logs);
-            log_error(logger, "Error al escribir en el bloque de punteros");
-            pthread_mutex_unlock(&mutex_logs);
-        }
-    }
-}*/
