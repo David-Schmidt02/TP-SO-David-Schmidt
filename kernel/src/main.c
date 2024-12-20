@@ -231,6 +231,29 @@ void *peticion_kernel(void *args) {
             agregar_a_paquete(send_protocolo, &proceso->memoria_necesaria, sizeof(proceso->memoria_necesaria));
             agregar_a_paquete(send_protocolo, &proceso->estado, sizeof(proceso->estado));
 			log_info(logger, "Se envió la peticion de PROCESS CREATE del PID: %d Tamaño: %d", proceso->pid, proceso->memoria_necesaria);
+            enviar_paquete(send_protocolo, socket);
+            op = recibir_operacion(socket);
+            switch (op) {
+                case SUCCESS:
+                    log_info(logger, "'SUCCESS' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = true;
+                    break;
+
+                case ERROR:
+                    log_info(logger, "'ERROR' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = false;
+                    break;
+
+                case OK:
+                    log_info(logger, "'OK' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = true;
+                    break;	
+
+                default:
+                    log_warning(logger, "Código de operación desconocido recibido: %d", op);
+                    peticion->respuesta_exitosa = false;
+                    break;
+            }
             break;
 
         case PROCESS_EXIT_OP:
@@ -238,15 +261,38 @@ void *peticion_kernel(void *args) {
             agregar_a_paquete(send_protocolo, &proceso->pid, sizeof(int));
 			log_info(logger, "Se envió la peticion de PROCESS EXIT del PID: %d", proceso->pid);
 			//sem_post(sem_proceso_finalizado);
+            enviar_paquete(send_protocolo, socket);
+            op = recibir_operacion(socket);
+            switch (op) {
+                case SUCCESS:
+                    log_info(logger, "'SUCCESS' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = true;
+                    break;
+
+                case ERROR:
+                    log_info(logger, "'ERROR' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = false;
+                    break;
+
+                case OK:
+                    log_info(logger, "'OK' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = true;
+                    break;	
+
+                default:
+                    log_warning(logger, "Código de operación desconocido recibido: %d", op);
+                    peticion->respuesta_exitosa = false;
+                    break;
+            }
             break;
 
         case THREAD_CREATE_OP:
             send_protocolo = crear_paquete(THREAD_CREATE_OP);
-            agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(int));
-            agregar_a_paquete(send_protocolo, &hilo->pid, sizeof(int));
-            agregar_a_paquete(send_protocolo, &hilo->prioridad, sizeof(int));
-            agregar_a_paquete(send_protocolo, &hilo->estado, sizeof(t_estado));
-            agregar_a_paquete(send_protocolo, &hilo->quantum_restante, sizeof(int));
+            agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(hilo->tid));
+            agregar_a_paquete(send_protocolo, &hilo->pid, sizeof(hilo->pid));
+            agregar_a_paquete(send_protocolo, &hilo->prioridad, sizeof(hilo->prioridad));
+            agregar_a_paquete(send_protocolo, &hilo->estado, sizeof(hilo->estado));
+            agregar_a_paquete(send_protocolo, &hilo->quantum_restante, sizeof(hilo->quantum_restante));
             t_list_iterator * iterator = list_iterator_create(hilo->instrucciones);
             char *aux_instruccion;
             while(list_iterator_has_next(iterator)){
@@ -255,20 +301,89 @@ void *peticion_kernel(void *args) {
                 agregar_a_paquete(send_protocolo, aux_instruccion, tamanio2);
             }
 			log_info(logger, "Se envió la peticion de THREAD CREATE");
+            enviar_paquete(send_protocolo, socket);
+            op = recibir_operacion(socket);
+            switch (op) {
+                case SUCCESS:
+                    log_info(logger, "'SUCCESS' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = true;
+                    break;
+
+                case ERROR:
+                    log_info(logger, "'ERROR' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = false;
+                    break;
+
+                case OK:
+                    log_info(logger, "'OK' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = true;
+                    break;	
+
+                default:
+                    log_warning(logger, "Código de operación desconocido recibido: %d", op);
+                    peticion->respuesta_exitosa = false;
+                    break;
+            }
             break;
 
         case THREAD_EXIT_OP:
             send_protocolo = crear_paquete(THREAD_EXIT_OP);
-            agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(int));
-            agregar_a_paquete(send_protocolo, &hilo->pid, sizeof(int));
+            agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(hilo->tid));
+            agregar_a_paquete(send_protocolo, &hilo->pid, sizeof(hilo->tid));
 			log_info(logger, "Se envió la peticion de THREAD EXIT");
+            enviar_paquete(send_protocolo, socket);
+            op = recibir_operacion(socket);
+            switch (op) {
+                case SUCCESS:
+                    log_info(logger, "'SUCCESS' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = true;
+                    break;
+
+                case ERROR:
+                    log_info(logger, "'ERROR' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = false;
+                    break;
+
+                case OK:
+                    log_info(logger, "'OK' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = true;
+                    break;	
+
+                default:
+                    log_warning(logger, "Código de operación desconocido recibido: %d", op);
+                    peticion->respuesta_exitosa = false;
+                    break;
+            }
             break;
 
 		case THREAD_CANCEL_OP:
             send_protocolo = crear_paquete(THREAD_CANCEL_OP);
-            agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(int));
-            agregar_a_paquete(send_protocolo, &hilo->pid, sizeof(int));
+            agregar_a_paquete(send_protocolo, &hilo->tid, sizeof(hilo->tid));
+            agregar_a_paquete(send_protocolo, &hilo->pid, sizeof(hilo->tid));
 			log_info(logger, "Se crea la peticion de THREAD CANCEL");
+            enviar_paquete(send_protocolo, socket);
+            op = recibir_operacion(socket);
+            switch (op) {
+                case SUCCESS:
+                    log_info(logger, "'SUCCESS' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = true;
+                    break;
+
+                case ERROR:
+                    log_info(logger, "'ERROR' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = false;
+                    break;
+
+                case OK:
+                    log_info(logger, "'OK' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = true;
+                    break;	
+
+                default:
+                    log_warning(logger, "Código de operación desconocido recibido: %d", op);
+                    peticion->respuesta_exitosa = false;
+                    break;
+            }
             break;
 
         case DUMP_MEMORY_OP:
@@ -276,38 +391,37 @@ void *peticion_kernel(void *args) {
             agregar_a_paquete(send_protocolo, &hilo_actual->tid, sizeof(int));
 			agregar_a_paquete(send_protocolo, &proceso_actual->pid, sizeof(int));
 			log_info(logger, "Se envió la peticion de DUMP MEMORY");
-            break;
+           
+            enviar_paquete(send_protocolo, socket);
+            op = recibir_operacion(socket);
+            switch (op) {
+                case SUCCESS:
+                    log_info(logger, "'SUCCESS' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = true;
+                    break;
 
+                case ERROR:
+                    log_info(logger, "'ERROR' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = false;
+                    break;
+
+                case OK:
+                    log_info(logger, "'OK' recibido desde memoria para operación %d", peticion->tipo);
+                    peticion->respuesta_exitosa = true;
+                    break;	
+
+                default:
+                    log_warning(logger, "Código de operación desconocido recibido: %d", op);
+                    peticion->respuesta_exitosa = false;
+                    break;
+            }
+            break;
         default:
             log_error(logger, "Tipo de operación desconocido: %d", peticion->tipo);
             return NULL;
     }
 
-    enviar_paquete(send_protocolo, socket);
-
-    // Esperar respuesta bloqueante -> esta es la respuesta esperada desde memoria
-    op = recibir_operacion(socket);
-    switch (op) {
-        case SUCCESS:
-            log_info(logger, "'SUCCESS' recibido desde memoria para operación %d", peticion->tipo);
-            peticion->respuesta_exitosa = true;
-            break;
-
-        case ERROR:
-            log_info(logger, "'ERROR' recibido desde memoria para operación %d", peticion->tipo);
-            peticion->respuesta_exitosa = false;
-            break;
-
-		case OK:
-            log_info(logger, "'OK' recibido desde memoria para operación %d", peticion->tipo);
-            peticion->respuesta_exitosa = true;
-            break;	
-
-        default:
-            log_warning(logger, "Código de operación desconocido recibido: %d", op);
-            peticion->respuesta_exitosa = false;
-            break;
-    }
+    
 	sem_post(sem_estado_respuesta_desde_memoria);
     eliminar_paquete(send_protocolo);
     liberar_conexion(socket);
@@ -319,17 +433,30 @@ void encolar_peticion_memoria(t_peticion * peticion){
         pthread_mutex_lock(mutex_lista_t_peticiones);
         if(peticion->tipo == DUMP_MEMORY_OP || peticion->tipo == PROCESS_EXIT_OP){
             list_add_in_index(lista_t_peticiones, 0, peticion);
-        }else 
-            list_add(lista_t_peticiones, peticion);
+        }else list_add(lista_t_peticiones, peticion);
         pthread_mutex_unlock(mutex_lista_t_peticiones);
         sem_post(sem_lista_t_peticiones);
 }
 
 void *reintentar_creacion_proceso(void * args){
-    int i = 0;
     while (1)
     {
         sem_wait(sem_estado_lista_procesos_a_crear_reintento);
+        sem_wait(sem_proceso_finalizado);
+        log_debug(logger,"Finalizó un proceso, estos son los procesos que esperan a ser creados:");
+        t_list_iterator *iterator = list_iterator_create(lista_procesos_a_crear_reintento->lista_procesos);
+        while (list_iterator_has_next(iterator)) {
+            t_pcb *proceso = list_iterator_next(iterator);
+            if (proceso) {
+                log_info(logger, "Proceso PID: %d, Memoria Necesaria: %d", 
+                        proceso->pid, proceso->memoria_necesaria);
+            } else {
+                log_warning(logger, "Se encontró un proceso NULL en la lista.");
+            }
+        }
+
+        list_iterator_destroy(iterator);
+        pthread_mutex_lock(mutex_socket_memoria);
         pthread_mutex_lock(mutex_lista_procesos_a_crear_reintento);
         t_pcb * proceso = list_remove(lista_procesos_a_crear_reintento->lista_procesos, 0);
         pthread_mutex_unlock(mutex_lista_procesos_a_crear_reintento);
@@ -337,7 +464,6 @@ void *reintentar_creacion_proceso(void * args){
         peticion->tipo = PROCESS_CREATE_OP;
         peticion->proceso = proceso;
         peticion->hilo = NULL;
-        pthread_mutex_lock(mutex_socket_memoria);
         encolar_peticion_memoria(peticion);
         sem_wait(sem_estado_respuesta_desde_memoria);
         if (peticion->respuesta_exitosa) {
@@ -345,25 +471,16 @@ void *reintentar_creacion_proceso(void * args){
             encolar_proceso_en_ready(proceso);
             encolar_hilo_principal_corto_plazo(proceso);
             sem_post(sem_hilo_actual_encolado);
-            
-        } else 
+        } 
+        else 
             {
                 log_error(logger, "No se pudo crear el proceso PID: %d Tamaño: %d, reitentando cuando otro proceso finalice...", proceso->pid, proceso->memoria_necesaria);
                 list_add(lista_procesos_a_crear_reintento->lista_procesos, proceso);
-                i++;
-                if (i < list_size(lista_procesos_a_crear_reintento->lista_procesos))
-                    {
-
-                        sem_post(sem_estado_lista_procesos_a_crear_reintento);
-                    }
-                else
-                    i = 0;
+                sem_post(sem_estado_lista_procesos_a_crear_reintento);
             }
         pthread_mutex_unlock(mutex_socket_memoria);
         free(peticion);
-
     }
-    
 }
 
 void inicializar_estructuras(){
