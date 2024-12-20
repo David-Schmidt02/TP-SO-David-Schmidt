@@ -313,7 +313,7 @@ void execute(t_instruccion_partida *instruccion_partida) {
                         log_info(logger, "## LEER MEMORIA - Dirección Física: %u", direccion_fisica);
 
                         paquete = crear_paquete(READ_MEM);
-                        agregar_a_paquete(paquete, reg_direccion, sizeof(uint32_t));
+                        agregar_a_paquete(paquete, &direccion_fisica, sizeof(uint32_t));
                         agregar_a_paquete(paquete, &pid_actual, sizeof(int));
                         agregar_a_paquete(paquete, &tid_actual, sizeof(int));
 
@@ -355,7 +355,7 @@ void execute(t_instruccion_partida *instruccion_partida) {
                         traducir_direccion(*reg_direccion, &direccion_fisica);
 
                         paquete = crear_paquete(WRITE_MEM);
-                        agregar_a_paquete(paquete, reg_direccion, sizeof(uint32_t));
+                        agregar_a_paquete(paquete, &direccion_fisica, sizeof(uint32_t));
                         agregar_a_paquete(paquete, reg_valor, sizeof(uint32_t));
                         agregar_a_paquete(paquete, &pid_actual, sizeof(int));
                         agregar_a_paquete(paquete, &tid_actual, sizeof(int));
