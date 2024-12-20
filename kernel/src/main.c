@@ -478,7 +478,14 @@ void *reintentar_creacion_proceso(void * args){
                 log_error(logger, "No se pudo crear el proceso PID: %d Tamaño: %d, reitentando cuando otro proceso finalice...", proceso->pid, proceso->memoria_necesaria);
                 list_add(lista_procesos_a_crear_reintento->lista_procesos, proceso);
                 i++;
+<<<<<<< HEAD
                 sem_post(sem_estado_lista_procesos_a_crear_reintento);
+=======
+                if (i < list_size(lista_procesos_a_crear_reintento->lista_procesos))
+                    sem_post(sem_estado_lista_procesos_a_crear_reintento);
+                else
+                    i = 0;
+>>>>>>> 24cd6a70e3706f96156747eb978c9f075c3d6dc1
             }
         pthread_mutex_unlock(mutex_socket_memoria);
         free(peticion);
