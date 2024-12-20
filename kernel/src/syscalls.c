@@ -106,11 +106,9 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     }
 
     tcb_principal->instrucciones = lista_instrucciones;
-    log_error(logger, "Agrego la peticion a memoria.");
     pthread_mutex_lock(mutex_procesos_a_crear);
     list_add(procesos_a_crear->lista_procesos, nuevo_pcb);
     sem_post(sem_estado_procesos_a_crear);
-    log_error(logger, "Se hace un post del semáforo de procesos a crear.");
     pthread_mutex_unlock(mutex_procesos_a_crear);
 
 }
@@ -184,12 +182,7 @@ void PROCESS_EXIT() {
     // Notificar a la memoria que el proceso ha finalizado
     log_error(logger, "Agrego la peticion a memoria.");
     notificar_memoria_fin_proceso(pcb_encontrado->pid);
-    usleep(1);
-
-    // Eliminar el PCB de la lista de procesos
     pthread_mutex_lock(mutex_procesos_cola_ready);
-    // linea anterior porque no estoy seguro de como funciona//
-    //list_remove_and_destroy_by_condition(procesos_cola_ready->lista_procesos, (void*) (pcb_encontrado->pid == pid_buscado), (void*) eliminar_pcb);
     t_list_iterator * iterator = list_iterator_create(procesos_cola_ready->lista_procesos);
     t_pcb *aux;
     log_info(logger, "## Finaliza el proceso %d", pcb_encontrado->pid);
@@ -204,25 +197,26 @@ void PROCESS_EXIT() {
     }
     sem_wait(sem_estado_procesos_cola_ready);
     pthread_mutex_unlock(mutex_procesos_cola_ready);
-    sem_post(sem_proceso_finalizado);
 }
 
 void notificar_memoria_fin_proceso(int pid) {
 
     t_peticion *peticion = malloc(sizeof(t_peticion));
-        peticion->tipo = PROCESS_EXIT_OP;
-        peticion->proceso = obtener_pcb(pid); 
-        peticion->hilo = NULL; 
-        pthread_mutex_lock(mutex_socket_memoria);
-        encolar_peticion_memoria(peticion);
-        sem_wait(sem_estado_respuesta_desde_memoria);
+    peticion->tipo = PROCESS_EXIT_OP;
+    peticion->proceso = obtener_pcb(pid); 
+    peticion->hilo = NULL; 
+    pthread_mutex_lock(mutex_socket_memoria);
+
+    encolar_peticion_memoria(peticion);
+    
+    sem_wait(sem_estado_respuesta_desde_memoria);
     if (peticion->respuesta_exitosa) {
         log_info(logger, "Finalización del proceso con PID %d confirmada por la Memoria.", pid);
     } else {
         log_info(logger, "Error al finalizar el proceso con PID %d en la Memoria.", pid);
         }   
-        sem_post(sem_proceso_finalizado);
-        pthread_mutex_unlock(mutex_socket_memoria);
+    pthread_mutex_unlock(mutex_socket_memoria);
+    sem_post(sem_proceso_finalizado);
 }
 
 //Ademas de eliminar el hilo de acá me tengo que asegurar de que memoria destruya las estructuras de los mismos
@@ -594,8 +588,16 @@ void DUMP_MEMORY(int pid) {
     pthread_mutex_lock(mutex_socket_memoria);
     encolar_peticion_memoria(peticion);
     sem_wait(sem_estado_respuesta_desde_memoria);
-    //si la respuesta es ERROR matar el proceso
-    pthread_mutex_unlock(mutex_socket_memoria);
+    
+    if (peticion->respuesta_exitosa) {
+        log_info(logger, "Memory Dump del PID:%d exitoso confirmado por la Memoria.", peticion->proceso->pid);
+        pthread_mutex_unlock(mutex_socket_memoria);
+    } else {
+        log_info(logger, "No se pudo realizar el Memory Dump del PID:%d.", peticion->proceso->pid);
+        pthread_mutex_unlock(mutex_socket_memoria);
+        //PROCESS_EXIT();
+        log_debug(logger, "Falló el dump, acá debería hacer un process exit");
+        }   
 }
 
 void element_destroyer(void* elemento) 
@@ -630,13 +632,11 @@ t_list* interpretarArchivo(FILE* archivo)
     return instrucciones;
 }
 
-
 void liberarInstrucciones(t_list* instrucciones) {
     if (instrucciones != NULL) {
         list_destroy_and_destroy_elements(instrucciones, element_destroyer);
     }
 }
-
 
 t_tcb* obtener_tcb_lista(t_list * lista, int tid, int pid) {
     t_tcb* hilo;
