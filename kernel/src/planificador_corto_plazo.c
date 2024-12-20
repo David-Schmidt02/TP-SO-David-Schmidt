@@ -438,39 +438,6 @@ void recibir_motivo_devolucion_cpu() {
             log_info(logger, "## Estado de los Mutex y sus hilos bloqueados:");
             MUTEX_LOCK(nombre_mutex);
 
-            // Iterar sobre los mutex en la lista
-            t_list_iterator *mutex_iterator = list_iterator_create(lista_mutexes);
-            while (list_iterator_has_next(mutex_iterator)) {
-                t_mutex *mutex = list_iterator_next(mutex_iterator);
-
-                // Imprimir información básica del mutex
-                log_info(logger, "### Mutex: %s", mutex->nombre);
-                log_info(logger, "Estado: %s", mutex->estado == 0 ? "Libre" : "Bloqueado");
-                if (mutex->hilo_asignado) {
-                    log_info(logger, "Hilo asignado al mutex: PID %d TID %d", mutex->hilo_asignado->pid,mutex->hilo_asignado->tid);
-                } else {
-                    log_info(logger, "No hay hilo asignado actualmente.");
-                }
-
-                // Imprimir la lista de hilos esperando por el mutex
-                if (!mutex->hilos_esperando || list_is_empty(mutex->hilos_esperando)) {
-                    log_info(logger, "No hay hilos esperando este mutex.");
-                    continue;
-                }
-
-                log_info(logger, "Hilos bloqueados esperando este mutex:");
-                t_list_iterator *hilos_iterator = list_iterator_create(mutex->hilos_esperando);
-                while (list_iterator_has_next(hilos_iterator)) {
-                    t_tcb *hilo = list_iterator_next(hilos_iterator);
-                    log_info(logger, "Hilo ID: %d, Prioridad: %d, Estado: %d", 
-                        hilo->tid, 
-                        hilo->prioridad, 
-                        hilo->estado);
-                }
-                list_iterator_destroy(hilos_iterator);
-            }
-            list_iterator_destroy(mutex_iterator);
-
             sem_post(sem_hilo_actual_encolado);
             break;
 

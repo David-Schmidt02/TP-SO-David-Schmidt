@@ -165,7 +165,7 @@ int crear_archivo_dump(char* nombre_archivo, uint32_t tamanio, void* datos) {
     int indice_bloque = list_get(reserva->lista_indices,0); 
     int cant_bloque = list_size(reserva->lista_indices);
 
-    check = cargar_bloques(list_size(reserva->lista_indices), datos, reserva->lista_indices);
+    check = cargar_bloques(list_size(reserva->lista_indices), datos, reserva->lista_indices, tamanio);
     if (check){
         log_info(logger,"no cargo los bloques");
         return -1;
@@ -175,7 +175,7 @@ int crear_archivo_dump(char* nombre_archivo, uint32_t tamanio, void* datos) {
     return 0;
 }
 
-int cargar_bloques(uint32_t cantidad_bloques, void *datos, t_list* lista_indices){
+int cargar_bloques(uint32_t cantidad_bloques, void *datos, t_list* lista_indices, int tamanio){
     size_t path_length = strlen(mount_dir) + strlen("/bloques.dat") + 1;
     char* path_bloques = malloc(path_length);
     strcpy(path_bloques,"");
