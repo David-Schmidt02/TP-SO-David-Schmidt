@@ -158,6 +158,7 @@ void *server_multihilo_kernel(void* arg_server){
 		log_info(logger, "esperando nueva peticion de kernel");
 		pthread_mutex_lock(mutex_conexion_kernel);
 		socket_cliente_kernel = esperar_cliente(server); //pausado hasta que llegue una peticion nueva (nuevo cliente)
+		
 		cod_op = recibir_operacion(socket_cliente_kernel);
 		log_info(logger, "SE RECIBIO UNA PETICION DESDE KERNEL CON EL CODIGO DE OPERACION: %i", cod_op);
 		switch (cod_op)
