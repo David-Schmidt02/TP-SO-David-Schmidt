@@ -99,7 +99,7 @@ int crear_archivo_metadata(char* nombre_archivo,uint32_t tamanio, int indice_blo
         }
 
         fclose(metadata_file);
-        log_info(logger, "Archivo metadata creado con éxito: %s", path_metadata);
+        log_info(logger, "## Archivo Creado: %s - Tamaño: %d", path_metadata,tamanio);
     } else {
         log_info(logger, "Archivo metadata ya existe: %s", path_metadata);
         return 0; 
