@@ -101,7 +101,7 @@ void PROCESS_CREATE(FILE* archivo_instrucciones, int tam_proceso, int prioridadT
     t_list* lista_instrucciones = interpretarArchivo(archivo_instrucciones);
     
     if (lista_instrucciones == NULL) {
-        log_error(logger, "Error al interpretar el archivo de instrucciones.");
+        log_info(logger, "Error al interpretar el archivo de instrucciones.");
         return; // O maneja el error de otra forma
     }
 
@@ -154,7 +154,7 @@ void PROCESS_EXIT() {
     }
     // Validar si se encontró el PCB
     if (pcb_encontrado == NULL) {
-        log_warning(logger, "No se encontró el PCB para el proceso con PID: %d", pid_buscado);
+        log_info(logger, "No se encontró el PCB para el proceso con PID: %d", pid_buscado);
         return;
     }
 
@@ -180,7 +180,7 @@ void PROCESS_EXIT() {
     log_info(logger, "Todos los hilos del proceso %d eliminados de READY.", pid_buscado);
 
     // Notificar a la memoria que el proceso ha finalizado
-    log_error(logger, "Agrego la peticion a memoria.");
+    log_info(logger, "Agrego la peticion a memoria.");
     notificar_memoria_fin_proceso(pcb_encontrado->pid);
     pthread_mutex_lock(mutex_procesos_cola_ready);
     t_list_iterator * iterator = list_iterator_create(procesos_cola_ready->lista_procesos);
@@ -347,7 +347,7 @@ void finalizar_hilo(t_tcb* hilo) {
 void THREAD_CANCEL(int tid_hilo_a_cancelar) { // Esta sys recibe el tid solamente del hilo a cancelar
     t_tcb* hilo_a_cancelar = obtener_tcb(tid_hilo_a_cancelar, proceso_actual->pid);
     if (hilo_a_cancelar == NULL) {
-        log_warning(logger, "TID %d no existe o ya fue finalizado.", tid_hilo_a_cancelar);
+        log_info(logger, "TID %d no existe o ya fue finalizado.", tid_hilo_a_cancelar);
         return;
     }
 
@@ -433,13 +433,13 @@ void eliminar_tcb(t_tcb* hilo) {
 void THREAD_EXIT() {
     t_tcb* hilo_a_salir = hilo_actual;
     if (hilo_a_salir == NULL) {
-        log_warning(logger, "No se encontró el TID %d para finalizar el hilo.", hilo_a_salir->tid);
+        log_info(logger, "No se encontró el TID %d para finalizar el hilo.", hilo_a_salir->tid);
         return;
     }
     hilo_a_salir->estado = EXIT;
     t_pcb* pcb_hilo_a_salir = obtener_pcb(hilo_a_salir->pid);
     if (pcb_hilo_a_salir == NULL) {
-        log_warning(logger, "No se encontró el PCB para el TID %d.", hilo_a_salir->tid);
+        log_info(logger, "No se encontró el PCB para el TID %d.", hilo_a_salir->tid);
         return;
     }
     if (strcmp(algoritmo, "FIFO") == 0 || strcmp(algoritmo, "PRIORIDADES") == 0) {
@@ -459,7 +459,7 @@ void IO(float milisec, int tcb_id) {
     pthread_mutex_lock(mutex_colaIO);
     t_uso_io *peticion = malloc(sizeof(t_uso_io));
     if (peticion == NULL) {
-        log_error(logger, "Error al asignar memoria para la petición de IO.");
+        log_info(logger, "Error al asignar memoria para la petición de IO.");
         pthread_mutex_unlock(mutex_colaIO);
         return;
     }
@@ -474,7 +474,7 @@ void MUTEX_CREATE(char* nombre_mutex) {
     for (int i = 0; i < list_size(proceso_actual->listaMUTEX); i++) {
         t_mutex* mutex = list_get(proceso_actual->listaMUTEX, i);
         if (strcmp(mutex->nombre, nombre_mutex) == 0) {
-            log_warning(logger, "El mutex '%s' ya existe.", nombre_mutex);
+            log_info(logger, "El mutex '%s' ya existe.", nombre_mutex);
             return;
         }
     }
@@ -499,7 +499,7 @@ void MUTEX_LOCK(char* nombre_mutex) {
         }
     }
     if (mutex_encontrado == NULL) {
-        log_warning(logger, "El mutex %s no existe.", nombre_mutex);
+        log_info(logger, "El mutex %s no existe.", nombre_mutex);
         return;
     }
     if (mutex_encontrado->estado == 0) {
@@ -538,7 +538,7 @@ void MUTEX_UNLOCK(char* nombre_mutex) {
     }
 
     if (mutex_encontrado == NULL) {
-        log_warning(logger, "El mutex '%s' no existe.", nombre_mutex);
+        log_info(logger, "El mutex '%s' no existe.", nombre_mutex);
         return;
     }
 
@@ -556,12 +556,12 @@ void MUTEX_UNLOCK(char* nombre_mutex) {
             }
         } 
         else {
-            log_warning(logger, "El mutex '%s' ya estaba libre.", nombre_mutex);
+            log_info(logger, "El mutex '%s' ya estaba libre.", nombre_mutex);
              enviar_a_cpu_dispatch_mutex_lock(hilo_actual);
             }
     }
     else{
-        log_warning(logger, "El mutex '%s' tenía asignado otro hilo", nombre_mutex);
+        log_info(logger, "El mutex '%s' tenía asignado otro hilo", nombre_mutex);
          enviar_a_cpu_dispatch_mutex_lock(hilo_actual);
     }
 
@@ -596,7 +596,7 @@ void DUMP_MEMORY(int pid) {
         log_info(logger, "No se pudo realizar el Memory Dump del PID:%d.", peticion->proceso->pid);
         pthread_mutex_unlock(mutex_socket_memoria);
         PROCESS_EXIT();
-        log_debug(logger, "Falló el dump, acá debería hacer un process exit");
+
         }   
 }
 

@@ -210,12 +210,12 @@ void *server_multihilo_kernel(void* arg_server){
 				log_info(logger, "Nueva petición de DUMP MEMORY");
 				break;
 			case TERMINATE:
-				log_error(logger, "TERMINATE recibido de KERNEL");
+				log_info(logger, "TERMINATE recibido de KERNEL");
 				pthread_mutex_unlock(mutex_conexion_kernel);
 				flag=0;
 				break;
 			default:
-				log_warning(logger,"Peticion invalida %d", cod_op);
+				log_info(logger,"Peticion invalida %d", cod_op);
 				pthread_mutex_unlock(mutex_conexion_kernel);
 				break;
 		}
@@ -225,7 +225,7 @@ void *server_multihilo_kernel(void* arg_server){
 	for(int i=0;i<size;i++){ //en caso de que el while de arriba termine, espera a todas las peticiones antes de finalizar el server
 		pthread_mutex_lock(mutex_lista_peticiones);
 		if (list_size(lista_t_peticiones) == 0) {
-			log_warning(logger, "Intento de eliminar de una lista vacía");
+			log_info(logger, "Intento de eliminar de una lista vacía");
 			break;
 		}
 		pthread_t *aux = list_remove(lista_t_peticiones, 0);
@@ -257,7 +257,7 @@ void *peticion_kernel_NEW_PROCESS(void* arg_peticion){
 	pcb->limite = * (int *)list_remove(paquete_list, 0);
 
 	if (crear_proceso(pcb)){
-		log_error(logger, "No se pudo agregar el proceso a memoria por falta de espacio");
+		log_info(logger, "No se pudo agregar el proceso a memoria por falta de espacio");
 		paquete_send = crear_paquete(ERROR);
 		enviar_paquete(paquete_send, socket);
 		eliminar_paquete(paquete_send);
@@ -479,7 +479,7 @@ void *conexion_cpu(void* arg_cpu)
 					eliminar_paquete(paquete_send);
 				}else {
 					paquete_send = crear_paquete(SEGMENTATION_FAULT);
-					log_error(logger, "Error leyendo en memoria");
+					log_info(logger, "Error leyendo en memoria");
 					enviar_paquete(paquete_send, socket_cliente_cpu);
 					eliminar_paquete(paquete_send);
 				}
@@ -500,17 +500,17 @@ void *conexion_cpu(void* arg_cpu)
 
 				}else {
 					paquete_send = crear_paquete(ERROR_MEMORIA);
-					log_error(logger, "Error escribiendo en memoria");
+					log_info(logger, "Error escribiendo en memoria");
 					enviar_paquete(paquete_send, socket_cliente_cpu);
 					eliminar_paquete(paquete_send);
 				}
 				break;
 			case -1:
-				log_error(logger, "el cliente se desconecto. Terminando servidor");
+				log_info(logger, "el cliente se desconecto. Terminando servidor");
 				return (void *)EXIT_FAILURE;
 				break;
 			default:
-				log_warning(logger,"Operacion desconocida. No quieras meter la pata");
+				log_info(logger,"Operacion desconocida. No quieras meter la pata");
 				break;
 		}
 		pthread_mutex_unlock(mutex_conexion_cpu);

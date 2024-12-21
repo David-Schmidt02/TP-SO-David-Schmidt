@@ -107,7 +107,7 @@ void obtener_contexto_de_memoria() {
         list_destroy(paquete_respuesta);
     }
 	else{
-		log_error(logger, "No se recibio contexto de memoria para el TID %d", tid_actual);
+		log_info(logger, "No se recibio contexto de memoria para el TID %d", tid_actual);
 	}
     pthread_mutex_unlock(mutex_conexion_memoria);
 }
@@ -127,25 +127,25 @@ void fetch() {
         agregar_a_paquete(paquete, &pid_actual, sizeof(pid_actual)); 
 
         enviar_paquete(paquete, socket_conexion_memoria);
-        log_error(logger, "Se solicitó la siguiente instruccion (PC:%d) a memoria", cpu_actual->PC);
+        log_info(logger, "Se solicitó la siguiente instruccion (PC:%d) a memoria", cpu_actual->PC);
         eliminar_paquete(paquete);
 
         op = recibir_operacion(socket_conexion_memoria);
         paquete_lista = recibir_paquete(socket_conexion_memoria);
         
         if (paquete_lista == NULL || list_is_empty(paquete_lista)) {
-            log_error(logger, "No se recibió ningún paquete o la lista está vacía");
+            log_info(logger, "No se recibió ningún paquete o la lista está vacía");
             return;
         }
 
         instruccion_actual = list_remove(paquete_lista,0);
 
         list_destroy(paquete_lista);
-        log_error(logger, "La instruccion obtenida es: %s", instruccion_actual);
+        log_info(logger, "La instruccion obtenida es: %s", instruccion_actual);
               
         // Llamar a la función decode para procesar la instrucción
         pthread_mutex_unlock(mutex_conexion_memoria);
-        log_error(logger, "Se recibió la siguiente instruccion (PC:%d) a memoria", cpu_actual->PC);
+        log_info(logger, "Se recibió la siguiente instruccion (PC:%d) a memoria", cpu_actual->PC);
 }
 
 t_instruccion_partida * decode(char *inst) {
@@ -266,7 +266,7 @@ void execute(t_instruccion_partida *instruccion_partida) {
         case INSTRUCCION_NORMAL: {
             protocolo_socket operacion = instruccion_partida->operacion;
             for (i; i< string_array_size(instruccion_partida->texto_partido); i++){
-                log_warning(logger, "Valores de las instrucciones: %s", instruccion_partida->texto_partido[i]);
+                log_info(logger, "Valores de las instrucciones: %s", instruccion_partida->texto_partido[i]);
             }
             switch (operacion) {
                 case SET: {
@@ -275,7 +275,7 @@ void execute(t_instruccion_partida *instruccion_partida) {
                         *reg_destino = (uint32_t)atoi(parametros[2]);
                         log_info(logger, "## Ejecutando: SET - Reg: %s, Valor: %u", parametros[0], *reg_destino);
                     } else {
-                        log_error(logger, "Error en SET: Registro no válido o valor no especificado");
+                        log_info(logger, "Error en SET: Registro no válido o valor no especificado");
                     }
                     break;
                 }
@@ -404,7 +404,7 @@ void execute(t_instruccion_partida *instruccion_partida) {
                 }
                 case LOG_OP:  { 
                     uint32_t *registro_a_leer = registro_aux(parametros[1]);
-                    log_debug(logger, "Valor del registro %s: %i PID: %d TID: %d ", parametros[1], *registro_a_leer, pid_actual, tid_actual);
+                    log_info(logger, "Valor del registro %s: %i PID: %d TID: %d ", parametros[1], *registro_a_leer, pid_actual, tid_actual);
                     break;
                 }
                 default: {
@@ -514,7 +514,7 @@ void checkInterrupt() { //el checkInterrupt se corre siempre -> interrupcion -> 
             //encolar_interrupcion(interrupcion_actual->tipo, 2,interrupcion_actual->parametro);
             break;
         default:
-            log_error(logger, "Instruccion invalida %d", interrupcion_actual->tipo);
+            log_info(logger, "Instruccion invalida %d", interrupcion_actual->tipo);
             //encolar_interrupcion(ERROR, 2, interrupcion_actual->parametro); // se envia un "ERROR"
             break;
     }
@@ -532,7 +532,7 @@ t_interrupcion* obtener_interrupcion() {
 
     //Recorrer la lista para encontrar la interrupción con mayor prioridad (menor valor numérico)
     for (int i = 0; i < list_size(lista_interrupciones); i++) {
-        log_warning(logger, "Se tiene esta cantidad de interrupciones encoladas: %d", list_size(lista_interrupciones));
+        log_info(logger, "Se tiene esta cantidad de interrupciones encoladas: %d", list_size(lista_interrupciones));
         t_interrupcion* interrupcion_actual2 = list_get(lista_interrupciones, i);
         if (interrupcion_actual2->prioridad < interrupcion_mayor_prioridad->prioridad) { 
     // Si encontramos una interrupción con menor prioridad numérica (prioridad más alta), actualizamos nuestro candidato.
@@ -607,7 +607,7 @@ void enviar_contexto_de_memoria() {
             list_destroy(paquete_respuesta);
             break;
         case SEGMENTATION_FAULT:
-            log_error(logger, "Segmentation Fault recibido desde Memoria.");
+            log_info(logger, "Segmentation Fault recibido desde Memoria.");
             pthread_mutex_lock(mutex_lista_interrupciones);
             encolar_interrupcion(SEGMENTATION_FAULT, 1,texto);
             pthread_mutex_unlock(mutex_lista_interrupciones);
@@ -615,7 +615,7 @@ void enviar_contexto_de_memoria() {
             list_destroy(paquete_respuesta);
             break;      
         case ERROR_MEMORIA:
-            log_error(logger, "Error crítico: Memoria respondió con un error.");
+            log_info(logger, "Error crítico: Memoria respondió con un error.");
             pthread_mutex_lock(mutex_lista_interrupciones);
             encolar_interrupcion(SEGMENTATION_FAULT, 1,texto);
             pthread_mutex_unlock(mutex_lista_interrupciones);
@@ -623,7 +623,7 @@ void enviar_contexto_de_memoria() {
             list_destroy(paquete_respuesta);
             break;
         default:  // Caso de respuesta inesperada
-            log_warning(logger, "Respuesta inesperada de Memoria!");
+            log_info(logger, "Respuesta inesperada de Memoria!");
             paquete_respuesta = recibir_paquete(socket_conexion_memoria);
             list_destroy(paquete_respuesta);
             break;
@@ -682,7 +682,7 @@ void devolver_motivo_a_kernel(protocolo_socket cod_op, char** texto) {
             break;
         
         default: 
-            log_error(logger, "Interrupcion invalida %d", cod_op);
+            log_info(logger, "Interrupcion invalida %d", cod_op);
             break;
     }
     log_info(logger, "Notificación enviada al Kernel por la interrupción del PID %d, TID %d", pid_actual, tid_actual);

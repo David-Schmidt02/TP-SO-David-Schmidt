@@ -16,14 +16,14 @@ bool obtener_pcb_y_tcb(int pid, int tid, t_pcb **pcb_out, t_tcb **tcb_out) {
 
     int index_pcb = buscar_pid(memoria_usuario->lista_pcb, pid);
     if (index_pcb == -1) {
-        log_error(logger, "PID %d no encontrado en memoria.", pid);
+        log_info(logger, "PID %d no encontrado en memoria.", pid);
         return false;
     }
     *pcb_out = list_get(memoria_usuario->lista_pcb, index_pcb); // Actualizamos el puntero al que apunta pcb_out
 
     int index_tcb = buscar_tid((*pcb_out)->listaTCB, tid); // Accedemos a listaTCB del PCB obtenido
     if (index_tcb == -1) {
-        log_error(logger, "TID %d no encontrado en el proceso PID %d.", tid, pid);
+        log_info(logger, "TID %d no encontrado en el proceso PID %d.", tid, pid);
         return false;
     }
     *tcb_out = list_get((*pcb_out)->listaTCB, index_tcb); // Actualizamos el puntero al que apunta tcb_out
@@ -33,7 +33,7 @@ bool obtener_pcb_y_tcb(int pid, int tid, t_pcb **pcb_out, t_tcb **tcb_out) {
 
 bool recibir_pid_tid(t_list *paquete_recv, int *pid, int *tid) {
     if (list_size(paquete_recv) < 2) {
-        log_error(logger, "Paquete incompleto recibido para CONTEXTO_RECEIVE.");
+        log_info(logger, "Paquete incompleto recibido para CONTEXTO_RECEIVE.");
         list_destroy_and_destroy_elements(paquete_recv, (void *)eliminar_paquete);
         return false;
     }
@@ -51,7 +51,7 @@ void enviar_contexto(int pid, int tid) {
 
     // Pasamos punteros a punteros para que la función pueda modificar pcb y tcb
     if (!obtener_pcb_y_tcb(pid, tid, &pcb, &tcb)) {
-        log_error(logger, "No se pudo obtener el contexto para PID %d, TID %d.", pid, tid);
+        log_info(logger, "No se pudo obtener el contexto para PID %d, TID %d.", pid, tid);
         return;
     }
 
@@ -76,7 +76,7 @@ uint32_t read_memory(uint32_t direccion, int pid, int tid){
     uint32_t * aux;
 
     if(direccion < 0 || direccion > memoria_usuario->size){
-        log_error(logger, "Direccion %d invalida", direccion);
+        log_info(logger, "Direccion %d invalida", direccion);
         return -1;
     }
 
@@ -95,7 +95,7 @@ int write_memory(uint32_t direccion, uint32_t valor, int pid, int tid){
     uint8_t * aux;
     
     if(direccion < 0 || direccion > memoria_usuario->size){
-        log_error(logger, "Direccion %d invalida", direccion);
+        log_info(logger, "Direccion %d invalida", direccion);
         return -1;
     }
     aux = memoria_usuario->espacio;
@@ -117,7 +117,7 @@ void actualizar_contexto_ejecucion() {
     paquete_recv_list = recibir_paquete(socket_cliente_cpu);
 
     if (!paquete_recv_list || list_size(paquete_recv_list) < 3) {
-        log_error(logger, "Paquete incompleto recibido para actualizar contexto.");
+        log_info(logger, "Paquete incompleto recibido para actualizar contexto.");
         liberar_lista_paquetes(paquete_recv_list);
         enviar_error_actualizacion(); // Envio error a la CPU
         return;
@@ -134,7 +134,7 @@ void actualizar_contexto_ejecucion() {
     // Validar PID y TID
     int index_pcb = buscar_pid(memoria_usuario->lista_pcb, pid);
     if (index_pcb == -1) {
-        log_error(logger, "No se encontró el TID %d en memoria para actualizar contexto.", tid);
+        log_info(logger, "No se encontró el TID %d en memoria para actualizar contexto.", tid);
         enviar_error_actualizacion();
         return;
     }
@@ -143,7 +143,7 @@ void actualizar_contexto_ejecucion() {
 
     int index_tcb = buscar_tid(pcb->listaTCB, tid);
     if (index_tcb == -1) {
-        log_error(logger, "No se encontró el TID %d en memoria para actualizar contexto.", tid);
+        log_info(logger, "No se encontró el TID %d en memoria para actualizar contexto.", tid);
         enviar_error_actualizacion();
         return;
     }
@@ -153,7 +153,7 @@ void actualizar_contexto_ejecucion() {
 
     // int index_tcb = buscar_tid(pcb->listaTCB, tid);
     // if (index_tcb == -1) {
-    //     log_error(logger, "No se encontró el TID %d en el proceso PID %d para actualizar contexto.", tid, pid);
+    //     log_info(logger, "No se encontró el TID %d en el proceso PID %d para actualizar contexto.", tid, pid);
     //     enviar_error_actualizacion();
     //     return;
     // }
@@ -233,7 +233,7 @@ int buscar_tid(t_list *lista, int tid){
     return -1;
 }
 void error_contexto(char * error){
-    log_error(logger, error);
+    log_info(logger, error);
     t_paquete *send = crear_paquete(ERROR_MEMORIA);
     enviar_paquete(send, socket_cliente_cpu);
     //agregar_a_paquete(send, error, sizeof(error)); se puede mandar error sin mensaje. Sino se complejiza el manejo de la respuesta del lado de cpu
@@ -401,7 +401,7 @@ int agregar_a_dinamica(t_pcb *pcb){
         return index;
     }
     pthread_mutex_unlock(mutex_procesos_din);
-    log_error(logger, "No hay huecos libres");
+    log_info(logger, "No hay huecos libres");
     return -1;
 }
 int remover_proceso_de_tabla_dinamica(int pid){
@@ -648,7 +648,7 @@ int crear_proceso(t_pcb *pcb) {
             break;
         
         default:
-            log_error(logger, "Tipo de memoria no reconocido.");
+            log_info(logger, "Tipo de memoria no reconocido.");
             break;
     }
 
@@ -736,7 +736,7 @@ void fin_proceso(int pid) {
             break;
         
         default:
-            log_error(logger, "Tipo de memoria no reconocido.");
+            log_info(logger, "Tipo de memoria no reconocido.");
             break;
     }
 
@@ -763,7 +763,7 @@ void fin_thread(int tid, int pid){
 
 int obtener_instruccion(int PC, int tid, int pid){ // envia el paquete instruccion a cpu. Si falla, retorna -1
 	if(PC<0){
-        log_error(logger, "PC invalido");
+        log_info(logger, "PC invalido");
 		return -1;
 	}
 	

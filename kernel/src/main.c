@@ -250,7 +250,7 @@ void *peticion_kernel(void *args) {
                     break;	
 
                 default:
-                    log_warning(logger, "Código de operación desconocido recibido: %d", op);
+                    log_info(logger, "Código de operación desconocido recibido: %d", op);
                     peticion->respuesta_exitosa = false;
                     break;
             }
@@ -280,7 +280,7 @@ void *peticion_kernel(void *args) {
                     break;	
 
                 default:
-                    log_warning(logger, "Código de operación desconocido recibido: %d", op);
+                    log_info(logger, "Código de operación desconocido recibido: %d", op);
                     peticion->respuesta_exitosa = false;
                     break;
             }
@@ -320,7 +320,7 @@ void *peticion_kernel(void *args) {
                     break;	
 
                 default:
-                    log_warning(logger, "Código de operación desconocido recibido: %d", op);
+                    log_info(logger, "Código de operación desconocido recibido: %d", op);
                     peticion->respuesta_exitosa = false;
                     break;
             }
@@ -350,7 +350,7 @@ void *peticion_kernel(void *args) {
                     break;	
 
                 default:
-                    log_warning(logger, "Código de operación desconocido recibido: %d", op);
+                    log_info(logger, "Código de operación desconocido recibido: %d", op);
                     peticion->respuesta_exitosa = false;
                     break;
             }
@@ -380,7 +380,7 @@ void *peticion_kernel(void *args) {
                     break;	
 
                 default:
-                    log_warning(logger, "Código de operación desconocido recibido: %d", op);
+                    log_info(logger, "Código de operación desconocido recibido: %d", op);
                     peticion->respuesta_exitosa = false;
                     break;
             }
@@ -411,13 +411,13 @@ void *peticion_kernel(void *args) {
                     break;	
 
                 default:
-                    log_warning(logger, "Código de operación desconocido recibido: %d", op);
+                    log_info(logger, "Código de operación desconocido recibido: %d", op);
                     peticion->respuesta_exitosa = false;
                     break;
             }
             break;
         default:
-            log_error(logger, "Tipo de operación desconocido: %d", peticion->tipo);
+            log_info(logger, "Tipo de operación desconocido: %d", peticion->tipo);
             return NULL;
     }
 
@@ -443,19 +443,8 @@ void *reintentar_creacion_proceso(void * args){
     {
         sem_wait(sem_estado_lista_procesos_a_crear_reintento);
         sem_wait(sem_proceso_finalizado);
-        log_debug(logger,"Finalizó un proceso, estos son los procesos que esperan a ser creados:");
-        t_list_iterator *iterator = list_iterator_create(lista_procesos_a_crear_reintento->lista_procesos);
-        while (list_iterator_has_next(iterator)) {
-            t_pcb *proceso = list_iterator_next(iterator);
-            if (proceso) {
-                log_info(logger, "Proceso PID: %d, Memoria Necesaria: %d", 
-                        proceso->pid, proceso->memoria_necesaria);
-            } else {
-                log_warning(logger, "Se encontró un proceso NULL en la lista.");
-            }
-        }
+        log_info(logger,"Finalizó un proceso, estos son los procesos que esperan a ser creados:");
 
-        list_iterator_destroy(iterator);
         pthread_mutex_lock(mutex_socket_memoria);
         pthread_mutex_lock(mutex_lista_procesos_a_crear_reintento);
         t_pcb * proceso = list_remove(lista_procesos_a_crear_reintento->lista_procesos, 0);
@@ -474,7 +463,7 @@ void *reintentar_creacion_proceso(void * args){
         } 
         else 
             {
-                log_error(logger, "No se pudo crear el proceso PID: %d Tamaño: %d, reitentando cuando otro proceso finalice...", proceso->pid, proceso->memoria_necesaria);
+                log_info(logger, "No se pudo crear el proceso PID: %d Tamaño: %d, reitentando cuando otro proceso finalice...", proceso->pid, proceso->memoria_necesaria);
                 list_add(lista_procesos_a_crear_reintento->lista_procesos, proceso);
                 sem_post(sem_estado_lista_procesos_a_crear_reintento);
             }

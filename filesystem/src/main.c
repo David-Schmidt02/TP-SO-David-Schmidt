@@ -105,11 +105,11 @@ void *conexion_memoria(void* arg_memoria)
 						
 					break;
 				case -1:
-					log_error(logger, "el cliente se desconecto. Terminando servidor");
+					log_info(logger, "el cliente se desconecto. Terminando servidor");
 					return (void *)EXIT_FAILURE;
 					break;
 				default:
-					log_warning(logger,"Operacion desconocida. No quieras meter la pata");
+					log_info(logger,"Operacion desconocida. No quieras meter la pata");
 					break;
 			}
 			free(datos);
@@ -123,7 +123,7 @@ void *conexion_memoria(void* arg_memoria)
 
 char* crear_directorio(char* ruta_a_agregar) {
     if (!mount_dir) {
-        log_error(logger, "Error: La ruta base es NULL.\n");
+        log_info(logger, "Error: La ruta base es NULL.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -139,9 +139,9 @@ char* crear_directorio(char* ruta_a_agregar) {
     if (mkdir(ruta, 0700) == 0) {
         log_info(logger,"Directorio '%s' creado correctamente.\n", ruta);
     } else if (errno == EEXIST) {
-        log_error(logger,"El directorio '%s' ya existe.\n", ruta);
+        log_info(logger,"El directorio '%s' ya existe.\n", ruta);
     } else {
-        log_error(logger,"Error al crear el directorio");
+        log_info(logger,"Error al crear el directorio");
         free(ruta); // Liberar memoria en caso de error
         exit(EXIT_FAILURE);
     }

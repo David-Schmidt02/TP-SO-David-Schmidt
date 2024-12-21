@@ -6,7 +6,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/bin/${workspaceFolderBasename}",
-      "args": ["THE_EMPTINESS_MACHINE", 16, 0],
+      "args": ["PRUEBA_FS", 8, 0],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],

@@ -168,24 +168,6 @@ int comparar_prioridades(t_tcb *a, t_tcb *b) {
 
 void corto_plazo_colas_multinivel() {
     while (1) {
-        t_list_iterator *niveles_iterator = list_iterator_create(colas_multinivel->niveles_prioridad);
-        while (list_iterator_has_next(niveles_iterator)) {
-            t_nivel_prioridad *nivel = list_iterator_next(niveles_iterator);
-            log_info(logger, "### Nivel de Prioridad: %d", nivel->nivel_prioridad);
-            if (!nivel->cola_hilos || !nivel->cola_hilos->lista_hilos) {
-                log_info(logger, "No hay hilos en este nivel.");
-                continue;
-            }
-            // Iterar sobre los hilos en la cola del nivel actual
-            t_list_iterator *hilos_iterator = list_iterator_create(nivel->cola_hilos->lista_hilos);
-            while (list_iterator_has_next(hilos_iterator)) {
-                t_tcb *hilo = list_iterator_next(hilos_iterator);
-                log_info(logger, "Hilo PID: %d TID: %d", hilo->pid, hilo->tid);
-            }
-            list_iterator_destroy(hilos_iterator);
-            }
-        list_iterator_destroy(niveles_iterator);
-        //sem_wait(sem_hilo_nuevo_encolado);
         sem_wait(sem_hilo_actual_encolado);
         sem_wait(sem_estado_multinivel);
         t_nivel_prioridad *nivel_a_ejecutar = NULL;
@@ -328,7 +310,7 @@ void enviar_a_cpu_interrupt(int tid, protocolo_socket motivo) {
         eliminar_paquete(send_interrupt);
         break;
     default:
-        log_warning(logger, "El motivo de envio del hilo con tid [%d] a CPU INTERRUPT es incorrecto.", tid);
+        log_info(logger, "El motivo de envio del hilo con tid [%d] a CPU INTERRUPT es incorrecto.", tid);
         break;
     }
 }
@@ -370,7 +352,7 @@ void recibir_motivo_devolucion_cpu() {
             //sem_wait(sem_hilo_nuevo_encolado);
             encolar_hilo_corto_plazo(hilo_actual);
             sem_post(sem_hilo_actual_encolado);
-            log_warning(logger, "Despues de encolar el hilo nuevo del PROCESS CREATE se hace un post y comienza la ejecucion de nuevo");
+            log_info(logger, "Despues de encolar el hilo nuevo del PROCESS CREATE se hace un post y comienza la ejecucion de nuevo");
             break; 
 
         case PROCESS_EXIT_OP:
@@ -469,7 +451,7 @@ void recibir_motivo_devolucion_cpu() {
             list_destroy(paquete_respuesta);
             break;
         default:
-            log_warning(logger, "Motivo: %d desconocido para el hilo %d\n", motivo, tid);
+            log_info(logger, "Motivo: %d desconocido para el hilo %d\n", motivo, tid);
             break;
     }
 }
@@ -486,7 +468,7 @@ void desbloquear_hilos(int tid) {
         t_tcb* hilo_bloqueado = list_get(hilo_actual->lista_espera, i);
 
         if (!hilo_bloqueado) {
-            log_warning(logger,"El hilo TID %d no bloquea ningún hilo\n", tid);
+            log_info(logger,"El hilo TID %d no bloquea ningún hilo\n", tid);
             continue;
         }
         hilo_bloqueado->contador_joins++;
@@ -535,14 +517,14 @@ t_cola_hilo* inicializar_cola_hilo(t_estado estado) {
 
     t_cola_hilo *cola = malloc(sizeof(t_cola_hilo));
     if (cola == NULL) {
-        log_error(logger, "Error al asignar memoria para cola de hilos");
+        log_info(logger, "Error al asignar memoria para cola de hilos");
         exit(EXIT_FAILURE);
     }
 
     cola->nombre_estado = estado;
     cola->lista_hilos = list_create();  // Crea una lista vacía
     if (cola->lista_hilos == NULL) {
-        log_error(logger, "Error al crear lista de hilos");
+        log_info(logger, "Error al crear lista de hilos");
         exit(EXIT_FAILURE);
     }
     return cola;
@@ -551,14 +533,14 @@ t_cola_hilo* inicializar_cola_hilo(t_estado estado) {
 void inicializar_semaforos_corto_plazo(){
     mutex_hilos_cola_ready = malloc(sizeof(pthread_mutex_t));
     if (mutex_hilos_cola_ready == NULL) {
-        log_error(logger, "Error al asignar memoria para mutex de cola");
+        log_info(logger, "Error al asignar memoria para mutex de cola");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_init(mutex_hilos_cola_ready, NULL);
 
     mutex_hilos_cola_exit = malloc(sizeof(pthread_mutex_t));
     if (mutex_hilos_cola_exit == NULL) {
-        log_error(logger, "Error al asignar memoria para mutex de cola");
+        log_info(logger, "Error al asignar memoria para mutex de cola");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_init(mutex_hilos_cola_exit, NULL);

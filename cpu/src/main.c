@@ -138,18 +138,18 @@ void *conexion_kernel_dispatch(void* arg_kernelD)
 				t_list *paquete = recibir_paquete(socket_conexion_kernel_dispatch);
 				tid_actual = *(int *)list_remove(paquete, 0);
 				pid_actual = *(int *)list_remove(paquete, 0);
-				log_error(logger, "El hilo a ejecutar es PID: %d TID:%d", pid_actual, tid_actual);
+				log_info(logger, "El hilo a ejecutar es PID: %d TID:%d", pid_actual, tid_actual);
 				list_destroy(paquete);
 				flag_hay_interrupcion = false;
 				sem_post(sem_estado_hilo_ejecutar);
 				break;
 			case -1:
-				log_error(logger, "el cliente se desconecto. Terminando servidor");
+				log_info(logger, "el cliente se desconecto. Terminando servidor");
 				pthread_mutex_unlock(mutex_kernel_dispatch);
 				return (void *)EXIT_FAILURE;
 				break;
 			default:
-				log_warning(logger,"Operacion desconocida. No quieras meter la pata");
+				log_info(logger,"Operacion desconocida. No quieras meter la pata");
 				break;
 			}
 		pthread_mutex_unlock(mutex_kernel_dispatch);
@@ -196,11 +196,11 @@ void *conexion_kernel_interrupt(void* arg_kernelI)
 				break;
 			
 			case -1:
-				log_error(logger, "el cliente se desconecto. Terminando servidor");
+				log_info(logger, "el cliente se desconecto. Terminando servidor");
 				return (void *)EXIT_FAILURE;
 				break;
 			default:
-				log_warning(logger,"Operacion desconocida. No quieras meter la pata");
+				log_info(logger,"Operacion desconocida. No quieras meter la pata");
 				break;
 		}
 	}

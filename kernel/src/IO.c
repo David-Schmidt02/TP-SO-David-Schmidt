@@ -25,7 +25,7 @@ void* acceder_Entrada_Salida(void *arg) {
 
         // Verificar si la cola está vacía
         if (list_is_empty(colaIO->lista_io)) {
-            log_error(logger, "Se intentó acceder a una cola vacía en IO.");
+            log_info(logger, "Se intentó acceder a una cola vacía en IO.");
             pthread_mutex_unlock(mutex_colaIO);
             continue;
         }

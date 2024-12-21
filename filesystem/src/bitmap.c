@@ -28,7 +28,7 @@ void inicializar_libres() {
 
 void inicializar_bitmap() {
     if (block_count == 0) {
-        log_error(logger, "No se encontró el valor BLOCK_COUNT en el archivo de configuración.");
+        log_info(logger, "No se encontró el valor BLOCK_COUNT en el archivo de configuración.");
         exit(EXIT_FAILURE);
     }
 
@@ -37,7 +37,7 @@ void inicializar_bitmap() {
     size_t path_length = strlen(mount_dir) + strlen("/bitmap.dat") + 1;
     char *path_bitmap = malloc(path_length);
     if (!path_bitmap) {
-        log_error(logger, "Error: No se pudo asignar memoria para path_bitmap.");
+        log_info(logger, "Error: No se pudo asignar memoria para path_bitmap.");
         exit(EXIT_FAILURE);
     }
     snprintf(path_bitmap, path_length, "%s/bitmap.dat", mount_dir);
@@ -48,21 +48,21 @@ void inicializar_bitmap() {
     if (!bitmap_file) {
         bitmap_file = fopen(path_bitmap, "wb+");
         if (!bitmap_file) {
-            log_error(logger, "Error al crear el archivo bitmap.dat.");
+            log_info(logger, "Error al crear el archivo bitmap.dat.");
             free(path_bitmap);
             exit(EXIT_FAILURE);
         }
 
         uint8_t* buffer = calloc(tamanio_bitmap, sizeof(uint8_t));
         if (!buffer) {
-            log_error(logger, "Error al asignar memoria para el buffer inicial.");
+            log_info(logger, "Error al asignar memoria para el buffer inicial.");
             fclose(bitmap_file);
             free(path_bitmap);
             exit(EXIT_FAILURE);
         }
         pthread_mutex_lock(mutex_logs);
         if (fwrite(buffer, sizeof(uint8_t), tamanio_bitmap, bitmap_file) != tamanio_bitmap) {
-            log_error(logger, "Error al escribir en el archivo bitmap.dat.");
+            log_info(logger, "Error al escribir en el archivo bitmap.dat.");
             free(buffer);
             fclose(bitmap_file);
             free(path_bitmap);
@@ -76,14 +76,14 @@ void inicializar_bitmap() {
 
     uint8_t* contenido_bitmap = malloc(tamanio_bitmap);
     if (!contenido_bitmap) {
-        log_error(logger, "Error al asignar memoria para contenido_bitmap.");
+        log_info(logger, "Error al asignar memoria para contenido_bitmap.");
         fclose(bitmap_file);
         free(path_bitmap);
         exit(EXIT_FAILURE);
     }
     rewind(bitmap_file);
     if (fread(contenido_bitmap, sizeof(uint8_t), tamanio_bitmap, bitmap_file) != tamanio_bitmap) {
-        log_error(logger, "Error al leer el archivo bitmap.dat.");
+        log_info(logger, "Error al leer el archivo bitmap.dat.");
         free(contenido_bitmap);
         fclose(bitmap_file);
         free(path_bitmap);
@@ -93,7 +93,7 @@ void inicializar_bitmap() {
 
     bitmap = bitarray_create_with_mode((char*)contenido_bitmap, tamanio_bitmap, LSB_FIRST);
     if (!bitmap) {
-        log_error(logger, "Error al inicializar el bitmap.");
+        log_info(logger, "Error al inicializar el bitmap.");
         free(contenido_bitmap);
         fclose(bitmap_file);
         free(path_bitmap);
@@ -117,13 +117,13 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
 
     
     if (size == 0) {
-        log_error(logger, "Error: El tamaño solicitado debe ser mayor que 0.");
+        log_info(logger, "Error: El tamaño solicitado debe ser mayor que 0.");
         return NULL;
     }
 
     t_reserva_bloques* reserva = malloc(sizeof(t_reserva_bloques));
     if (reserva == NULL) {
-        log_error(logger, "Error al asignar memoria para la reserva.");
+        log_info(logger, "Error al asignar memoria para la reserva.");
         free(reserva);
 
         return NULL;
@@ -131,7 +131,7 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
 /*
     reserva->bloques_datos = calloc(size-1, sizeof(uint32_t)); // bloques_datos es un array de tamano size inicializado en 0.
     if (reserva->bloques_datos == NULL) {
-        log_error(logger, "Error al asignar memoria para los bloques de datos.");
+        log_info(logger, "Error al asignar memoria para los bloques de datos.");
         free(reserva);
 
         return NULL;
@@ -140,7 +140,7 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
     reserva->cantidad_bloques = size;
     
     if (!espacio_disponible(size)) { // YA SE LE AGREGA +1 EN LA ASIGNACION
-        log_error(logger, "No hay suficiente espacio en el bitmap.");
+        log_info(logger, "No hay suficiente espacio en el bitmap.");
         free(reserva);
         
         return NULL;
@@ -157,7 +157,7 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
     }
 
     if (!list_size(reserva->lista_indices)) {
-        log_error(logger, "Error: No se pudo reservar el bloque índice.");
+        log_info(logger, "Error: No se pudo reservar el bloque índice.");
         list_destroy(reserva->lista_indices);
         free(reserva);
         return NULL;
@@ -177,7 +177,7 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
     }
  
     if(list_size(reserva->lista_indices) > (block_size/4)+1){
-        log_error(logger, "Error: No entran los bloques en el indice");
+        log_info(logger, "Error: No entran los bloques en el indice");
             // Liberar los bloques ya asignados
             for (uint32_t i = 0; i < list_size(reserva->lista_indices); i++) 
                 bitarray_clean_bit(bitmap, list_get(reserva->lista_indices,i)); // se recorre el array, liberando todos los bloques
@@ -190,7 +190,7 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
     }
 
     if (cargar_bitmap() != 0) {
-        log_error(logger, "Error al sincronizar el bitmap con el archivo.");
+        log_info(logger, "Error al sincronizar el bitmap con el archivo.");
         list_destroy(reserva->lista_indices);
         free(reserva);
         return NULL;
@@ -211,14 +211,14 @@ int cargar_bitmap() {
     strcat(path_bitmap, "/bitmap.dat");
     FILE* bitmap_file = fopen(path_bitmap, "rb+");
     if (bitmap_file == NULL) {
-        log_error(logger, "Error al abrir el archivo bitmap.dat para escritura.");
+        log_info(logger, "Error al abrir el archivo bitmap.dat para escritura.");
         return -1;
     }
 
     size_t bytes_bitmap = block_count / 8; // Tamaño en bytes
     pthread_mutex_lock(mutex_logs);
     if (fwrite(bitmap->bitarray, bytes_bitmap, 1, bitmap_file) != 1) {
-        log_error(logger, "Error al escribir el bitmap en bitmap.dat.");
+        log_info(logger, "Error al escribir el bitmap en bitmap.dat.");
         fclose(bitmap_file);
         pthread_mutex_unlock(mutex_logs);
         return -1;
@@ -233,7 +233,7 @@ void destruir_bitmap() {
 
 
     if (!bitmap_file) {
-        log_error(logger, "Error al abrir el archivo bitmap.dat para escribir.");
+        log_info(logger, "Error al abrir el archivo bitmap.dat para escribir.");
         exit(EXIT_FAILURE);
     }
 
@@ -242,7 +242,7 @@ void destruir_bitmap() {
     size_t bytes_a_escribir = (bitarray_get_max_bit(bitmap) + 7) / 8;
     pthread_mutex_lock(mutex_logs);
     if (fwrite(bitmap->bitarray, sizeof(uint8_t), bytes_a_escribir, bitmap_file) != bytes_a_escribir) {
-        log_error(logger, "Error al escribir el archivo bitmap.dat.");
+        log_info(logger, "Error al escribir el archivo bitmap.dat.");
         pthread_mutex_unlock(mutex_logs);
         exit(EXIT_FAILURE);
     }

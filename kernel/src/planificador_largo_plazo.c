@@ -105,7 +105,7 @@ void* largo_plazo_fifo(void* args){
         else {
             pthread_mutex_unlock(mutex_socket_memoria);
             pthread_mutex_unlock(mutex_procesos_a_crear);
-            log_warning(logger, "No se pudo crear el proceso, reitentando cuando otro proceso finalice...");
+            log_info(logger, "No se pudo crear el proceso, reitentando cuando otro proceso finalice...");
             sem_post(sem_hilo_nuevo_encolado);
             list_add(lista_procesos_a_crear_reintento->lista_procesos, proceso);
             sem_post(sem_estado_lista_procesos_a_crear_reintento);
@@ -133,7 +133,7 @@ void encolar_hilo_principal_corto_plazo(t_pcb * proceso){
     peticion->proceso = NULL;
     peticion->hilo = hilo;
     encolar_peticion_memoria(peticion);
-    log_error(logger, "Se encoló la peticion del hilo a memoria ...");
+    log_info(logger, "Se encoló la peticion del hilo a memoria ...");
     sem_wait(sem_estado_respuesta_desde_memoria);
     if (hilo->pid == 1 && hilo->tid == 0)
         sem_post(sem_hilo_actual_encolado);
