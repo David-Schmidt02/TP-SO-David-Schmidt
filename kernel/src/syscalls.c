@@ -595,7 +595,7 @@ void DUMP_MEMORY(int pid) {
     } else {
         log_info(logger, "No se pudo realizar el Memory Dump del PID:%d.", peticion->proceso->pid);
         pthread_mutex_unlock(mutex_socket_memoria);
-        //PROCESS_EXIT();
+        PROCESS_EXIT();
         log_debug(logger, "Falló el dump, acá debería hacer un process exit");
         }   
 }

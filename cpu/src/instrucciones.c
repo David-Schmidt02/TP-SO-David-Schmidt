@@ -403,8 +403,8 @@ void execute(t_instruccion_partida *instruccion_partida) {
                     break;
                 }
                 case LOG_OP:  { 
-                    uint32_t * registro_a_leer = registro_aux(parametros[1]);
-                    log_debug(logger, "Valor del registro %s: %i", parametros[1], *registro_a_leer);
+                    uint32_t *registro_a_leer = registro_aux(parametros[1]);
+                    log_debug(logger, "Valor del registro %s: %i PID: %d TID: %d ", parametros[1], *registro_a_leer, pid_actual, tid_actual);
                     break;
                 }
                 default: {

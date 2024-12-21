@@ -226,20 +226,3 @@ void inicializar_estructuras_cpu(){
 	inicializar_registros_cpu();
 }
 
-void enviar_contexto_de_memoria() {
-    // Crear el paquete a enviar
-    char *texto[1];
-    t_paquete *paquete_send = crear_paquete(CONTEXTO_SEND);
-    t_list * paquete_respuesta;
-
-    // Agregar los registros de la CPU al paquete
-    agregar_a_paquete(paquete_send, &pid_actual, sizeof(int));
-    agregar_a_paquete(paquete_send, &tid_actual, sizeof(int));
-    agregar_a_paquete(paquete_send, cpu_actual, sizeof(RegistroCPU));
-
-    // Enviar el paquete a la memoria
-    enviar_paquete(paquete_send, socket_conexion_memoria);
-    eliminar_paquete(paquete_send); // Liberar el paquete enviado
-
-    // Recibir la respuesta de memoria (paquete del tipo t_list)
-    protocolo_socket respuesta = recibir_operacion(socket_conexion_memoria);
