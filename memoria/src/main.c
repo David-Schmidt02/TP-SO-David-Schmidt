@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
     argumentos_thread arg_kernel;
     argumentos_thread arg_fs;
 
-    logger = log_create("memoria.log", "Memoria", 1, LOG_LEVEL_DEBUG);
+    logger = log_create("memoria.log", "Memoria", 1, 0);
     t_config *config = config_create("config/memoria.config");
 
     void *ret_value;
@@ -129,6 +129,7 @@ void cargar_lista_particiones(t_list * particiones, char **particiones_array){
 	for (int i = 0; i < size; i++)
 	{
 		elemento = string_array_pop(particiones_array);
+		log_info(logger, "particion creada size: %s", elemento);
 
 		list_add_in_index(particiones, -1, (void*)atoi(elemento));
 	}

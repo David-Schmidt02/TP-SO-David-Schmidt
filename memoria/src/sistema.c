@@ -251,6 +251,8 @@ int agregar_a_tabla_particion_fija(t_pcb *pcb){
     elemento_particiones_fijas *aux_best, *aux_worst;
     aux_best = malloc(sizeof(elemento_particiones_fijas));
     aux_worst = malloc(sizeof(elemento_particiones_fijas));
+    aux_best = NULL;
+    aux_worst = NULL;
 
     pthread_mutex_lock(mutex_part_fijas);
     while(list_iterator_has_next(iterator)) {
@@ -266,34 +268,35 @@ int agregar_a_tabla_particion_fija(t_pcb *pcb){
                 }
                 break;
             case BEST_FIT:
-                if (aux->libre_ocupado==0 && aux->size >= pcb->memoria_necesaria){
+		if (aux->libre_ocupado==0 && aux->size >= pcb->memoria_necesaria){
                     if(aux_best==NULL){
                         aux_best = aux;
+			index = list_iterator_index(iterator);
                     }else if(aux_best->size > aux->size){
                         aux_best = aux;
+			index = list_iterator_index(iterator);
                     }
-                }
-                break;
+		break;
             case WORST_FIT:
                 if (aux->libre_ocupado==0 && aux->size >= pcb->memoria_necesaria){
                     if(aux_worst==NULL){
                         aux_worst = aux;
+			index = list_iterator_index(iterator);
                     }else if(aux_worst->size < aux->size){
                         aux_worst = aux;
+			index = list_iterator_index(iterator);
                     }
                 }
                 break;
         }
     }if(aux_best && memoria_usuario->fit == BEST_FIT){
         aux_best->libre_ocupado = pcb->pid; //no liberar aux, sino se pierde el elemento xd
-        index = list_iterator_index(iterator);
         pthread_mutex_unlock(mutex_part_fijas);
         list_iterator_destroy(iterator);
         return index;
     }
     if(aux_worst && memoria_usuario->fit == WORST_FIT){
-        aux_worst->libre_ocupado = pcb->pid; //no liberar aux, sino se pierde el elemento xd
-        index = list_iterator_index(iterator);
+        aux_worst->libre_ocupado = pcb->pid; //no liberar aux, sino se pierde el elemento xdw
         pthread_mutex_unlock(mutex_part_fijas);
         list_iterator_destroy(iterator);
         return index;
@@ -492,6 +495,7 @@ void inicializar_tabla_particion_fija(t_list *particiones){
         aux->libre_ocupado = 0;
         aux->base = acumulador;
         aux->size = (int)list_iterator_next(iterator_particiones);
+	log_info(logger, "particion base: %d, size: %d", aux->base, aux->size);
         acumulador += (uint32_t)aux->size;
         list_iterator_add(iterator_tabla, aux);
     }
@@ -623,6 +627,7 @@ int crear_proceso(t_pcb *pcb) {
             elemento_particiones_fijas *aux_fija = list_get(memoria_usuario->tabla_particiones_fijas, index_fija);
             pcb->base = aux_fija->base;
             pcb->limite = aux_fija->size;
+	    log_info(logger, "despues de encolar en tabla: base %d, size %d", pcb->base, pcb->limite);
             pthread_mutex_lock(mutex_pcb);
             list_add(memoria_usuario->lista_pcb, pcb);
             pcb->listaTCB = list_create();
