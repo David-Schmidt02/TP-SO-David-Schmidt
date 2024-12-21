@@ -474,6 +474,7 @@ void *conexion_cpu(void* arg_cpu)
 				log_info(logger, "Pedido de lectura, direccion: %d", direccion);
 				if(valor != -1){
 					paquete_send = crear_paquete(OK);
+					log_debug(logger,"Valor del registro: %d", valor);
 					agregar_a_paquete(paquete_send, &valor, sizeof(uint32_t));
 					enviar_paquete(paquete_send, socket_cliente_cpu);
 					log_info(logger, "Envio valor: %d", valor);

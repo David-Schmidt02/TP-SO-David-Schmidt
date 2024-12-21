@@ -73,7 +73,7 @@ void enviar_contexto(int pid, int tid) {
 /// @param direccion 
 /// @return devuelve el contenido de la direccion, o -1 para error
 uint32_t read_memory(uint32_t direccion, int pid, int tid){
-    uint32_t * aux;
+    uint8_t * aux;
 
     if(direccion < 0 || direccion > memoria_usuario->size){
         log_info(logger, "Direccion %d invalida", direccion);
@@ -100,6 +100,7 @@ int write_memory(uint32_t direccion, uint32_t valor, int pid, int tid){
     }
     aux = memoria_usuario->espacio;
     memcpy(&aux[(uint8_t)direccion], &valor, sizeof(uint32_t));
+    log_info(logger, "SE ESCRIBE ESTE VALOR: %d", valor);
 
     
     log_info(logger, "## Escritura - (PID:TID) - (%d:%d) - Dir. Física: %d - Tamaño: %d", pid, tid, direccion, sizeof(uint32_t));
