@@ -276,6 +276,7 @@ int agregar_a_tabla_particion_fija(t_pcb *pcb){
                         aux_best = aux;
 			index = list_iterator_index(iterator);
                     }
+		}
 		break;
             case WORST_FIT:
                 if (aux->libre_ocupado==0 && aux->size >= pcb->memoria_necesaria){
