@@ -25,7 +25,7 @@ void inicializar_libres() {
     }
     bits_ocupados = (i+1) - libres;
 }
-
+ 
 void inicializar_bitmap() {
     if (block_count == 0) {
         log_info(logger, "No se encontró el valor BLOCK_COUNT en el archivo de configuración.");
