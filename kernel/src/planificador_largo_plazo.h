@@ -16,17 +16,24 @@ typedef struct
 {
     t_estado nombre_estado;
     t_list *lista_procesos;
-    pthread_mutex_t *mutex_estado;
-    sem_t *sem_estado;
 } t_cola_proceso;
 
 typedef struct {
+    t_estado nombre_estado;
     t_list *lista_procesos;  // Lista de procesos a crear
-    pthread_mutex_t *mutex_estado;
-    sem_t *sem_estado;
 } t_cola_procesos_a_crear;
 
+t_cola_proceso* inicializar_cola_procesos_ready();
+void encolar_hilo_principal_corto_plazo(t_pcb * proceso);
+void inicializar_cola_procesos_a_crear();
+void inicializar_semaforos_largo_plazo();
+t_pcb* desencolar_proceso_a_crear();
+void encolar_proceso_en_ready(t_pcb * proceso);
+void* largo_plazo_fifo(void* args);
 
-//void encolar_largo_plazo();
+
+void* planificador_corto_plazo_hilo(void* arg);
+void *simular_respuesta_memoria(void *arg);
+
 
 #endif

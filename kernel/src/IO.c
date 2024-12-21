@@ -3,50 +3,42 @@
 #include <unistd.h>
 #include <string.h>
 #include <readline/readline.h>
+#include <planificador_corto_plazo.h>
+#include <syscalls.h>
 #include <main.h>
 
-extern t_cola_IO * colaIO;
-/*void interfaz() {
-    
-    while(milisec)
-    {
-        char *linea;
-        while (1) {
-            linea = readline(">");
-            if (!linea) {
-                break;
-            }
-            if (linea) {
-                add_history(linea);
-            }
-            if (!strncmp(linea, "exit", 4)) {
-                free(linea);
-                break;
-            }
-            printf("%s\n", linea);
-            free(linea);
-        }
-    return 0;    
-    }
-    
-}*/
+extern t_cola_IO *colaIO;
+extern pthread_mutex_t * mutex_colaIO;
+extern sem_t * sem_estado_colaIO;
+extern t_tcb * hilo_actual;
+extern t_cola_hilo* hilos_cola_ready;
+extern pthread_mutex_t * mutex_hilos_cola_ready;
 
-//PLANIFICADOR IO
-//FIFO
+
 //PASA EL PROCESO A BLOCKED, ESPERA EL TIEMPO Y DESBLOQUEA EL PROFCESO (READY)
-void* acceder_Entrada_Salida(void * arg)
-{
-    while (1)
-    {
-        // Debo esperar a tener un elemento en la lista
-        sem_wait(colaIO->sem_estado);
-        // Utilizo el mutex
-        pthread_mutex_lock(colaIO->mutex_estado);
-        // Desencolo
+void* acceder_Entrada_Salida(void *arg) {
+    t_tcb * tcb_aux;
+    while (1) {
+        sem_wait(sem_estado_colaIO);
+
+        pthread_mutex_lock(mutex_colaIO);
+
+        // Verificar si la cola está vacía
+        if (list_is_empty(colaIO->lista_io)) {
+            log_info(logger, "Se intentó acceder a una cola vacía en IO.");
+            pthread_mutex_unlock(mutex_colaIO);
+            continue;
+        }
+
         t_uso_io *peticion = list_remove(colaIO->lista_io, 0);
-        // Debería encolarlo en una cola de EXEC
-        pthread_mutex_unlock(colaIO->mutex_estado);
-        sleep(peticion->milisegundos);
-        //Falta -> poner en ready el tid
+
+        tcb_aux = peticion->hilo;
+        pthread_mutex_unlock(mutex_colaIO);
+        if (peticion != NULL) {
+            usleep(peticion->milisegundos);
+            log_info(logger, "## (%d:%d) finalizó IO y pasa a READY\n", tcb_aux->pid, tcb_aux->tid);
+            encolar_hilo_corto_plazo(tcb_aux);
+            free(peticion);
+        }
     }
 }

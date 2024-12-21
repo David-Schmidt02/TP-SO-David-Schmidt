@@ -31,7 +31,9 @@
 
     int esperar_cliente(int socket_servidor)
     {
+        //log_info(logger, "Se rompe cuando espera la nueva conexion");
         int socket_cliente = accept(socket_servidor, NULL, NULL);
+        //log_info(logger, "Se rompe despues del segunda accept");
         log_info(logger, "Se conecto un cliente!");
 
         return socket_cliente;
@@ -123,7 +125,6 @@
                             server_info->ai_protocol);
 
         if (connect(socket_cliente, server_info->ai_addr, server_info->ai_addrlen)==-1){
-            log_error(logger, "no se pudo establecer conexion al servidor");
             return -1;
         }else log_info(logger, "Conectado al servidor");
 
@@ -206,7 +207,8 @@ void leer_consola()
 {
 	char* leido;
 	while(!string_is_empty(leido = readline("> "))){
-		log_info(logger, leido);
+		//log_info(logger, leido);
+        log_info(logger, "%s", leido);
 	}
 	free(leido);
 }

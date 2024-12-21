@@ -32,30 +32,59 @@ extern t_list *sch_cola_ready,*sch_cola_new,*sch_cola_new_plus,*sch_cola_block,*
 extern sem_t sem_p_ready;
 extern pthread_mutex_t m_cola_new, m_cola_ready, m_cola_new_plus, m_cola_exec;
 
-struct arg_struct {
+typedef struct arg_struct {
     char * puerto;
     char * ip;
-}typedef argumentos_thread;
+}argumentos_thread;
 
 
 typedef enum
 {
-    HANDSHAKE,
+    INVALID,
     MENSAJE,
     PAQUETE,
     INSTRUCCIONES,
     TERMINATE,
     INTERRUPCION,
-    //SEGMENTATION_FAULT, Se podría usar en CPU el enum motivo del planificador_corto_plazo.h
+    SEGMENTATION_FAULT,// Se podría usar en CPU el enum motivo del planificador_corto_plazo.h
     PCB_CPU,
     FIN_PRO,
     PETICION_KERNEL,
     CONTEXTO_SEND,
     CONTEXTO_RECEIVE,
     OBTENER_INSTRUCCION,
+    READ_MEM,
+    WRITE_MEM,
     ERROR_MEMORIA,
     INFO_HILO, // agregado para cuando el kernel le manda al cpu el tid del hilo planificado a ejecutar
-    OK
+    OK,
+    //para comunicar kernel - memoria y cpu
+    PROCESS_CREATE_OP,
+    PROCESS_EXIT_OP,
+    THREAD_CREATE_OP,
+    THREAD_CANCEL_OP,
+    THREAD_JOIN_OP,
+    THREAD_EXIT_OP, 
+    MUTEX_CREATE_OP,
+    MUTEX_LOCK_OP,
+    MUTEX_UNLOCK_OP,
+    DUMP_MEMORY_OP,
+    LOG_OP,
+    ERROR,
+    SUCCESS,
+    //para comunicar kernel y cpu
+    FINALIZACION,
+    FIN_QUANTUM,
+    IO_SYSCALL,
+    SET,
+    SUB,
+    SUM,
+    JNZ,
+    LOG,
+    SYSCALL,
+    INSTRUCCION_NORMAL,
+    // para filesystem
+    INIT_BITMAP
     
 }protocolo_socket;
 

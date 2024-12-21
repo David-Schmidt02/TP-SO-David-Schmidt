@@ -3,17 +3,47 @@
 
 #include <stdint.h> 
 #include <utils/utils.h>
-#include "../../kernel/src/pcb.h"
+#include <main.h>
 
-t_list *lista_pcb_memoria;
-extern int socket_cliente_cpu; //lista de pcb
+#define SIZE_PARTICION 40
+#define OK_MEMORIA 1
 
 //cpu
-int enviar_contexto();
-int recibir_contexto();
+bool recibir_pid_tid(t_list *paquete_recv, int *pid, int *tid);
+bool obtener_pcb_y_tcb(int pid, int tid, t_pcb **pcb_out, t_tcb **tcb_out);
+void enviar_contexto(int pid, int tid);
+uint32_t read_memory(uint32_t direccion, int pid, int tid);
+int write_memory(uint32_t direccion, uint32_t valor, int pid, int tid);
+void actualizar_contexto_ejecucion(void);
+void enviar_error_actualizacion();
 int buscar_pid(t_list *lista, int pid);
 int buscar_tid(t_list *lista, int tid);
 
 void error_contexto(char *error);
+
+int crear_proceso(t_pcb *pcb);
+void fin_proceso(int pid);
+
+void inicializar_tabla_particion_fija(t_list *particiones);
+void init_tablas_dinamicas();
+int buscar_en_tabla_fija(int tid);
+int buscar_en_dinamica(int pid);
+int send_dump(int pid, int tid);
+int agregar_a_tabla_particion_fija(t_pcb *pcb);
+int agregar_a_dinamica(t_pcb *pcb);
+
+int remover_proceso_de_tabla_dinamica(int pid);
+void consolidar_huecos();
+
+void crear_thread(t_tcb *tcb);
+void fin_thread(int tid, int pid);
+
+int obtener_instruccion(int PC, int tid, int pid);
+void liberar_lista_paquetes(t_list *lista);
+
+typedef struct arg_peticion_memoria{
+    int socket;
+    protocolo_socket cod_op;
+}arg_peticion_memoria;
 
 #endif
