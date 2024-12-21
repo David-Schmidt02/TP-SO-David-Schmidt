@@ -61,7 +61,7 @@ void inicializar_bloques() {
 
 
 int crear_archivo_metadata(char* nombre_archivo,uint32_t tamanio, int indice_bloque, int cant_bloque) {
-    log_info(logger, "## Bloque asignado: %d - Archivo: %s - Bloques Libres: %d", cant_bloque, nombre_archivo, libres);
+
     if (block_count == 0) {
         log_info(logger, "No se encontró el valor BLOCK_COUNT en el archivo de configuración.");
         return -1;
@@ -104,7 +104,6 @@ int crear_archivo_metadata(char* nombre_archivo,uint32_t tamanio, int indice_blo
         log_info(logger, "Archivo metadata ya existe: %s", path_metadata);
         return 0; 
     }
-    log_info(logger, "Archivo Creado: %s - Tamaño: %d", nombre_archivo, tamanio);
     free(path_metadata);
     return 0;
 }
@@ -125,7 +124,6 @@ int crear_archivo_dump(char* nombre_archivo, uint32_t tamanio, void* datos) {
         log_info(logger, "Error al reservar el bloque completo");
         return -1;
     }
-    log_info(logger, "## Acceso Bloque - Archivo: %s - Tipo Bloque: /%d - Bloque File System %d", nombre_archivo,list_get(reserva->lista_indices,0),list_size(reserva->lista_indices));
     
     int check;
     int indice_bloque = list_get(reserva->lista_indices,0); 

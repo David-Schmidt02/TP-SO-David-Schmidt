@@ -167,25 +167,25 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
 
     // Reservar los bloques de datos
     uint32_t i = 0; 
-
+    uint32_t aux = libres;
     for (i; list_size(reserva->lista_indices) < size && i < block_count ; i++) {
         if (!bitarray_test_bit(bitmap, i)) { 
             bitarray_set_bit(bitmap, i);
             list_add(reserva->lista_indices, i);
-            log_info(logger,"## Bloque asignado: %d - Archivo: %s - Bloques Libres: %d",list_size(reserva->lista_indices)-1+list_get(reserva->lista_indices,0),nombre_archivo,libres);
+            log_info(logger,"## Bloque asignado: %d - Archivo: %s - Bloques Libres: %d",list_size(reserva->lista_indices)-1+list_get(reserva->lista_indices,0),nombre_archivo,aux-list_size(reserva->lista_indices));
+
         }// sale porque ya se reservaron todos los bloques o porque recorrio todo 
+    
     }
- 
+    log_info(logger, "## Acceso Bloque - Archivo: %s - Indice Bloque: %d - Bloque File System %d", nombre_archivo,list_get(reserva->lista_indices,0),list_size(reserva->lista_indices));
+    
     if(list_size(reserva->lista_indices) > (block_size/4)+1){
         log_info(logger, "Error: No entran los bloques en el indice");
             // Liberar los bloques ya asignados
             for (uint32_t i = 0; i < list_size(reserva->lista_indices); i++) 
                 bitarray_clean_bit(bitmap, list_get(reserva->lista_indices,i)); // se recorre el array, liberando todos los bloques
-
             list_destroy(reserva->lista_indices);
             free(reserva);
-            
-            
             return NULL;
     }
 
@@ -196,8 +196,6 @@ t_reserva_bloques* reservar_bloques(uint32_t size) {
         return NULL;
     }
 
-    log_info(logger, "Reserva exitosa: Bloque índice %u, %u bloques de datos asignados.", list_get(reserva->lista_indices,0), size);
-    
     return reserva;
 }    
 
@@ -226,7 +224,6 @@ int cargar_bitmap() {
     pthread_mutex_unlock(mutex_logs);
     fclose(bitmap_file);
     
-    log_info(logger, "Bitmap actualizado exitosamente en bitmap.dat.");
     return 0;
 }
 void destruir_bitmap() {
