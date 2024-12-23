@@ -435,7 +435,7 @@ void *conexion_cpu(void* arg_cpu)
 	char *ok_respuesta = "OK";
 	while(true){
 		protocolo_socket cod_op = (protocolo_socket)recibir_operacion(socket_cliente_cpu);
-		usleep(delay); // retardo en peticion / cpu
+		usleep(delay*1000); // retardo en peticion / cpu
 		switch (cod_op)
 		{
 			pthread_mutex_lock(mutex_conexion_cpu);
