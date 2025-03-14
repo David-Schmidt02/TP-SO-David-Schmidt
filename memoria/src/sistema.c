@@ -310,7 +310,8 @@ int agregar_a_tabla_particion_fija(t_pcb *pcb){
 int agregar_a_dinamica(t_pcb *pcb){
     
     t_list_iterator *iterator = list_iterator_create(memoria_usuario->tabla_huecos);
-    elemento_huecos *aux_hueco, *aux_hueco_nuevo;
+    elemento_huecos *aux_hueco;
+    elemento_huecos *aux_hueco_nuevo=malloc(sizeof(elemento_huecos));;
     elemento_huecos *mejor_hueco, *peor_hueco;
     mejor_hueco = NULL;
     peor_hueco = NULL;
@@ -377,7 +378,7 @@ int agregar_a_dinamica(t_pcb *pcb){
         aux_proceso->size = pcb->memoria_necesaria;
         //add proceso a tabla de procesos
         index = list_add(memoria_usuario->tabla_procesos, aux_proceso);
-        
+
         //creo un hueco nuevo a partir del usado
         aux_hueco_nuevo->inicio = mejor_hueco->inicio+aux_proceso->size;
         aux_hueco_nuevo->size = mejor_hueco->size-aux_proceso->size;
